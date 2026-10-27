@@ -78,7 +78,7 @@ A zero-cost (Rp0), high-resilience hybrid architecture combining a local 24/7 se
 ## 4. Repository Structure & Module Layout
 
 ```
-project/
+nullwasted/
 ├── frontend/                # React + Vite + TypeScript Web App (PWA)
 │   ├── src/
 │   │   ├── components/      # AudioRecorder, PreviewCard, QRScanner, ProductCard
@@ -124,16 +124,15 @@ project/
 | Task / Deliverable | Assignee | Status | Notes / Location |
 | :--- | :--- :---: | :--- |
 | **Architecture & Scope Frozen** | All | **DONE** | Documented in `README.md` & `CONTEXT.md` |
-| **Data Contract & Schema Alignment**| All | **PENDING** | Initial 5-10 min alignment before sprint branching |
-| **Docker Compose Infrastructure** | Backend Lead | **PENDING** | `docker-compose.yml` (Postgres+pgvector, Redis, 9Router) |
-| **Data Models & Schema Contracts** | Backend Lead | **PENDING** | `backend/app/models/` & `backend/app/schemas/` |
-| **LangGraph Agent StateGraph** | AI Lead | **PENDING** | `agent/agent_graph.py` & `agent/tools/` |
-| **9Router Fallback Configuration** | AI Lead | **PENDING** | Configure Gemini, GLM-4, Qwen, Groq keys |
-| **FastAPI Core Endpoints** | Backend Lead | **PENDING** | Auth, Listings, Orders, Handover validation |
-| **React Vite PWA Setup & UI Shell**| Frontend Lead | **PENDING** | `frontend/` shell, Tailwind CSS, Lucide icons |
-| **Merchant Audio & 1-Tap Card UI** | Frontend Lead | **PENDING** | Web Audio recording & preview card |
-| **Consumer Feed & Checkout Flow** | Frontend Lead | **PENDING** | Discovery feed & QR Code generator |
-| **QR Scanner & End-to-End Test** | All | **PENDING** | Camera scanner & full cycle testing |
+| **Data Contract & Schema Alignment**| All | **IN PROGRESS** | Drafted in `backend/app/schemas/listing.py` & `frontend/src/types/listing.ts` |
+| **FastAPI Core & DB Engine** | Backend Lead | **IN PROGRESS** | Implemented in `backend/app/main.py` & `backend/app/core/database.py` |
+| **Food Safety BPOM Guardrail Engine** | AI Lead | **IN PROGRESS** | `backend/app/services/guardrail.py` & 30+ dish dataset in `food_knowledge_base.json` |
+| **Time-Decay Dynamic Pricing Engine** | Backend Lead | **IN PROGRESS** | `backend/app/services/pricing.py` (50%–70% clamped time decay) |
+| **Automated Unit & API Test Suite** | All | **IN PROGRESS** | `backend/tests/test_unit_core.py` (100% pass, 7 tests in 1.3s) |
+| **React Vite PWA & Earth Tone UI Shell**| Frontend Lead | **IN PROGRESS** | `frontend/` shell, Tailwind Earth Tone palette, Lucide icons |
+| **Merchant Audio & 1-Tap Preview Card** | Frontend Lead | **IN PROGRESS** | `frontend/src/components/InputPanel.tsx` & `PreviewCard.tsx` (3 preset pills) |
+| **Consumer Discovery Feed & QR Pass** | Frontend Lead | **IN PROGRESS** | `frontend/src/components/ConsumerFeed.tsx` & `OrderModal.tsx` |
+| **1-Click Windows Demo Launcher** | All | **IN PROGRESS** | `run_demo.bat` |
 
 ---
-*Last Updated: 2026-09-30 (Recorded team collaboration protocol and contract-first launch agreement)*
+*Last Updated: 2026-10-27 (Sprint 1 MVP implementation completed on feature branch; ready for user review and validation)*

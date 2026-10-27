@@ -43,7 +43,7 @@ The platform eliminates the operational friction of store closing hours using an
 ## Repository Structure
 
 ```
-project/
+nullwasted/
 ├── frontend/                # React + Vite + TypeScript Web App (PWA)
 │   ├── src/
 │   │   ├── components/      # UI components (AudioRecorder, PreviewCard, QRScanner)
@@ -112,7 +112,7 @@ project/
 1. Clone the repository and navigate into the project directory:
    ```bash
    git clone <repo-url>
-   cd project
+   cd nullwasted
    ```
 2. Copy the environment template:
    ```bash

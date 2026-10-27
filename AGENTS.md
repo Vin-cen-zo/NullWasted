@@ -19,17 +19,21 @@ At the start of **ANY** conversation session or task in this repository:
 
 ## 2. Session Finalization & Milestone Updates (MANDATORY UPDATE ACTION)
 Before completing any turn that produces code, modifies schemas, or finishes a milestone:
-1. **Always update `CONTEXT.md`**:
-   - Update the **Sprint Progress & Task Tracker** table (mark completed tasks as `DONE`, update `IN PROGRESS`, and clarify next steps).
+1. **CRITICAL RULE: User Confirmation Required for 'DONE' Status:**
+   - **STRICT PROHIBITION:** Never mark any task or deliverable as `DONE` unless the user has explicitly verified and approved its completion.
+   - Keep tasks as `IN PROGRESS` or `DRAFT` while under review or until all parts have been checked and approved by the user.
+2. **Always update `CONTEXT.md`**:
+   - Update the **Sprint Progress & Task Tracker** table (keep in-review tasks as `IN PROGRESS`; only mark `DONE` upon explicit user sign-off).
    - Record any new technical decisions, database migrations, or endpoint contracts.
    - Update the timestamp (`Last Updated`).
-2. Keep `CONTEXT.md` accurate, concise, and structured so any team developer or AI agent picks up with zero friction.
+3. Keep `CONTEXT.md` accurate, concise, and structured so any team developer or AI agent picks up with zero friction.
 
 ---
 
-## 3. Strict Boundary & Independence Rules
-- **100% Self-Contained Repository:** This repository is a standalone Git project. Never add relative links or imports pointing to outer folders (`../`).
-- **No Hardcoded Secrets:** All API keys, database credentials, and secrets must be loaded via environment variables using `pydantic-settings` or `.env`.
+## 3. Repository Independence & Security Directives
+- **100% Self-Contained Repository:** This codebase is fully standalone. All modules, imports, scripts, and documentation must resolve internally with zero external relative path dependencies (`../`).
+- **Privacy & Clean Contribution Hygiene:** Never commit personal contact details, private credentials, or internal organizational notes. All team references and commit attributions use professional engineering roles (*AI & Agent Orchestration Lead*, *Backend API & Database Lead*, *Frontend UX & PWA Lead*) or GitHub handles.
+- **Zero Committed Secrets:** All API keys, database credentials, and runtime secrets must be loaded via environment variables using `pydantic-settings` or `.env`. The `.env` file is strictly ignored by `.gitignore`. Only commit `.env.example` containing dummy placeholder values.
 - **Strict English-Only Policy:** All code (identifiers, variables, functions, types, schemas), inline comments, docstrings, documentation files (`docs/`, `README.md`, `CONTEXT.md`), commit messages, and API contracts must be written 100% in standard professional English.
 
 ---
