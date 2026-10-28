@@ -17,10 +17,16 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "text-embedding-004")
 
 def get_active_api_keys() -> list[str]:
-    """Retrieve non-empty, non-placeholder Gemini API keys for round-robin rotation."""
-    keys = []
-    for var_name in ["GEMINI_API_KEY_1", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"]:
+    """Retrieve non-empty, non-placeholder Gemini API keys (supports single GEMINI_API_KEY or pool)."""
+    keys: list[str] = []
+    for var_name in ["GEMINI_API_KEY", "GEMINI_API_KEY_1", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"]:
         key = os.getenv(var_name, "").strip()
-        if key and not key.startswith("your_") and not key.startswith("placeholder") and len(key) > 10:
+        if (
+            key
+            and not key.startswith("your_")
+            and not key.startswith("placeholder")
+            and len(key) > 10
+            and key not in keys
+        ):
             keys.append(key)
     return keys

@@ -40,6 +40,7 @@ class OrderTicket(SQLModel, table=True):
 
     id: str = Field(default_factory=lambda: f"ord-{uuid4().hex[:8]}", primary_key=True)
     order_code: str = Field(index=True)  # Format: #NW-XXXX
+    customer_name: str = Field(default="Konsumen NullWasted")
     listing_id: str = Field(index=True)
     food_name: str
     store_name: str
@@ -49,5 +50,6 @@ class OrderTicket(SQLModel, table=True):
     total_price: int = Field(gt=0)
     pickup_deadline: str
     qr_payload: str
-    status: str = Field(default="RESERVED")
+    status: str = Field(default="RESERVED")  # RESERVED | COMPLETED | CANCELLED
     created_at: str = Field(default_factory=utc_now_iso)
+    completed_at: Optional[str] = Field(default=None)

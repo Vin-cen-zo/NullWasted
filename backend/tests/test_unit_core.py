@@ -223,21 +223,51 @@ def test_api_full_lifecycle(client: TestClient):
     assert any(item["id"] == listing_id for item in active_list)
 
     # 7. Reserve 1 portion from Pill 1 -> Atomic decrement
-    reserve_res = client.post("/api/v1/orders/reserve", json={"listing_id": listing_id, "quantity": 1})
+    reserve_res = client.post(
+        "/api/v1/orders/reserve",
+        json={"listing_id": listing_id, "quantity": 1, "customer_name": "Budi Santoso"},
+    )
     assert reserve_res.status_code == 200
     ticket_data = reserve_res.json()
     assert ticket_data["order_code"].startswith("#NW-")
+    assert ticket_data["customer_name"] == "Budi Santoso"
     assert ticket_data["quantity"] == 1
     assert ticket_data["unit_price"] == 9000
     assert ticket_data["total_price"] == 9000
+    assert ticket_data["status"] == "RESERVED"
     assert "NULLWASTED|ORDER:" in ticket_data["qr_payload"]
+    assert "USER:Budi Santoso" in ticket_data["qr_payload"]
 
     # Verify listing stock decremented to 3
     active_res_after = client.get("/api/v1/listings/active")
     updated_item = next(item for item in active_res_after.json() if item["id"] == listing_id)
     assert updated_item["quantity"] == 3
 
-    # 8. Deactivate listing
+    # 8. Check active orders list contains the reserved ticket
+    orders_res = client.get("/api/v1/orders/active")
+    assert orders_res.status_code == 200
+    orders_list = orders_res.json()
+    assert any(o["order_code"] == ticket_data["order_code"] for o in orders_list)
+
+    # 9. Cashier validates and completes the order pickup
+    complete_res = client.post(
+        "/api/v1/orders/complete-pickup",
+        json={"order_code": ticket_data["order_code"]},
+    )
+    assert complete_res.status_code == 200
+    completed_ticket = complete_res.json()
+    assert completed_ticket["status"] == "COMPLETED"
+    assert completed_ticket["completed_at"] is not None
+
+    # 10. Attempt duplicate completion -> Must be rejected with 400
+    dup_res = client.post(
+        "/api/v1/orders/complete-pickup",
+        json={"order_code": ticket_data["order_code"]},
+    )
+    assert dup_res.status_code == 400
+    assert "sudah pernah diverifikasi" in dup_res.json()["detail"]
+
+    # 11. Deactivate listing
     del_res = client.delete(f"/api/v1/listings/{listing_id}")
     assert del_res.status_code == 200
     assert del_res.json()["status"] == "deleted"

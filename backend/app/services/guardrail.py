@@ -22,6 +22,15 @@ def evaluate_food_safety(
         "Risiko mikrobiologis meningkat seiring waktu simpan melebihi ambang batas aman suhu ruang."
     )
 
+    # Lexical high-risk override for santan / coconut milk / fresh dairy dishes
+    high_risk_keywords = ["santan", "gulai", "opor", "soto betawi", "kari", "lodeh", "susu segar", "vla", "cendol"]
+    query_lower = search_query.lower()
+    if any(k in query_lower for k in high_risk_keywords):
+        category = "HIGH_PERISHABILITY"
+        bpom_max_hours = min(bpom_max_hours, 4.0)
+        regulation_ref = "PerBPOM No. 16/2019 Kategori Santan/Pangan Basah Mudah Rusak"
+        hazard_description = "Olahan bersantan dan susu segar sangat rentan terhadap pertumbuhan cepat Bacillus cereus dan Staphylococcus aureus pada suhu kamar."
+
     # Deterministic Evaluation
     if hours_since_cooked > bpom_max_hours:
         safety_status = "REJECTED"
