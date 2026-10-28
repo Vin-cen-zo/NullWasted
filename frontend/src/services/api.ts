@@ -38,16 +38,42 @@ export async function fetchActiveListings(): Promise<ItemListing[]> {
   return res.json();
 }
 
-export async function reserveOrder(listingId: string, quantity: number = 1): Promise<OrderTicket> {
+export async function reserveOrder(
+  listingId: string,
+  quantity: number = 1,
+  customerName: string = "Budi Santoso"
+): Promise<OrderTicket> {
   const res = await fetch(`${API_BASE_URL}/orders/reserve`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ listing_id: listingId, quantity }),
+    body: JSON.stringify({ listing_id: listingId, quantity, customer_name: customerName }),
   });
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.detail || "Gagal melakukan reservasi porsi.");
+  }
+  return res.json();
+}
+
+export async function fetchActiveOrders(): Promise<OrderTicket[]> {
+  const res = await fetch(`${API_BASE_URL}/orders/active`);
+  if (!res.ok) {
+    throw new Error("Gagal mengambil daftar tiket pesanan.");
+  }
+  return res.json();
+}
+
+export async function completeOrderPickup(orderCode: string): Promise<OrderTicket> {
+  const res = await fetch(`${API_BASE_URL}/orders/complete-pickup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order_code: orderCode }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Gagal memverifikasi dan menyelesaikan tiket pesanan.");
   }
   return res.json();
 }
