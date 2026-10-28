@@ -1,197 +1,388 @@
 import React, { useState, useEffect } from "react";
-import { Header } from "./components/Header";
-import { InputPanel } from "./components/InputPanel";
-import { PreviewCard } from "./components/PreviewCard";
-import { ActiveListingsTable } from "./components/ActiveListingsTable";
-import { ConsumerFeed } from "./components/ConsumerFeed";
-import { OrderModal } from "./components/OrderModal";
+import { UserSession, ItemListing, OrderTicket, DraftResponse, PublishRequest } from "./types/listing";
+import { AuthScreen } from "./components/AuthScreen";
+import { MerchantInputScreen } from "./components/MerchantInputScreen";
+import { MerchantPreviewScreen } from "./components/MerchantPreviewScreen";
+import { MerchantInventoryScreen } from "./components/MerchantInventoryScreen";
+import { MerchantCashierScreen } from "./components/MerchantCashierScreen";
+import { ConsumerFeedScreen } from "./components/ConsumerFeedScreen";
+import { ConsumerDetailModal } from "./components/ConsumerDetailModal";
+import { ConsumerOrdersScreen } from "./components/ConsumerOrdersScreen";
 import {
   createDraft,
   publishListing,
   fetchActiveListings,
+  fetchActiveOrders,
   reserveOrder,
+  completeOrderPickup,
   deleteListing,
 } from "./services/api";
-import { DraftResponse, ItemListing, OrderTicket, PublishRequest } from "./types/listing";
+import {
+  PlusCircle,
+  ClipboardList,
+  QrCode,
+  UtensilsCrossed,
+  Ticket,
+  LogOut,
+  MapPin,
+  Store,
+} from "lucide-react";
 
 export const App: React.FC = () => {
-  const [currentRole, setCurrentRole] = useState<"merchant" | "consumer">("merchant");
-  const [inputText, setInputText] = useState<string>("");
+  // Session State
+  const [session, setSession] = useState<UserSession | null>(null);
+
+  // Tab Navigation State
+  const [merchantTab, setMerchantTab] = useState<"create" | "inventory" | "cashier">("create");
+  const [consumerTab, setConsumerTab] = useState<"explore" | "orders">("explore");
+
+  // Data States
   const [activeDraft, setActiveDraft] = useState<DraftResponse | null>(null);
   const [activeListings, setActiveListings] = useState<ItemListing[]>([]);
-  const [activeTicket, setActiveTicket] = useState<OrderTicket | null>(null);
+  const [activeOrders, setActiveOrders] = useState<OrderTicket[]>([]);
+  const [selectedFeedItem, setSelectedFeedItem] = useState<ItemListing | null>(null);
 
-  const [isLoadingDraft, setIsLoadingDraft] = useState<boolean>(false);
-  const [isPublishing, setIsPublishing] = useState<boolean>(false);
-  const [isLoadingListings, setIsLoadingListings] = useState<boolean>(false);
-  const [isReservingId, setIsReservingId] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  // Loading States
+  const [isLoadingDraft, setIsLoadingDraft] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isReserving, setIsReserving] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
-  const showToast = (text: string, type: "success" | "error" = "success") => {
-    setToastMessage({ text, type });
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
+  // Toast feedback state
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
   };
 
-  const loadListings = async () => {
+  // Synchronize data from SQLite
+  const refreshListings = async () => {
     try {
-      setIsLoadingListings(true);
       const data = await fetchActiveListings();
       setActiveListings(data);
-    } catch (err: any) {
-      console.error("Failed to load listings:", err);
-    } finally {
-      setIsLoadingListings(false);
+    } catch (err) {
+      console.error("Gagal memuat katalog:", err);
+    }
+  };
+
+  const refreshOrders = async () => {
+    try {
+      const data = await fetchActiveOrders();
+      setActiveOrders(data);
+    } catch (err) {
+      console.error("Gagal memuat pesanan:", err);
     }
   };
 
   useEffect(() => {
-    loadListings();
-  }, []);
+    refreshListings();
+    refreshOrders();
+  }, [session]);
 
-  // 1. Submit Draft
-  const handleDraftSubmit = async (text: string) => {
-    if (!text.trim()) return;
+  // Auth Handler
+  const handleLogin = (newSession: UserSession) => {
+    setSession(newSession);
+    setActiveDraft(null);
+    setSelectedFeedItem(null);
+    if (newSession.role === "merchant") {
+      setMerchantTab("create");
+    } else {
+      setConsumerTab("explore");
+    }
+    showToast(`Masuk sebagai ${newSession.role === "merchant" ? newSession.storeName : newSession.customerName}`);
+  };
+
+  const handleLogout = () => {
+    setSession(null);
+    setActiveDraft(null);
+    setSelectedFeedItem(null);
+  };
+
+  // Merchant Actions
+  const handleAnalyzeText = async (text: string) => {
+    setIsLoadingDraft(true);
     try {
-      setIsLoadingDraft(true);
-      const result = await createDraft(text);
-      setActiveDraft(result);
-      if (result.safety_status === "REJECTED") {
-        showToast("Perhatian: Makanan terdeteksi melanggar ambang aman BPOM!", "error");
+      const draft = await createDraft(text);
+      setActiveDraft(draft);
+      if (draft.safety_status === "REJECTED") {
+        showToast("Peringatan: Makanan ditolak oleh Guardrail BPOM!", "error");
+      } else {
+        showToast("Analisis AI sukses. Periksa hasil audit BPOM.", "success");
       }
-    } catch (err: any) {
-      showToast(err.message || "Gagal memproses draf makanan.", "error");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal menganalisis.", "error");
     } finally {
       setIsLoadingDraft(false);
     }
   };
 
-  // 2. Publish Listing
   const handlePublish = async (payload: PublishRequest) => {
+    setIsPublishing(true);
     try {
-      setIsPublishing(true);
-      const published = await publishListing(payload);
-      showToast(`Sukses! ${published.food_name} berhasil diterbitkan dengan harga terkunci.`);
+      await publishListing(payload);
       setActiveDraft(null);
-      setInputText("");
-      await loadListings();
-    } catch (err: any) {
-      showToast(err.message || "Gagal menerbitkan listing.", "error");
+      await refreshListings();
+      setMerchantTab("inventory");
+      showToast("Listing resmi berhasil diterbitkan ke marketplace!", "success");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal menerbitkan.", "error");
     } finally {
       setIsPublishing(false);
     }
   };
 
-  // 3. Reserve Portion (Consumer side)
-  const handleReserve = async (listingId: string) => {
+  const handleDeleteListing = async (id: string) => {
     try {
-      setIsReservingId(listingId);
-      const ticket = await reserveOrder(listingId, 1);
-      setActiveTicket(ticket);
-      await loadListings();
-    } catch (err: any) {
-      showToast(err.message || "Gagal melakukan reservasi makanan.", "error");
-    } finally {
-      setIsReservingId(null);
+      await deleteListing(id);
+      await refreshListings();
+      showToast("Listing berhasil ditarik dari katalog.");
+    } catch (err) {
+      showToast("Gagal menghapus listing.", "error");
     }
   };
 
-  // 4. Delete / Deactivate Listing (Merchant side)
-  const handleDeleteListing = async (listingId: string) => {
+  const handleCompletePickup = async (orderCode: string): Promise<OrderTicket> => {
+    setIsVerifying(true);
     try {
-      await deleteListing(listingId);
-      showToast("Listing berhasil dihapus dari inventaris toko.");
-      await loadListings();
-    } catch (err: any) {
-      showToast(err.message || "Gagal menghapus listing.", "error");
+      const ticket = await completeOrderPickup(orderCode);
+      await refreshOrders();
+      await refreshListings();
+      showToast(`Pesanan ${ticket.order_code} berhasil diselesaikan!`, "success");
+      return ticket;
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  // Consumer Actions
+  const handleReserve = async (listingId: string, quantity: number) => {
+    setIsReserving(true);
+    try {
+      const custName = session?.customerName || "Budi Santoso";
+      const ticket = await reserveOrder(listingId, quantity, custName);
+      setSelectedFeedItem(null);
+      await refreshListings();
+      await refreshOrders();
+      setConsumerTab("orders");
+      showToast(`Reservasi sukses! Tiket ${ticket.order_code} siap diambil.`, "success");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal melakukan reservasi.", "error");
+    } finally {
+      setIsReserving(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F6F0] flex flex-col justify-between">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div
-          className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-xl text-xs font-bold border transition-all animate-bounce ${
-            toastMessage.type === "error"
-              ? "bg-red-600 text-white border-red-700"
-              : "bg-[#10B981] text-white border-emerald-700"
-          }`}
-        >
-          {toastMessage.text}
+    <div className="min-h-screen bg-[#E8E3D9] flex items-center justify-center p-0 sm:p-4 font-sans text-[#1F1D1A]">
+      {/* Toast Notification Float */}
+      {toast && (
+        <div className="fixed top-5 z-60 animate-bounce">
+          <div
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold shadow-lg flex items-center gap-2 border ${
+              toast.type === "error"
+                ? "bg-red-50 text-red-800 border-red-200"
+                : "bg-emerald-50 text-emerald-800 border-emerald-200"
+            }`}
+          >
+            <span>{toast.message}</span>
+          </div>
         </div>
       )}
 
-      <div>
-        {/* Navigation Header with Role Switcher */}
-        <Header
-          currentRole={currentRole}
-          onRoleChange={setCurrentRole}
-          activeCatalogCount={activeListings.length}
-        />
+      {/* Mobile Smartphone Frame Container */}
+      <div className="w-full max-w-[440px] h-screen sm:h-[860px] bg-[#F8F6F0] sm:rounded-[36px] shadow-2xl sm:border-[6px] border-[#1F1D1A] flex flex-col overflow-hidden relative">
+        {/* Top App Bar Header */}
+        <header className="px-4 py-3 bg-white border-b border-[#E2DDD3] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xs shadow-xs">
+              NW
+            </div>
+            <div>
+              <h1 className="text-xs font-black tracking-tight text-[#1F1D1A]">NullWasted</h1>
+              {session ? (
+                <div className="flex items-center gap-1 text-[10px] text-[#6B655B]">
+                  {session.role === "merchant" ? (
+                    <>
+                      <Store className="w-3 h-3 text-emerald-600" />
+                      <span>{session.storeName}</span>
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="w-3 h-3 text-emerald-600" />
+                      <span>{session.customerName} (UI Depok)</span>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <p className="text-[10px] text-[#6B655B]">Zero-Waste Food PWA</p>
+              )}
+            </div>
+          </div>
 
-        {/* Main Content Area */}
-        <main className="max-w-7xl mx-auto px-4 lg:px-8 py-6 space-y-6">
-          {currentRole === "merchant" ? (
-            /* MERCHANT VIEW (80% DEMO FLOW) */
-            <div className="space-y-6">
-              {/* Natural Language & Preset Pills Panel */}
-              <InputPanel
-                inputText={inputText}
-                setInputText={setInputText}
-                onSubmitDraft={handleDraftSubmit}
-                isLoading={isLoadingDraft}
-              />
+          {session && (
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-[11px] font-bold text-gray-700 transition-colors"
+              title="Ganti Peran / Logout"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Ganti Akun</span>
+            </button>
+          )}
+        </header>
 
-              {/* 1-Tap Confirmation Preview Card & Dynamic Pricing */}
-              {activeDraft && (
-                <PreviewCard
-                  draft={activeDraft}
-                  onPublish={handlePublish}
-                  isPublishing={isPublishing}
+        {/* Dynamic Screen Viewport */}
+        <main className="flex-1 flex flex-col overflow-hidden relative">
+          {!session ? (
+            <AuthScreen onLogin={handleLogin} />
+          ) : session.role === "merchant" ? (
+            /* Merchant Screens */
+            <>
+              {merchantTab === "create" &&
+                (activeDraft ? (
+                  <MerchantPreviewScreen
+                    draft={activeDraft}
+                    onBack={() => setActiveDraft(null)}
+                    onPublish={handlePublish}
+                    isPublishing={isPublishing}
+                    storeName={session.storeName || "Dapur Barokah"}
+                  />
+                ) : (
+                  <MerchantInputScreen
+                    onAnalyze={handleAnalyzeText}
+                    isLoading={isLoadingDraft}
+                    storeName={session.storeName || "Dapur Barokah"}
+                  />
+                ))}
+
+              {merchantTab === "inventory" && (
+                <MerchantInventoryScreen
+                  listings={activeListings}
+                  onDeleteListing={handleDeleteListing}
+                  onNavigateToCreate={() => setMerchantTab("create")}
+                  storeName={session.storeName || "Dapur Barokah"}
                 />
               )}
 
-              {/* Active Listings Table */}
-              <ActiveListingsTable
-                listings={activeListings}
-                onDeleteListing={handleDeleteListing}
-                isLoading={isLoadingListings}
-              />
-            </div>
+              {merchantTab === "cashier" && (
+                <MerchantCashierScreen
+                  orders={activeOrders}
+                  onCompletePickup={handleCompletePickup}
+                  isVerifying={isVerifying}
+                />
+              )}
+            </>
           ) : (
-            /* CONSUMER VIEW (20% DEMO FLOW) */
-            <div className="space-y-6">
-              <ConsumerFeed
-                listings={activeListings}
+            /* Consumer Screens */
+            <>
+              {consumerTab === "explore" && (
+                <ConsumerFeedScreen
+                  listings={activeListings}
+                  onSelectItem={(item) => setSelectedFeedItem(item)}
+                  customerName={session.customerName || "Budi Santoso"}
+                />
+              )}
+
+              {consumerTab === "orders" && (
+                <ConsumerOrdersScreen
+                  orders={activeOrders}
+                  customerName={session.customerName || "Budi Santoso"}
+                />
+              )}
+
+              {/* Detail Sheet Modal */}
+              <ConsumerDetailModal
+                item={selectedFeedItem}
+                onClose={() => setSelectedFeedItem(null)}
                 onReserve={handleReserve}
-                isReservingId={isReservingId}
+                isReserving={isReserving}
               />
-            </div>
+            </>
           )}
         </main>
+
+        {/* Bottom Navigation Bar */}
+        {session && (
+          <nav className="bg-white border-t border-[#E2DDD3] px-3 py-2 flex items-center justify-around shrink-0 shadow-lg">
+            {session.role === "merchant" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMerchantTab("create");
+                    setActiveDraft(null);
+                  }}
+                  className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
+                    merchantTab === "create"
+                      ? "text-emerald-600 font-bold"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  <PlusCircle className="w-5 h-5" />
+                  <span className="text-[10px]">Buat Listing</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMerchantTab("inventory")}
+                  className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all relative ${
+                    merchantTab === "inventory"
+                      ? "text-emerald-600 font-bold"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  <ClipboardList className="w-5 h-5" />
+                  <span className="text-[10px]">Inventaris ({activeListings.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMerchantTab("cashier")}
+                  className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all relative ${
+                    merchantTab === "cashier"
+                      ? "text-emerald-600 font-bold"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  <QrCode className="w-5 h-5" />
+                  <span className="text-[10px]">Kasir QR</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setConsumerTab("explore")}
+                  className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${
+                    consumerTab === "explore"
+                      ? "text-emerald-600 font-bold"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  <UtensilsCrossed className="w-5 h-5" />
+                  <span className="text-[10px]">Jelajah ({activeListings.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setConsumerTab("orders")}
+                  className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all relative ${
+                    consumerTab === "orders"
+                      ? "text-emerald-600 font-bold"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  <Ticket className="w-5 h-5" />
+                  <span className="text-[10px]">Pesanan Saya ({activeOrders.length})</span>
+                </button>
+              </>
+            )}
+          </nav>
+        )}
       </div>
-
-      {/* Digital Order Pass QR Modal */}
-      <OrderModal
-        ticket={activeTicket}
-        onClose={() => setActiveTicket(null)}
-      />
-
-      {/* Footer */}
-      <footer className="border-t border-[#E5E0D8] bg-[#FFFFFF] py-4 text-center text-xs text-[#6B7280]">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>
-            🌿 <strong>NullWasted</strong> — Autonomous AI-Powered Surplus Food Rescue Marketplace
-          </span>
-          <span className="text-[11px]">
-            FastAPI · LangGraph Agentic Core · React Vite PWA · PerBPOM No. 16/2019
-          </span>
-        </div>
-      </footer>
     </div>
   );
 };
-
 export default App;
