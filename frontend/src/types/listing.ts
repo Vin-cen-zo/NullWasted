@@ -66,6 +66,7 @@ export interface ItemListing {
 export interface OrderTicket {
   id: string;
   order_code: string;
+  customer_name: string;
   listing_id: string;
   food_name: string;
   store_name: string;
@@ -77,14 +78,13 @@ export interface OrderTicket {
   qr_payload: string;
   status: string;
   created_at: string;
+  completed_at?: string | null;
 }
 
-export interface PresetScenario {
-  id: string;
-  pillTitle: string;
-  pillSubtitle: string;
-  text: string;
-  icon: string;
-  toneColor: string;
-  badge: string;
+export interface UserSession {
+  role: "merchant" | "consumer";
+  storeId?: string;
+  storeName?: string;
+  customerName?: string;
+  customerPhone?: string;
 }
