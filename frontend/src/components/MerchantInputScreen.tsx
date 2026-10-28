@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Mic, MicOff, Sparkles, AlertCircle, Info, RefreshCw } from "lucide-react";
 import { startIndonesianSpeechRecognition } from "../services/speech";
 
@@ -17,6 +17,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
   const [speechStopFn, setSpeechStopFn] = useState<(() => void) | null>(null);
+  const baseTextRef = useRef("");
 
   const toggleSpeechRecognition = () => {
     if (isRecording) {
@@ -26,16 +27,16 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
     }
 
     setSpeechError(null);
+    baseTextRef.current = inputText.trim();
     setIsRecording(true);
 
     const recognitionInstance = startIndonesianSpeechRecognition({
       onResult: (transcript, isFinal) => {
-        setInputText((prev) => {
-          // If previous ends with text, add space
-          if (!prev.trim()) return transcript;
-          return `${prev.trim()} ${transcript}`.trim();
-        });
+        const prefix = baseTextRef.current;
+        const combined = prefix ? `${prefix} ${transcript}`.trim() : transcript.trim();
+        setInputText(combined);
         if (isFinal) {
+          baseTextRef.current = combined;
           setIsRecording(false);
         }
       },
