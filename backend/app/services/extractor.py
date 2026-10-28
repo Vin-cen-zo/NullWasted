@@ -100,9 +100,12 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
                     break
 
     if not food_name:
-        # Fallback extraction from regex patterns
-        # e.g., "Sisa 4 porsi Croissant Cokelat, ..."
-        name_match = re.search(r"(?:sisa\s+\d+\s*(?:porsi|pcs|kotak|bungkus)\s+)([a-zA-Z\s]+?)(?:,|\.|\bharga\b)", text, re.IGNORECASE)
+        # Fallback extraction from general quantity-unit pattern (works with or without commas/punctuation)
+        name_match = re.search(
+            r"(?:\d+\s*(?:porsi|pcs|kotak|bungkus|buah|potong|cup|paket)\s+)([a-zA-Z0-9\s\-]+?)(?:,|\.|\bharga\b|\bbaru\b|\bsudah\b|\bmatang\b|\bmasak\b|\bselesai\b|\btoko\b|\btutup\b|$)",
+            text,
+            re.IGNORECASE,
+        )
         if name_match:
             food_name = name_match.group(1).strip()
         else:

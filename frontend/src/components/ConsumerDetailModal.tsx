@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ItemListing } from "../types/listing";
 import { X, ShieldCheck, MapPin, Clock, ExternalLink, ShoppingBag, Plus, Minus } from "lucide-react";
 
@@ -16,6 +16,10 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
   isReserving,
 }) => {
   const [qty, setQty] = useState(1);
+
+  useEffect(() => {
+    setQty(1);
+  }, [item?.id]);
 
   if (!item) return null;
 

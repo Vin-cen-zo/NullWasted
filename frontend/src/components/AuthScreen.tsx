@@ -211,7 +211,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
       {/* Footer Info */}
       <div className="text-center text-[11px] text-[#8C867A] pb-2">
-        <p>Proyek Rekayasa Perangkat Lunak · 2026</p>
+        <p>NullWasted Zero-Waste Food Rescue · 2026</p>
       </div>
     </div>
   );
