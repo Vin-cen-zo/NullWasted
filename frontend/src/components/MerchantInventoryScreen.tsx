@@ -113,3 +113,4 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
     </div>
   );
 };
+

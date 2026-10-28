@@ -224,3 +224,4 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
     </div>
   );
 };
+

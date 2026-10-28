@@ -111,3 +111,4 @@ export function startIndonesianSpeechRecognition(callbacks: SpeechRecognitionCal
     return { stop: () => {} };
   }
 }
+
