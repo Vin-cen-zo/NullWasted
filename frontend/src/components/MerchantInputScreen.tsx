@@ -177,3 +177,4 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
     </div>
   );
 };
+

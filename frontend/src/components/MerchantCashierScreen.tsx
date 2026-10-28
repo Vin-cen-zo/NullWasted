@@ -185,3 +185,4 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
     </div>
   );
 };
+

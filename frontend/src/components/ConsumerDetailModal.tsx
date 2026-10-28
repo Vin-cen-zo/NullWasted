@@ -162,3 +162,4 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
     </div>
   );
 };
+
