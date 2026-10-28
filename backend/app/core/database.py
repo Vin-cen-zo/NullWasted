@@ -1,4 +1,5 @@
 from typing import Generator
+from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine, select
 from app.core.config import DATABASE_URL
 
@@ -9,10 +10,24 @@ engine = create_engine(
 )
 
 def init_db() -> None:
-    """Initialize database tables and seed demo item if empty."""
+    """Initialize database tables and seed demo item if empty. Safely migrate SQLite columns."""
     from app.models.listing import ItemListing  # Local import to avoid circular dependency
     
     SQLModel.metadata.create_all(engine)
+
+    # Safe SQLite column migration check for order_tickets
+    if "sqlite" in DATABASE_URL:
+        with engine.connect() as conn:
+            try:
+                table_info = conn.execute(text("PRAGMA table_info(order_tickets)")).fetchall()
+                col_names = [col[1] for col in table_info]
+                if "customer_name" not in col_names and len(col_names) > 0:
+                    conn.execute(text("ALTER TABLE order_tickets ADD COLUMN customer_name TEXT DEFAULT 'Konsumen NullWasted'"))
+                if "completed_at" not in col_names and len(col_names) > 0:
+                    conn.execute(text("ALTER TABLE order_tickets ADD COLUMN completed_at TEXT DEFAULT NULL"))
+                conn.commit()
+            except Exception:
+                pass
     
     with Session(engine) as session:
         existing = session.exec(select(ItemListing)).first()

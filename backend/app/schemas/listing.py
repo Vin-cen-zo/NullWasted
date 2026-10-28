@@ -51,3 +51,8 @@ class PublishRequest(BaseModel):
 class ReserveOrderRequest(BaseModel):
     listing_id: str
     quantity: int = Field(default=1, ge=1)
+    customer_name: str = Field(default="Budi Santoso", min_length=1)
+
+
+class CompletePickupRequest(BaseModel):
+    order_code: str = Field(..., min_length=3, description="Kode tiket #NW-XXXX atau QR payload")

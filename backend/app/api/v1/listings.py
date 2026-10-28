@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from app.core.database import get_session
-from app.models.listing import ItemListing, OrderTicket
+from app.models.listing import ItemListing, OrderTicket, utc_now_iso
 from app.schemas.listing import (
+    CompletePickupRequest,
     DraftRequest,
     DraftResponse,
     PublishRequest,
@@ -134,10 +135,12 @@ def reserve_order(
 
     order_code = f"#NW-{random.randint(1000, 9999)}"
     total_price = listing.discounted_price * payload.quantity
-    qr_payload = f"NULLWASTED|ORDER:{order_code}|ITEM:{listing.id}|QTY:{payload.quantity}"
+    customer = payload.customer_name.strip() or "Konsumen NullWasted"
+    qr_payload = f"NULLWASTED|ORDER:{order_code}|ITEM:{listing.id}|QTY:{payload.quantity}|USER:{customer}"
 
     ticket = OrderTicket(
         order_code=order_code,
+        customer_name=customer,
         listing_id=listing.id,
         food_name=listing.food_name,
         store_name=listing.store_name,
@@ -150,6 +153,61 @@ def reserve_order(
         status="RESERVED",
     )
 
+    session.add(ticket)
+    session.commit()
+    session.refresh(ticket)
+    return ticket
+
+
+@router.get("/orders/active", response_model=List[OrderTicket])
+def get_active_orders(session: Session = Depends(get_session)) -> List[OrderTicket]:
+    """Retrieves all order tickets sorted by latest first."""
+    statement = select(OrderTicket).order_by(OrderTicket.created_at.desc())
+    results = session.exec(statement).all()
+    return list(results)
+
+
+@router.post("/orders/complete-pickup", response_model=OrderTicket)
+def complete_order_pickup(
+    payload: CompletePickupRequest, session: Session = Depends(get_session)
+) -> OrderTicket:
+    """Validates order ticket pickup code at merchant cashier and marks status as COMPLETED."""
+    raw_code = payload.order_code.strip()
+    
+    # Normalize order code or QR payload
+    normalized_code = raw_code.upper()
+    if "ORDER:" in normalized_code:
+        # e.g., NULLWASTED|ORDER:#NW-4821|...
+        parts = normalized_code.split("ORDER:")
+        if len(parts) > 1:
+            extracted_code = parts[1].split("|")[0].strip()
+            normalized_code = extracted_code
+
+    if not normalized_code.startswith("#") and normalized_code.startswith("NW-"):
+        normalized_code = f"#{normalized_code}"
+    elif normalized_code.isdigit() and len(normalized_code) == 4:
+        normalized_code = f"#NW-{normalized_code}"
+
+    # Search by order_code or full qr_payload
+    statement = select(OrderTicket).where(
+        (OrderTicket.order_code == normalized_code) | (OrderTicket.qr_payload == raw_code)
+    )
+    ticket = session.exec(statement).first()
+
+    if not ticket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Kode pesanan tidak ditemukan di database.",
+        )
+
+    if ticket.status == "COMPLETED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tiket pesanan ini sudah pernah diverifikasi dan diserahterimakan sebelumnya.",
+        )
+
+    ticket.status = "COMPLETED"
+    ticket.completed_at = utc_now_iso()
     session.add(ticket)
     session.commit()
     session.refresh(ticket)

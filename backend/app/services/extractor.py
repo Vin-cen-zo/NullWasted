@@ -21,41 +21,56 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
         qty = int(qty_match.group(1))
 
     # 2. Original price extraction
-    # Matches: Rp20.000, Rp. 25000, Rp 30.000, 20 ribu, 25k, dll.
+    # Matches: Rp20.000, Rp. 25000, Rp 30.000, 20 ribu, 25k, harga 25000, harga normal 18000, dll.
     original_price = 20000
-    price_match = re.search(r"(?:harga\s*(?:normal)?\s*)?rp\.?\s*([\d\.,]+)\s*(ribu|rb|k)?", raw_lower)
+    price_match = re.search(r"harga\s*(?:normal|asli)?\s*(?:rp\.?\s*)?([\d\.,]+)\s*(ribu|rb|k)?", raw_lower)
     if price_match:
         digits_str = price_match.group(1).replace(".", "").replace(",", "")
         try:
             val = int(digits_str)
             if price_match.group(2) in ("ribu", "rb", "k") and val < 1000:
                 val *= 1000
+            elif val < 500:
+                val *= 1000
             if val > 0:
                 original_price = val
         except ValueError:
             pass
     else:
-        # Fallback price regex without 'rp'
-        price_fallback = re.search(r"(\d+)\s*(?:ribu|rb|k)", raw_lower)
-        if price_fallback:
+        price_match_standard = re.search(r"(?:rp\.?\s*)([\d\.,]+)\s*(ribu|rb|k)?", raw_lower)
+        if price_match_standard:
+            digits_str = price_match_standard.group(1).replace(".", "").replace(",", "")
             try:
-                original_price = int(price_fallback.group(1)) * 1000
+                val = int(digits_str)
+                if price_match_standard.group(2) in ("ribu", "rb", "k") and val < 1000:
+                    val *= 1000
+                elif val < 500:
+                    val *= 1000
+                if val > 0:
+                    original_price = val
             except ValueError:
                 pass
+        else:
+            # Fallback price regex without 'rp'
+            price_fallback = re.search(r"(\d+)\s*(?:ribu|rb|k)", raw_lower)
+            if price_fallback:
+                try:
+                    original_price = int(price_fallback.group(1)) * 1000
+                except ValueError:
+                    pass
 
     # 3. Hours since cooked extraction
     hours_cooked = 1.0
-    # Pattern: (sudah 7 jam suhu ruang) or sudah 7 jam
+    # Pattern: (sudah 7 jam suhu ruang) or sudah 7 jam / masak 3 jam lalu / matang 2 jam
     sudah_match = re.search(r"(?:sudah|\(sudah)\s*(\d+(?:[\.,]\d+)?)\s*jam", raw_lower)
     if sudah_match:
         hours_cooked = float(sudah_match.group(1).replace(",", "."))
     else:
-        # Pattern: baru matang 1 jam lalu / matang 2 jam lalu / selesai masak 3 jam
         cooked_match = re.search(r"(?:baru\s+matang|matang|masak|selesai\s+masak)\s*(\d+(?:[\.,]\d+)?)\s*jam", raw_lower)
         if cooked_match:
             hours_cooked = float(cooked_match.group(1).replace(",", "."))
         else:
-            minute_cooked = re.search(r"(?:baru\s+matang|matang)\s*(\d+)\s*menit", raw_lower)
+            minute_cooked = re.search(r"(?:baru\s+matang|matang|masak|selesai\s+masak)\s*(\d+)\s*menit", raw_lower)
             if minute_cooked:
                 hours_cooked = round(int(minute_cooked.group(1)) / 60.0, 2)
 
