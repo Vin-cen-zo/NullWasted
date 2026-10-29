@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
@@ -5,9 +6,10 @@ from sqlmodel.pool import StaticPool
 
 from app.core.database import get_session
 from app.main import app
-from app.services.extractor import local_rule_based_extract
+from app.services.extractor import extract_listing_entities, local_rule_based_extract
 from app.services.guardrail import evaluate_food_safety
 from app.services.pricing import calculate_dynamic_pricing
+from app.services.vector_store import CACHE_PATH, vector_store
 
 
 # In-memory database fixture for zero-blocker clean isolation
@@ -275,3 +277,41 @@ def test_api_full_lifecycle(client: TestClient):
     # Verify listing is no longer in active catalog
     active_res_final = client.get("/api/v1/listings/active")
     assert not any(item["id"] == listing_id for item in active_res_final.json())
+
+
+# ============================================================================
+# 5. REAL AI SEMANTIC VECTOR STORE & LLM EXTRACTOR TESTS
+# ============================================================================
+
+def test_semantic_vector_store_and_cache_integrity():
+    """Verifies that vector_store loads the 46 BPOM dishes and 3072-dim embeddings cache properly."""
+    assert len(vector_store.items) >= 40
+    assert CACHE_PATH.exists()
+    assert len(vector_store.semantic_embeddings) == len(vector_store.items)
+
+    for item_id, emb in vector_store.semantic_embeddings.items():
+        assert emb.shape == (3072,)
+
+    # Test semantic similarity matching on non-exact culinary queries
+    santan_match, santan_score = vector_store.search_similar_dish("soto tangkar kuah santan kental")
+    assert santan_match["category"] == "HIGH_PERISHABILITY"
+    assert santan_match["bpom_max_hours"] == 4.0
+    assert santan_score >= 0.80
+
+    bakery_match, bakery_score = vector_store.search_similar_dish("roti sobek artisan keju panggang")
+    assert bakery_match["category"] == "LOW_PERISHABILITY"
+    assert bakery_match["bpom_max_hours"] == 24.0
+    assert bakery_score >= 0.80
+
+
+def test_live_or_fallback_entity_extractor():
+    """Verifies live Gemini 3.5 Flash extractor or fallback accurately parses Indonesian surplus food commands."""
+    sentence = "Ada 4 porsi gulai tunjang santan padang, harga normal 28 ribu, masak 5 jam lalu, toko tutup 45 menit lagi"
+    result = asyncio.run(extract_listing_entities(sentence))
+
+    assert "Gulai Tunjang" in result["food_name"] or "Santan" in result["food_name"]
+    assert result["quantity"] == 4
+    assert result["original_price"] == 28000
+    assert result["hours_since_cooked"] == 5.0
+    assert result["minutes_until_closing"] == 45
+    assert result["extraction_source"] in ("gemini-3.5-flash", "local-fallback-parser")
