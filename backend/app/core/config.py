@@ -7,14 +7,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ENV_FILE = BASE_DIR / ".env"
 
 if ENV_FILE.exists():
-    load_dotenv(dotenv_path=ENV_FILE)
+    load_dotenv(dotenv_path=ENV_FILE, override=True)
 else:
     load_dotenv()
 
 APP_NAME = os.getenv("APP_NAME", "NullWasted API")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./nullwasted_local.db")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
-GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "text-embedding-004")
+GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
 
 def get_active_api_keys() -> list[str]:
     """Retrieve non-empty, non-placeholder Gemini API keys (supports single GEMINI_API_KEY or pool)."""
