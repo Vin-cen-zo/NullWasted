@@ -11,20 +11,25 @@ logger = logging.getLogger("extractor")
 
 def local_rule_based_extract(text: str) -> dict[str, Any]:
     """Instant (<1ms), deterministic regex fallback parser for Indonesian surplus food listing commands.
-    Guarantees 100% precision on preset pills and typical natural language listing queries.
+    Acts as a resilient safety net if Gemini API is offline or rate-limited.
     """
     raw_lower = text.lower().strip()
 
     # 1. Quantity extraction
     qty = 1
-    qty_match = re.search(r"(\d+)\s*(?:porsi|pcs|bungkus|kotak|buah|potong|cup|paket)", raw_lower)
+    qty_match = re.search(
+        r"(\d+)\s*(?:porsi|pcs|bungkus|kotak|buah|potong|cup|paket|loyang|piring|mangkok)",
+        raw_lower,
+    )
     if qty_match:
-        qty = int(qty_match.group(1))
+        qty = max(1, int(qty_match.group(1)))
 
     # 2. Original price extraction
-    # Matches: Rp20.000, Rp. 25000, Rp 30.000, 20 ribu, 25k, harga 25000, harga normal 18000, dll.
     original_price = 20000
-    price_match = re.search(r"harga\s*(?:normal|asli)?\s*(?:rp\.?\s*)?([\d\.,]+)\s*(ribu|rb|k)?", raw_lower)
+    price_match = re.search(
+        r"harga\s*(?:normal|asli)?\s*(?:rp\.?\s*)?([\d\.,]+)\s*(ribu|rb|k)?",
+        raw_lower,
+    )
     if price_match:
         digits_str = price_match.group(1).replace(".", "").replace(",", "")
         try:
@@ -52,8 +57,7 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
             except ValueError:
                 pass
         else:
-            # Fallback price regex without 'rp'
-            price_fallback = re.search(r"(\d+)\s*(?:ribu|rb|k)", raw_lower)
+            price_fallback = re.search(r"(\d+)\s*(?:ribu|rb|k)\b", raw_lower)
             if price_fallback:
                 try:
                     original_price = int(price_fallback.group(1)) * 1000
@@ -62,16 +66,21 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
 
     # 3. Hours since cooked extraction
     hours_cooked = 1.0
-    # Pattern: (sudah 7 jam suhu ruang) or sudah 7 jam / masak 3 jam lalu / matang 2 jam
     sudah_match = re.search(r"(?:sudah|\(sudah)\s*(\d+(?:[\.,]\d+)?)\s*jam", raw_lower)
     if sudah_match:
         hours_cooked = float(sudah_match.group(1).replace(",", "."))
     else:
-        cooked_match = re.search(r"(?:baru\s+matang|matang|masak|selesai\s+masak)\s*(\d+(?:[\.,]\d+)?)\s*jam", raw_lower)
+        cooked_match = re.search(
+            r"(?:baru\s+matang|matang|masak|selesai\s+masak)\s*(\d+(?:[\.,]\d+)?)\s*jam",
+            raw_lower,
+        )
         if cooked_match:
             hours_cooked = float(cooked_match.group(1).replace(",", "."))
         else:
-            minute_cooked = re.search(r"(?:baru\s+matang|matang|masak|selesai\s+masak)\s*(\d+)\s*menit", raw_lower)
+            minute_cooked = re.search(
+                r"(?:baru\s+matang|matang|masak|selesai\s+masak)\s*(\d+)\s*menit",
+                raw_lower,
+            )
             if minute_cooked:
                 hours_cooked = round(int(minute_cooked.group(1)) / 60.0, 2)
 
@@ -87,35 +96,31 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
 
     # 5. Food Name extraction
     food_name = ""
-    # Try finding best matching item in knowledge base first
-    matched_item, score = vector_store.search_similar_dish(text)
-    if score >= 0.85:
-        # Check if canonical dish or alias is mentioned in query
-        c_name = matched_item["canonical_name"].lower()
-        if c_name in raw_lower:
-            food_name = matched_item["canonical_name"]
-        else:
-            for alias in matched_item.get("aliases", []):
-                if alias.lower() in raw_lower:
-                    food_name = alias.title()
-                    break
+    name_match = re.search(
+        r"(?:\d+\s*(?:porsi|pcs|kotak|bungkus|buah|potong|cup|paket|loyang|piring|mangkok)\s+)([a-zA-Z0-9\s\-]+?)(?:,|\.|\bharga\b|\bbaru\b|\bsudah\b|\bmatang\b|\bmasak\b|\bselesai\b|\btoko\b|\btutup\b|$)",
+        text,
+        re.IGNORECASE,
+    )
+    if name_match:
+        food_name = name_match.group(1).strip()
 
     if not food_name:
-        # Fallback extraction from general quantity-unit pattern (works with or without commas/punctuation)
-        name_match = re.search(
-            r"(?:\d+\s*(?:porsi|pcs|kotak|bungkus|buah|potong|cup|paket)\s+)([a-zA-Z0-9\s\-]+?)(?:,|\.|\bharga\b|\bbaru\b|\bsudah\b|\bmatang\b|\bmasak\b|\bselesai\b|\btoko\b|\btutup\b|$)",
-            text,
-            re.IGNORECASE,
-        )
-        if name_match:
-            food_name = name_match.group(1).strip()
-        else:
-            # Fallback to matched canonical name
+        matched_item, score = vector_store.search_similar_dish(text)
+        if score >= 0.85:
+            c_name = matched_item["canonical_name"].lower()
+            if c_name in raw_lower:
+                food_name = matched_item["canonical_name"]
+            else:
+                for alias in matched_item.get("aliases", []):
+                    if alias.lower() in raw_lower:
+                        food_name = alias.title()
+                        break
+        if not food_name:
             food_name = matched_item.get("canonical_name", "Surplus Food Item")
 
-    # Clean known extra words if extracted greedily
-    food_name = re.sub(r"\b(harga|normal|santan|kental)\b.*", "", food_name, flags=re.IGNORECASE).strip()
+    food_name = re.sub(r"\b(harga|normal|asli)\b.*", "", food_name, flags=re.IGNORECASE).strip()
     if not food_name or len(food_name) < 3:
+        matched_item, _ = vector_store.search_similar_dish(text)
         food_name = matched_item.get("canonical_name", "Menu Makanan Surplus")
 
     return {
@@ -129,31 +134,43 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
 
 
 async def extract_listing_entities(text: str, audio_base64: Optional[str] = None) -> dict[str, Any]:
-    """Extracts food listing entities using Gemini API with automatic fallback to local parser."""
-    prompt = f"""
-    Bertindaklah sebagai parser AI untuk listing surplus food NullWasted.
-    Ekstrak entitas berikut dari teks input ke dalam format JSON:
-    - food_name: nama makanan (string)
-    - quantity: jumlah porsi (integer, default 1)
-    - original_price: harga normal sebelum diskon dalam Rupiah integer (default 20000)
-    - hours_since_cooked: berapa jam sejak makanan dimasak / matang dalam float (default 1.0)
-    - minutes_until_closing: sisa menit hingga toko tutup dalam integer (default 120)
+    """Extracts food listing entities using live Gemini API (gemini-3.5-flash) with automatic fallback."""
+    prompt = f"""Anda adalah sistem AI ekstraksi entitas katalog surplus food NullWasted di Indonesia.
+Tugas Anda adalah mengekstrak informasi dari kalimat staf toko kuliner berikut ke dalam objek JSON murni:
+- "food_name": Nama lengkap hidangan makanan/minuman beserta ciri khasnya (string Title Case, misal "Gulai Tunjang Santan Padang", "Roti Sobek Artisan Keju"). Jangan sertakan kata jumlah porsi atau harga di dalam food_name.
+- "quantity": Jumlah porsi/bungkus/kotak/cup/loyang/potong yang tersisa (integer >= 1, default 1).
+- "original_price": Harga normal per porsi sebelum diskon dalam Rupiah utuh (integer, misal "25 ribu" / "25k" / "25rb" -> 25000, default 20000).
+- "hours_since_cooked": Lama waktu (dalam jam desimal float) sejak makanan selesai dimasak/matang hingga saat ini (misal "5 jam lalu" -> 5.0, "30 menit lalu" -> 0.5, "sudah 7 jam suhu ruang" -> 7.0, default 1.0).
+- "minutes_until_closing": Sisa waktu (dalam menit integer) hingga toko tutup (misal "2 jam lagi" -> 120, "45 menit lagi" -> 45, default 120).
 
-    Teks input: "{text}"
-    Keluarkan HANYA format JSON valid tanpa markdown formatting.
-    """
+Kalimat input penjual: "{text}"
+
+Keluarkan HANYA JSON objek valid tanpa teks pengantar dan tanpa blok markdown."""
 
     try:
         gemini_response = await ai_gateway.generate_content(prompt=prompt, audio_base64=audio_base64)
         if gemini_response:
             cleaned = gemini_response.strip().replace("```json", "").replace("```", "").strip()
+            json_match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+            if json_match:
+                cleaned = json_match.group(0)
             data = json.loads(cleaned)
+
+            raw_price = int(float(data.get("original_price", 20000)))
+            if 0 < raw_price < 500:
+                raw_price *= 1000
+
+            food_name = str(data.get("food_name", "")).strip()
+            if not food_name or len(food_name) < 2:
+                fallback_data = local_rule_based_extract(text)
+                food_name = fallback_data["food_name"]
+
             return {
-                "food_name": str(data.get("food_name", "Surplus Food")).title(),
-                "quantity": int(data.get("quantity", 1)),
-                "original_price": int(data.get("original_price", 20000)),
-                "hours_since_cooked": float(data.get("hours_since_cooked", 1.0)),
-                "minutes_until_closing": int(data.get("minutes_until_closing", 120)),
+                "food_name": food_name.title(),
+                "quantity": max(1, int(data.get("quantity", 1))),
+                "original_price": max(1000, raw_price),
+                "hours_since_cooked": max(0.0, float(data.get("hours_since_cooked", 1.0))),
+                "minutes_until_closing": max(1, int(float(data.get("minutes_until_closing", 120)))),
                 "extraction_source": GEMINI_MODEL,
             }
     except Exception as e:
