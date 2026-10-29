@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { OrderTicket } from "../types/listing";
 import { CheckCircle2, Clock, Copy, Check, Ticket, MapPin, Store } from "lucide-react";
 
@@ -6,73 +7,6 @@ interface ConsumerOrdersScreenProps {
   orders: OrderTicket[];
   customerName: string;
 }
-
-// 21x21 Deterministic QR Code Generator Component in pure SVG
-const DeterministicQrSvg: React.FC<{ payload: string; size?: number }> = ({ payload, size = 150 }) => {
-  // Simple deterministic 21x21 matrix generation based on hash
-  const gridSize = 21;
-  const hash = payload.split("").reduce((acc, char) => (acc * 31 + char.charCodeAt(0)) | 0, 0);
-
-  const isModuleBlack = (r: number, c: number): boolean => {
-    // 3 Corner Finder Patterns (7x7)
-    if (
-      (r < 7 && c < 7) || // Top-left
-      (r < 7 && c >= gridSize - 7) || // Top-right
-      (r >= gridSize - 7 && c < 7) // Bottom-left
-    ) {
-      const rowInPattern = r < 7 ? r : r - (gridSize - 7);
-      const colInPattern = c < 7 ? c : c - (gridSize - 7);
-      // Outer border (width 1) or inner 3x3 square
-      if (rowInPattern === 0 || rowInPattern === 6 || colInPattern === 0 || colInPattern === 6) {
-        return true;
-      }
-      if (rowInPattern >= 2 && rowInPattern <= 4 && colInPattern >= 2 && colInPattern <= 4) {
-        return true;
-      }
-      return false;
-    }
-
-    // Timing patterns
-    if (r === 6 || c === 6) {
-      return (r + c) % 2 === 0;
-    }
-
-    // Pseudo-random data bits based on coordinates and string hash
-    const bitVal = Math.abs(Math.sin((r * 23 + c * 37 + hash) * 1.5)) * 1000;
-    return (Math.floor(bitVal) % 2) === 1;
-  };
-
-  const rects: React.ReactNode[] = [];
-  const cellSize = size / gridSize;
-
-  for (let r = 0; r < gridSize; r++) {
-    for (let c = 0; c < gridSize; c++) {
-      if (isModuleBlack(r, c)) {
-        rects.push(
-          <rect
-            key={`${r}-${c}`}
-            x={c * cellSize}
-            y={r * cellSize}
-            width={cellSize}
-            height={cellSize}
-            fill="#1F1D1A"
-          />
-        );
-      }
-    }
-  }
-
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      className="bg-white p-2 rounded-xl shadow-xs border border-gray-200"
-    >
-      {rects}
-    </svg>
-  );
-};
 
 export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
   orders,
@@ -162,9 +96,17 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
                   </button>
                 </div>
 
-                {/* QR Code Matrix View */}
+                {/* ISO-Standard QR Code Matrix View */}
                 <div className="flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-gray-100 space-y-2">
-                  <DeterministicQrSvg payload={ticket.qr_payload} size={140} />
+                  <QRCodeSVG
+                    value={ticket.qr_payload}
+                    size={150}
+                    level="M"
+                    includeMargin={true}
+                    bgColor="#FFFFFF"
+                    fgColor="#1F1D1A"
+                    className="bg-white p-2 rounded-2xl shadow-xs border border-gray-200"
+                  />
                   <p className="text-[10px] font-mono text-gray-400 break-all text-center max-w-[280px]">
                     {ticket.qr_payload}
                   </p>
@@ -214,4 +156,3 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
     </div>
   );
 };
-

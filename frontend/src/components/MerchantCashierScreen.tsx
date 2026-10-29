@@ -1,11 +1,49 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Html5Qrcode } from "html5-qrcode";
 import { OrderTicket } from "../types/listing";
-import { QrCode, CheckCircle2, AlertCircle, ArrowRight, User, ShoppingBag } from "lucide-react";
+import {
+  QrCode,
+  Camera,
+  CameraOff,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+  User,
+  ShoppingBag,
+} from "lucide-react";
 
 interface MerchantCashierScreenProps {
   orders: OrderTicket[];
   onCompletePickup: (orderCode: string) => Promise<OrderTicket>;
   isVerifying: boolean;
+}
+
+const QR_READER_ELEMENT_ID = "qr-reader";
+
+/**
+ * Extracts normalized #NW-xxxx order code from either a structured NullWasted QR payload
+ * ("NULLWASTED|ORDER:#NW-4821|ITEM:...") or a direct alphanumeric order code.
+ */
+function extractOrderCodeFromQr(rawText: string): string | null {
+  const trimmed = rawText.trim();
+  if (!trimmed) return null;
+
+  const payloadMatch = trimmed.match(/NULLWASTED\|ORDER:(#?NW-\d{4})/i);
+  if (payloadMatch && payloadMatch[1]) {
+    const code = payloadMatch[1].toUpperCase();
+    return code.startsWith("#") ? code : `#${code}`;
+  }
+
+  const directMatch = trimmed.match(/^(#?NW-\d{4}|\d{4})$/i);
+  if (directMatch && directMatch[1]) {
+    const token = directMatch[1].toUpperCase();
+    if (/^\d{4}$/.test(token)) {
+      return `#NW-${token}`;
+    }
+    return token.startsWith("#") ? token : `#${token}`;
+  }
+
+  return null;
 }
 
 export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
@@ -17,7 +55,159 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successTicket, setSuccessTicket] = useState<OrderTicket | null>(null);
 
+  // Hardware camera scanner states
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [scanFlash, setScanFlash] = useState(false);
+
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const isProcessingScanRef = useRef<boolean>(false);
+
   const reservedOrders = orders.filter((o) => o.status === "RESERVED");
+
+  const stopCamera = useCallback(async () => {
+    const instance = scannerRef.current;
+    scannerRef.current = null;
+    if (instance) {
+      try {
+        if (instance.isScanning) {
+          await instance.stop();
+        }
+      } catch {
+        // Ignore stop errors if stream already ended
+      }
+      try {
+        instance.clear();
+      } catch {
+        // Ignore DOM clear errors
+      }
+    }
+    setIsCameraActive(false);
+  }, []);
+
+  // Ensure camera hardware stream is released when component unmounts
+  useEffect(() => {
+    return () => {
+      const instance = scannerRef.current;
+      scannerRef.current = null;
+      if (instance) {
+        if (instance.isScanning) {
+          instance
+            .stop()
+            .catch(() => {})
+            .finally(() => {
+              try {
+                instance.clear();
+              } catch {
+                // Ignore unmount cleanup errors
+              }
+            });
+        } else {
+          try {
+            instance.clear();
+          } catch {
+            // Ignore unmount cleanup errors
+          }
+        }
+      }
+    };
+  }, []);
+
+  const handleDecodedQr = useCallback(
+    async (decodedText: string) => {
+      if (isProcessingScanRef.current) return;
+
+      const extractedCode = extractOrderCodeFromQr(decodedText);
+      if (!extractedCode) {
+        setErrorMessage(
+          "Format QR tidak dikenali. Gunakan QR Tiket Resmi NullWasted (#NW-xxxx)."
+        );
+        return;
+      }
+
+      isProcessingScanRef.current = true;
+      setScanFlash(true);
+      setTimeout(() => setScanFlash(false), 1200);
+
+      setInputCode(extractedCode);
+      setErrorMessage(null);
+      setSuccessTicket(null);
+
+      await stopCamera();
+
+      try {
+        const ticket = await onCompletePickup(extractedCode);
+        setSuccessTicket(ticket);
+        setInputCode("");
+      } catch (err) {
+        setErrorMessage(
+          err instanceof Error ? err.message : "Gagal memverifikasi tiket dari QR."
+        );
+      } finally {
+        isProcessingScanRef.current = false;
+      }
+    },
+    [onCompletePickup, stopCamera]
+  );
+
+  const startCamera = async () => {
+    if (isStartingCamera || isCameraActive) return;
+
+    setCameraError(null);
+    setErrorMessage(null);
+    setSuccessTicket(null);
+    setIsStartingCamera(true);
+
+    await stopCamera();
+
+    try {
+      const html5QrCode = new Html5Qrcode(QR_READER_ELEMENT_ID);
+      scannerRef.current = html5QrCode;
+
+      const qrConfig = {
+        fps: 10,
+        qrbox: { width: 200, height: 200 },
+        aspectRatio: 1.0,
+      };
+
+      try {
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          qrConfig,
+          (decodedText) => {
+            void handleDecodedQr(decodedText);
+          },
+          () => {
+            // Ignore frame-level decode misses while searching for QR
+          }
+        );
+      } catch {
+        // Fallback for laptop/desktop webcams that reject facingMode environment
+        const devices = await Html5Qrcode.getCameras();
+        if (!devices || devices.length === 0) {
+          throw new Error("Perangkat kamera tidak ditemukan.");
+        }
+        await html5QrCode.start(
+          devices[0].id,
+          qrConfig,
+          (decodedText) => {
+            void handleDecodedQr(decodedText);
+          },
+          () => {}
+        );
+      }
+
+      setIsCameraActive(true);
+    } catch {
+      await stopCamera();
+      setCameraError(
+        "Kamera tidak dapat diakses (izin ditolak atau webcam tidak tersedia). Silakan gunakan form input manual di bawah."
+      );
+    } finally {
+      setIsStartingCamera(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,23 +233,77 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
 
   return (
     <div className="flex-1 flex flex-col p-4 overflow-y-auto space-y-4">
-      {/* Visual Scanner Viewfinder Header */}
-      <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm text-center">
-        <div className="relative w-28 h-28 mx-auto mb-3 rounded-2xl border-2 border-dashed border-emerald-500 bg-emerald-50/40 flex flex-col items-center justify-center overflow-hidden">
-          <QrCode className="w-12 h-12 text-emerald-600 opacity-80" />
-          <div className="absolute inset-x-0 h-0.5 bg-emerald-500 animate-[bounce_2s_infinite]"></div>
-        </div>
+      {/* Hardware Camera & Visual Scanner Viewfinder Header */}
+      <div
+        className={`bg-white p-4 rounded-2xl border shadow-sm text-center transition-all ${
+          scanFlash
+            ? "border-emerald-500 ring-4 ring-emerald-500/30 bg-emerald-50/30"
+            : "border-[#E2DDD3]"
+        }`}
+      >
+        {/* Active Video Mount Point (Always in DOM for Html5Qrcode) */}
+        <div
+          id={QR_READER_ELEMENT_ID}
+          className={
+            isCameraActive || isStartingCamera
+              ? "w-full max-w-[260px] mx-auto mb-3 rounded-2xl overflow-hidden border-2 border-emerald-500 bg-black shadow-inner"
+              : "hidden"
+          }
+        />
+
+        {/* Idle Viewfinder Placeholder when Camera is Off */}
+        {!isCameraActive && !isStartingCamera && (
+          <div className="relative w-28 h-28 mx-auto mb-3 rounded-2xl border-2 border-dashed border-emerald-500 bg-emerald-50/40 flex flex-col items-center justify-center overflow-hidden">
+            <QrCode className="w-12 h-12 text-emerald-600 opacity-80" />
+            <div className="absolute inset-x-0 h-0.5 bg-emerald-500 animate-[bounce_2s_infinite]"></div>
+          </div>
+        )}
+
         <h2 className="text-sm font-bold text-[#1F1D1A]">Kasir Pemindai QR & Kode Tiket</h2>
         <p className="text-xs text-[#6B655B] mt-0.5">
-          Verifikasi kode pengambilan pesanan untuk menyelesaikan transaksi
+          Pindai QR tiket pembeli via kamera atau masukkan kode pengambilan secara manual
         </p>
+
+        {/* Camera Control Toggle Buttons */}
+        <div className="mt-3 flex justify-center">
+          {!isCameraActive ? (
+            <button
+              type="button"
+              onClick={() => void startCamera()}
+              disabled={isStartingCamera || isVerifying}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all active:scale-95 disabled:opacity-50"
+            >
+              <Camera className="w-4 h-4" />
+              <span>
+                {isStartingCamera ? "Menyiapkan Kamera..." : "Nyalakan Kamera Pemindai"}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void stopCamera()}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-sm transition-all active:scale-95"
+            >
+              <CameraOff className="w-4 h-4" />
+              <span>Matikan Kamera</span>
+            </button>
+          )}
+        </div>
+
+        {/* Camera Permission / Device Fallback Notice */}
+        {cameraError && (
+          <div className="mt-3 flex items-start gap-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 text-left">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+            <span>{cameraError}</span>
+          </div>
+        )}
       </div>
 
-      {/* Input Form */}
+      {/* Manual Input Fallback Form */}
       <form onSubmit={handleSubmit} className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3">
         <div>
           <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
-            Kode Tiket Pesanan / QR Payload
+            Kode Tiket Pesanan / QR Payload (Input Manual & Fallback)
           </label>
           <input
             type="text"
@@ -185,4 +429,3 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
     </div>
   );
 };
-
