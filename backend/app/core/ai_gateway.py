@@ -28,46 +28,53 @@ class AIGateway:
             logger.info("No active Gemini API keys configured. Using deterministic local fallback.")
             return None
 
+        candidate_models = [model]
+        if model != "gemini-3.5-flash-lite":
+            candidate_models.append("gemini-3.5-flash-lite")
+
         attempts = min(3, len(active_keys))
-        for _ in range(attempts):
-            key = self._get_next_key()
-            if not key:
-                break
+        for target_model in candidate_models:
+            for _ in range(attempts):
+                key = self._get_next_key()
+                if not key:
+                    break
 
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-            parts: list[dict[str, Any]] = [{"text": prompt}]
-            if audio_base64:
-                parts.append({
-                    "inline_data": {
-                        "mime_type": "audio/webm",
-                        "data": audio_base64,
-                    }
-                })
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={key}"
+                parts: list[dict[str, Any]] = [{"text": prompt}]
+                if audio_base64:
+                    parts.append({
+                        "inline_data": {
+                            "mime_type": "audio/webm",
+                            "data": audio_base64,
+                        }
+                    })
 
-            payload = {
-                "contents": [{"parts": parts}],
-                "generationConfig": {
-                    "temperature": 0.1,
-                    "response_mime_type": "application/json",
-                },
-            }
+                payload = {
+                    "contents": [{"parts": parts}],
+                    "generationConfig": {
+                        "temperature": 0.1,
+                        "response_mime_type": "application/json",
+                    },
+                }
 
-            try:
-                async with httpx.AsyncClient(timeout=6.0) as client:
-                    resp = await client.post(url, json=payload)
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        candidates = data.get("candidates", [])
-                        if candidates:
-                            content_parts = candidates[0].get("content", {}).get("parts", [])
-                            if content_parts:
-                                return content_parts[0].get("text", "")
-                    elif resp.status_code in (429, 403, 503):
-                        logger.warning(f"Gemini API key returned status {resp.status_code}. Rotating key.")
-                        continue
-            except Exception as e:
-                logger.warning(f"Error calling Gemini generateContent: {e}. Rotating key.")
-                continue
+                try:
+                    async with httpx.AsyncClient(timeout=6.0) as client:
+                        resp = await client.post(url, json=payload)
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            candidates = data.get("candidates", [])
+                            if candidates:
+                                content_parts = candidates[0].get("content", {}).get("parts", [])
+                                if content_parts:
+                                    return content_parts[0].get("text", "")
+                        elif resp.status_code in (429, 403, 503):
+                            logger.warning(
+                                f"Gemini model {target_model} returned status {resp.status_code}. Trying next key/model."
+                            )
+                            continue
+                except Exception as e:
+                    logger.warning(f"Error calling Gemini generateContent ({target_model}): {e}. Rotating.")
+                    continue
 
         return None
 
