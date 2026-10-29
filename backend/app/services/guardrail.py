@@ -22,16 +22,25 @@ def evaluate_food_safety(
         "Risiko mikrobiologis meningkat seiring waktu simpan melebihi ambang batas aman suhu ruang."
     )
 
-    # Lexical high-risk override for santan / coconut milk / fresh dairy dishes
+    # Lexical high-risk override for santan, dairy, cream sauces, raw meats, and egg emulsions
     high_risk_keywords = [
-        "santan", "gulai", "opor", "soto betawi", "kari", "lodeh", "susu segar", "vla", "cendol", "dawet", "sashimi", "raw salmon"
+        # Santan & Indonesian High-Risk Wet Coconut Milk
+        "santan", "gulai", "opor", "soto betawi", "kari", "lodeh", "cendol", "dawet", "nasi uduk", "nasi kuning gurih", "nasi lemak",
+        # Dairy, Cream, Egg Emulsions, and Western High-Risk Sauces
+        "carbonara", "karbonara", "alfredo", "cream", "krim", "creamy", "keju cair", "cheese sauce",
+        "mayones", "mayo", "tartar", "caesar salad", "salad telur", "egg salad",
+        "vla", "custard", "tiramisu", "choux", "kue sus", "eclair", "puding susu", "cheesecake basah",
+        "milk tea", "boba fresh milk", "susu segar", "fresh milk", "latte",
+        # Raw / Semi-Raw Ingredients
+        "sashimi", "raw salmon", "raw tuna", "raw fish", "ikan mentah", "daging mentah", "tartare",
+        "telur setengah matang", "raw egg", "telur mentah"
     ]
     query_lower = search_query.lower()
     if any(k in query_lower for k in high_risk_keywords):
         category = "HIGH_PERISHABILITY"
         bpom_max_hours = min(bpom_max_hours, 4.0)
-        regulation_ref = "PerBPOM No. 16/2019 Kategori Santan/Pangan Basah Mudah Rusak"
-        hazard_description = "Olahan bersantan dan susu segar sangat rentan terhadap pertumbuhan cepat Bacillus cereus dan Staphylococcus aureus pada suhu kamar."
+        regulation_ref = "PerBPOM No. 16/2019 Kategori Pangan Basah Mudah Rusak (Santan/Susu/Krim/Telur/Mentah)"
+        hazard_description = "Olahan bersantan, saus emulsi krim/susu, telur setengah matang, dan bahan mentah sangat rentan terhadap proliferasi cepat Bacillus cereus, Salmonella, dan enterotoksin Staphylococcus aureus pada suhu kamar."
 
     # Deterministic Evaluation
     if hours_since_cooked > bpom_max_hours:
@@ -39,9 +48,9 @@ def evaluate_food_safety(
         can_publish = False
         if category == "HIGH_PERISHABILITY":
             safety_reason = (
-                f"BAHAYA KRITIS: Waktu simpan hidangan santan/susu ({hours_since_cooked:.1f} jam) "
+                f"BAHAYA KRITIS: Waktu simpan hidangan berisiko tinggi ({hours_since_cooked:.1f} jam) "
                 f"melampaui batas maksimal BPOM ({bpom_max_hours:.1f} jam). Berisiko tinggi kontaminasi "
-                f"racun bakteri Bacillus cereus dan Staphylococcus aureus pada suhu ruang."
+                f"racun bakteri Bacillus cereus, Salmonella, dan Staphylococcus aureus pada suhu ruang."
             )
         else:
             safety_reason = (
