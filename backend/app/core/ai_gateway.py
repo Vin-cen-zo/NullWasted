@@ -29,8 +29,9 @@ class AIGateway:
             return None
 
         candidate_models = [model]
-        if model != "gemini-3.5-flash-lite":
-            candidate_models.append("gemini-3.5-flash-lite")
+        for alt in ["gemini-3.5-flash-lite", "gemini-flash-lite-latest"]:
+            if alt not in candidate_models:
+                candidate_models.append(alt)
 
         attempts = min(3, len(active_keys))
         for target_model in candidate_models:
@@ -58,7 +59,7 @@ class AIGateway:
                 }
 
                 try:
-                    async with httpx.AsyncClient(timeout=6.0) as client:
+                    async with httpx.AsyncClient(timeout=20.0) as client:
                         resp = await client.post(url, json=payload)
                         if resp.status_code == 200:
                             data = resp.json()
@@ -100,7 +101,7 @@ class AIGateway:
             }
 
             try:
-                with httpx.Client(timeout=6.0) as client:
+                with httpx.Client(timeout=15.0) as client:
                     resp = client.post(url, json=payload)
                     if resp.status_code == 200:
                         values = resp.json().get("embedding", {}).get("values")

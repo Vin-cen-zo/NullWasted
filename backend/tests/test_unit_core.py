@@ -314,4 +314,9 @@ def test_live_or_fallback_entity_extractor():
     assert result["original_price"] == 28000
     assert result["hours_since_cooked"] == 5.0
     assert result["minutes_until_closing"] == 45
-    assert result["extraction_source"] in ("gemini-3.5-flash", "local-fallback-parser")
+    assert result["extraction_source"] in (
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-flash-lite-latest",
+        "local-fallback-parser",
+    )
