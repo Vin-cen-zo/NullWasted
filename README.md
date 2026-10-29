@@ -32,7 +32,7 @@ The platform eliminates the operational friction of store closing hours using an
 - **AI Gateway & LLM Orchestration (`backend/app/core/ai_gateway.py`):**  
   Direct client to Google AI Studio REST API with round-robin key rotation (`GEMINI_API_KEY_1..3`). Uses **`gemini-3.5-flash-lite`** (ultra-fast ~3s latency, generous daily rate limits on Free Tier) with auto-failover to `gemini-flash-lite-latest` and instant offline regex heuristic fallback (`local-fallback-parser`).
 - **Semantic Vector Store & RAG (`backend/app/services/vector_store.py`):**  
-  Hybrid semantic retrieval engine using 3072-dimensional embeddings via **`gemini-embedding-001`**, backed by a pre-computed disk cache (`food_embeddings_cache.json`) covering 46 Indonesian culinary dishes and PerBPOM No. 16/2019 safety thresholds.
+  Hybrid semantic retrieval engine using 3072-dimensional embeddings via **`gemini-embedding-001`**, backed by a pre-computed disk cache (`food_embeddings_cache.json`) covering 70 universal culinary archetypes (Indonesian, Western, Asian, Bakery, and Dairy/Desserts) and PerBPOM No. 16/2019 safety thresholds.
 - **Database & Persistence (`backend/app/models/`):**  
   Local ACID relational database via SQLite (`nullwasted_local.db`) using SQLModel (SQLAlchemy 2.0 + Pydantic v2). Features atomic stock decrements and automatic SQLite column migrations without Docker overhead.
 
@@ -68,7 +68,7 @@ nullwasted/
 │   ├── app/
 │   │   ├── api/v1/          # REST route handlers (listings, orders, pickup)
 │   │   ├── core/            # Configuration (.env), DB engine, and AI Gateway
-│   │   ├── data/            # 46 BPOM food rules & 3072-dim embeddings cache
+│   │   ├── data/            # 70 BPOM food rules & 3072-dim embeddings cache
 │   │   ├── models/          # SQLModel table schemas (ItemListing, OrderTicket)
 │   │   ├── schemas/         # Pydantic request/response validation schemas
 │   │   ├── services/        # Extractor (LLM), Guardrail (BPOM RAG), Pricing Engine
@@ -108,7 +108,7 @@ nullwasted/
 [ AI Gateway ]       [ Guardrail & RAG ]      [ SQLModel ORM ]
 - gemini-3.5-flash-lite - gemini-embedding-001  - SQLite Local DB
 - Failover Pool         - 3072-dim Cosine Sim   - Atomic Decrement
-- Local Regex Fallback  - 46 BPOM Dishes Cache  - Order Lifecycle
+- Local Regex Fallback  - 70 BPOM Dishes Cache  - Order Lifecycle
 ```
 
 ---
