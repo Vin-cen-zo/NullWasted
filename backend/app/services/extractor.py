@@ -3,6 +3,7 @@ import logging
 import re
 from typing import Any, Optional
 from app.core.ai_gateway import ai_gateway
+from app.core.config import GEMINI_MODEL
 from app.services.vector_store import vector_store
 
 logger = logging.getLogger("extractor")
@@ -153,7 +154,7 @@ async def extract_listing_entities(text: str, audio_base64: Optional[str] = None
                 "original_price": int(data.get("original_price", 20000)),
                 "hours_since_cooked": float(data.get("hours_since_cooked", 1.0)),
                 "minutes_until_closing": int(data.get("minutes_until_closing", 120)),
-                "extraction_source": "gemini-2.0-flash",
+                "extraction_source": GEMINI_MODEL,
             }
     except Exception as e:
         logger.warning(f"Gemini entity extraction failed: {e}. Utilizing deterministic fallback.")

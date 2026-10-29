@@ -75,14 +75,27 @@ class LocalVectorStore:
 
         cleaned_query = query_text.lower().strip()
 
-        # 1. Exact or partial lexical match in aliases or canonical name
+        # 1. Exact match in canonical name or aliases
         for item in self.items:
             canonical = item["canonical_name"].lower()
             aliases = [a.lower() for a in item.get("aliases", [])]
             if cleaned_query == canonical or any(cleaned_query == a for a in aliases):
                 return item, 0.98
-            if canonical in cleaned_query or any(a in cleaned_query for a in aliases):
-                return item, 0.96
+
+        # 2. Longest matching candidate substring in query (prefers specific phrases like 'bakso sapi' over generic ones)
+        best_lexical_item = None
+        best_match_len = 0
+        for item in self.items:
+            canonical = item["canonical_name"].lower()
+            aliases = [a.lower() for a in item.get("aliases", [])]
+            for cand in [canonical] + aliases:
+                if len(cand) >= 3 and cand in cleaned_query:
+                    if len(cand) > best_match_len:
+                        best_match_len = len(cand)
+                        best_lexical_item = item
+
+        if best_lexical_item and best_match_len >= 4:
+            return best_lexical_item, 0.96
 
         # 2. Vector cosine similarity
         q_emb = compute_deterministic_embedding(query_text)

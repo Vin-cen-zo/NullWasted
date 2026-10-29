@@ -23,7 +23,9 @@ def evaluate_food_safety(
     )
 
     # Lexical high-risk override for santan / coconut milk / fresh dairy dishes
-    high_risk_keywords = ["santan", "gulai", "opor", "soto betawi", "kari", "lodeh", "susu segar", "vla", "cendol"]
+    high_risk_keywords = [
+        "santan", "gulai", "opor", "soto betawi", "kari", "lodeh", "susu segar", "vla", "cendol", "dawet", "sashimi", "raw salmon"
+    ]
     query_lower = search_query.lower()
     if any(k in query_lower for k in high_risk_keywords):
         category = "HIGH_PERISHABILITY"
