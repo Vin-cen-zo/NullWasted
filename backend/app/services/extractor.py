@@ -66,23 +66,27 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
 
     # 3. Hours since cooked extraction
     hours_cooked = 1.0
-    sudah_match = re.search(r"(?:sudah|\(sudah)\s*(\d+(?:[\.,]\d+)?)\s*jam", raw_lower)
-    if sudah_match:
-        hours_cooked = float(sudah_match.group(1).replace(",", "."))
+    ago_match = re.search(r"(\d+(?:[\.,]\d+)?)\s*jam\s*(?:yang\s+lalu|lalu|suhu\s+ruang)", raw_lower)
+    if ago_match:
+        hours_cooked = float(ago_match.group(1).replace(",", "."))
     else:
-        cooked_match = re.search(
-            r"(?:baru\s+matang|matang|masak|selesai\s+masak)\s*(\d+(?:[\.,]\d+)?)\s*jam",
-            raw_lower,
-        )
-        if cooked_match:
-            hours_cooked = float(cooked_match.group(1).replace(",", "."))
+        sudah_match = re.search(r"(?:sudah|\(sudah)\s*(\d+(?:[\.,]\d+)?)\s*jam", raw_lower)
+        if sudah_match:
+            hours_cooked = float(sudah_match.group(1).replace(",", "."))
         else:
-            minute_cooked = re.search(
-                r"(?:baru\s+matang|matang|masak|selesai\s+masak)\s*(\d+)\s*menit",
+            cooked_match = re.search(
+                r"(?:baru\s+matang|matang|masak|selesai\s+masak|dibuat|dibikin|olahan)\s*(\d+(?:[\.,]\d+)?)\s*jam",
                 raw_lower,
             )
-            if minute_cooked:
-                hours_cooked = round(int(minute_cooked.group(1)) / 60.0, 2)
+            if cooked_match:
+                hours_cooked = float(cooked_match.group(1).replace(",", "."))
+            else:
+                minute_cooked = re.search(
+                    r"(?:baru\s+matang|matang|masak|selesai\s+masak|dibuat|dibikin)\s*(\d+)\s*menit",
+                    raw_lower,
+                )
+                if minute_cooked:
+                    hours_cooked = round(int(minute_cooked.group(1)) / 60.0, 2)
 
     # 4. Minutes until store closing
     closing_minutes = 120
@@ -97,7 +101,7 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
     # 5. Food Name extraction
     food_name = ""
     name_match = re.search(
-        r"(?:\d+\s*(?:porsi|pcs|kotak|bungkus|buah|potong|cup|paket|loyang|piring|mangkok)\s+)([a-zA-Z0-9\s\-]+?)(?:,|\.|\bharga\b|\bbaru\b|\bsudah\b|\bmatang\b|\bmasak\b|\bselesai\b|\btoko\b|\btutup\b|$)",
+        r"(?:\d+\s*(?:porsi|pcs|kotak|bungkus|buah|potong|cup|paket|loyang|piring|mangkok)\s+)([a-zA-Z0-9\s\-]+?)(?:,|\.|\bharga\b|\bbaru\b|\bsudah\b|\bmatang\b|\bmasak\b|\bselesai\b|\bdibuat\b|\bdibikin\b|\btoko\b|\btutup\b|$)",
         text,
         re.IGNORECASE,
     )
@@ -137,11 +141,11 @@ async def extract_listing_entities(text: str, audio_base64: Optional[str] = None
     """Extracts food listing entities using live Gemini API (gemini-3.5-flash) with automatic fallback."""
     prompt = f"""Anda adalah sistem AI ekstraksi entitas katalog surplus food NullWasted di Indonesia.
 Tugas Anda adalah mengekstrak informasi dari kalimat staf toko kuliner berikut ke dalam objek JSON murni:
-- "food_name": Nama lengkap hidangan makanan/minuman beserta ciri khasnya (string Title Case, misal "Gulai Tunjang Santan Padang", "Roti Sobek Artisan Keju"). Jangan sertakan kata jumlah porsi atau harga di dalam food_name.
+- "food_name": Nama lengkap hidangan makanan/minuman beserta ciri khasnya (string Title Case, misal "Spageti Carbonara", "Gulai Tunjang Santan Padang", "Roti Sobek Artisan Keju"). Jangan sertakan kata jumlah porsi, harga, atau keterangan waktu di dalam food_name.
 - "quantity": Jumlah porsi/bungkus/kotak/cup/loyang/potong yang tersisa (integer >= 1, default 1).
 - "original_price": Harga normal per porsi sebelum diskon dalam Rupiah utuh (integer, misal "25 ribu" / "25k" / "25rb" -> 25000, default 20000).
-- "hours_since_cooked": Lama waktu (dalam jam desimal float) sejak makanan selesai dimasak/matang hingga saat ini (misal "5 jam lalu" -> 5.0, "30 menit lalu" -> 0.5, "sudah 7 jam suhu ruang" -> 7.0, default 1.0).
-- "minutes_until_closing": Sisa waktu (dalam menit integer) hingga toko tutup (misal "2 jam lagi" -> 120, "45 menit lagi" -> 45, default 120).
+- "hours_since_cooked": Lama waktu (dalam jam desimal float) sejak makanan selesai dimasak/matang/dibuat hingga saat ini (misal "dibuat 6 jam yang lalu" -> 6.0, "5 jam lalu" -> 5.0, "30 menit lalu" -> 0.5, "sudah 7 jam suhu ruang" -> 7.0, default 1.0).
+- "minutes_until_closing": Sisa waktu (dalam menit integer) hingga toko tutup (misal "2 jam lagi" -> 120, "30 menit lagi" -> 30, default 120).
 
 Kalimat input penjual: "{text}"
 

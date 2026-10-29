@@ -284,8 +284,8 @@ def test_api_full_lifecycle(client: TestClient):
 # ============================================================================
 
 def test_semantic_vector_store_and_cache_integrity():
-    """Verifies that vector_store loads the 46 BPOM dishes and 3072-dim embeddings cache properly."""
-    assert len(vector_store.items) >= 40
+    """Verifies that vector_store loads the 70 comprehensive BPOM dishes and 3072-dim embeddings cache properly."""
+    assert len(vector_store.items) >= 70
     assert CACHE_PATH.exists()
     assert len(vector_store.semantic_embeddings) == len(vector_store.items)
 
@@ -302,6 +302,45 @@ def test_semantic_vector_store_and_cache_integrity():
     assert bakery_match["category"] == "LOW_PERISHABILITY"
     assert bakery_match["bpom_max_hours"] == 24.0
     assert bakery_score >= 0.80
+
+    # Test western & international dishes
+    carbonara_match, carbonara_score = vector_store.search_similar_dish("creamy fettuccine carbonara")
+    assert carbonara_match["category"] == "HIGH_PERISHABILITY"
+    assert carbonara_match["bpom_max_hours"] == 4.0
+    assert carbonara_score >= 0.80
+
+    pizza_match, pizza_score = vector_store.search_similar_dish("pepperoni cheesy pizza slice")
+    assert pizza_match["category"] == "MEDIUM_PERISHABILITY"
+    assert pizza_match["bpom_max_hours"] == 8.0
+    assert pizza_score >= 0.80
+
+
+def test_guardrail_carbonara_and_universal_perishables():
+    """Verifies that Carbonara, cream sauces, raw fish, and salads are strictly bounded by 4-hour rule."""
+    # 1. Carbonara 6 hours -> MUST BE REJECTED
+    c6_eval = evaluate_food_safety("Spageti Carbonara", raw_text="5 porsi spageti carbonara dibuat 6 jam yang lalu", hours_since_cooked=6.0)
+    assert c6_eval["safety_status"] == "REJECTED"
+    assert c6_eval["can_publish"] is False
+    assert c6_eval["bpom_max_hours"] == 4.0
+    assert "Bacillus cereus" in c6_eval["safety_reason"] or "BAHAYA KRITIS" in c6_eval["safety_reason"]
+
+    # 2. Carbonara 1 hour -> MUST BE SAFE
+    c1_eval = evaluate_food_safety("Spageti Carbonara", raw_text="2 porsi spageti carbonara baru matang 1 jam lalu", hours_since_cooked=1.0)
+    assert c1_eval["safety_status"] == "SAFE"
+    assert c1_eval["can_publish"] is True
+    assert c1_eval["bpom_max_hours"] == 4.0
+
+    # 3. Caesar Salad with Mayonnaise 5 hours -> MUST BE REJECTED
+    salad_eval = evaluate_food_safety("Caesar Salad", raw_text="salad sayur saus caesar mayo dibuat 5 jam lalu", hours_since_cooked=5.0)
+    assert salad_eval["safety_status"] == "REJECTED"
+    assert salad_eval["can_publish"] is False
+    assert salad_eval["bpom_max_hours"] == 4.0
+
+    # 4. Pizza 3 hours -> MUST BE SAFE (8-hour limit)
+    pizza_eval = evaluate_food_safety("Pizza Meat Lovers", raw_text="3 loyang pizza matang 3 jam lalu", hours_since_cooked=3.0)
+    assert pizza_eval["safety_status"] == "SAFE"
+    assert pizza_eval["can_publish"] is True
+    assert pizza_eval["bpom_max_hours"] == 8.0
 
 
 def test_live_or_fallback_entity_extractor():
