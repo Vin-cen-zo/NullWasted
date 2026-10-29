@@ -13,7 +13,7 @@ else:
 
 APP_NAME = os.getenv("APP_NAME", "NullWasted API")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./nullwasted_local.db")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "text-embedding-004")
 
 def get_active_api_keys() -> list[str]:
