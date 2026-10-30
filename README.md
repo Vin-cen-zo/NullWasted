@@ -8,71 +8,81 @@ The platform eliminates the operational friction of store closing hours using an
 
 ## Key Features
 
-1. **Natural Language Listing (In-App Voice & Chat):**  
-   Store staff can record quick voice notes via browser Web Audio API or send casual messages. The AI agent parses product names, portions, prices, and timestamps into structured catalog entries.
-2. **Smart Bundling (Mystery Bag / Surprise Bag):**  
-   The AI automatically clusters miscellaneous small portions into appetizing, discounted themed packages.
-3. **Dynamic Pricing Recommendations (Dynamic at Generation, Fixed at Publication):**  
-   Calculates optimal discounts (50%–70%) during listing creation based on remaining closing time and stock volume. Once published, the price is locked to prevent strategic waiting and encourage immediate consumer purchase.
-4. **Deterministic Food Safety Guardrails:**  
-   Enforces BPOM safety standards, shelf-life limits, and perishable ingredient blacklists (e.g., coconut milk or dairy left at room temperature) via semantic similarity RAG in pgvector with zero hallucination risk.
-5. **Human-in-the-Loop Verification:**  
-   The assistant presents an interactive preview card in the web app requiring a single tap from store staff before any listing goes live.
+1. **Natural Language Listing (In-App Voice & Text):**  
+   Store staff dictate surplus items via native browser Web Speech Recognition API (`id-ID`) or type free-form text. The AI extracts food names, portions, prices, cooking timestamps, and closing windows into structured catalog entities.
+2. **Deterministic BPOM Food Safety Guardrail:**  
+   Enforces Indonesian BPOM food safety regulations (PerBPOM No. 16/2019) using 3072-dimensional semantic vector similarity and lexical heuristics (e.g. coconut milk/dairy left at room temperature > 4 hours are strictly rejected with HTTP 400). Zero hallucination risk.
+3. **Time-Decay Dynamic Pricing Engine:**  
+   Calculates optimal discounts (50%–70% clamped) based on remaining closing time and stock volume. Once published, the price is locked to prevent strategic waiting and encourage immediate consumer purchase.
+4. **1-Tap Interactive Preview Card:**  
+   Presents a structured confirmation card with BPOM audit status and dynamic pricing slider for merchant verification before catalog publication.
+5. **Real-Time Consumer Discovery Feed & Atomic Reservation:**  
+   Consumers browse surplus meals with live closing window countdowns, select portion quantities, and reserve stock with atomic database decrement.
+6. **Digital Order Pickup Pass & Cashier Verification:**  
+   Generates unique order codes (`#NW-xxxx`) and digital QR passes for self-pickup, with cashier validation preventing double redemption.
 
 ---
 
-## Overhauled Tech Stack
+## Technical Architecture & Stack
 
-- **Client App:** Responsive Web App & PWA (React 18/19, Vite, TypeScript, Tailwind CSS) with native browser audio recording (`MediaRecorder`), Geolocation discovery, and QR code pickup validation. Deployable to Vercel / Cloudflare Pages.
-- **Dedicated AI Gateway (9Router Standalone):** Dedicated container (`decolua/9router:latest` on port `20128`) exposing an OpenAI-compatible `/v1` endpoint. Handles smart 3-tier fallback, RTK token compression, and serves as a shared AI hub for NullWasted, coding agents (Cursor, Claude Code, Cline), and other projects.
-- **Resilient Multi-Provider Free LLM Pool:**
-  - **Tier 1 (Primary - High Context):** Google Gemini 1.5/2.0 Flash (Pool of team API keys with round-robin rotation).
-  - **Tier 2 (Chinese Powerhouse - Permanently Free & Local Cuisine Master):** Zhipu AI GLM-4-Flash (100% free forever) & Alibaba Qwen 2.5 (72B/32B via OpenRouter `:free` / DashScope).
-  - **Tier 3 (Ultra-Speed & Deep Reasoning):** Groq Cloud (Llama 3.3 70B Versatile ~500 tok/s) & DeepSeek-V3/R1.
-- **Backend API & Orchestrator:** Python 3.11+ FastAPI (async REST & WebSockets) + LangGraph StateGraph agent communicating directly with 9Router.
-- **Data & Caching (Self-Hosted 24/7 Docker):** 
-  - **PostgreSQL 16 + pgvector** (`pgvector/pgvector:pg16`): ACID transactional data and vector embeddings for BPOM food safety RAG and semantic catalog search.
-  - **Redis 7 (Alpine)** (`redis:7-alpine`): Message broker, audio background task queue (`arq`), rate-limiting token bucket (enforcing 15 RPM limits), and 1-tap confirmation draft cache.
-- **ORM & Migrations:** SQLModel (SQLAlchemy 2.0 + Pydantic v2) + Alembic migrations.
-- **Speech-to-Text (STT):** Groq Whisper Large V3 (free, <1s transcription) or Gemini Multimodal Audio.
-- **Public Ingress:** Cloudflare Tunnel (`cloudflared`) for secure public HTTPS access without opening router ports or paying for static IPs.
-- **Resource Footprint:** Entire 24/7 self-hosted container stack consumes only **~350 MB RAM** with idle CPU < 0.1% at **Rp0 / month**.
+- **Client Layer (`frontend/`):**  
+  Mobile-first Responsive Web App & PWA built with React 18/19, Vite, TypeScript, and Tailwind CSS. Utilizes native Browser Web Speech Recognition API (`webkitSpeechRecognition` / `SpeechRecognition` configured for `id-ID`) for real-time dictation without external audio dependencies.
+- **Backend Core (`backend/`):**  
+  Python 3.11+ FastAPI application featuring asynchronous REST endpoints, CORS middleware, and dependency-injected database sessions.
+- **AI Gateway & LLM Orchestration (`backend/app/core/ai_gateway.py`):**  
+  Direct client to Google AI Studio REST API with round-robin key rotation (`GEMINI_API_KEY_1..3`). Uses **`gemini-3.5-flash-lite`** (ultra-fast ~3s latency, generous daily rate limits on Free Tier) with auto-failover to `gemini-flash-lite-latest` and instant offline regex heuristic fallback (`local-fallback-parser`).
+- **Semantic Vector Store & RAG (`backend/app/services/vector_store.py`):**  
+  Hybrid semantic retrieval engine using 3072-dimensional embeddings via **`gemini-embedding-001`**, backed by a pre-computed disk cache (`food_embeddings_cache.json`) covering 70 universal culinary archetypes (Indonesian, Western, Asian, Bakery, and Dairy/Desserts) and PerBPOM No. 16/2019 safety thresholds.
+- **Database & Persistence (`backend/app/models/`):**  
+  Local ACID relational database via SQLite (`nullwasted_local.db`) using SQLModel (SQLAlchemy 2.0 + Pydantic v2). Features atomic stock decrements and automatic SQLite column migrations without Docker overhead.
 
 ---
 
 ## Repository Structure
 
 ```
-project/
-├── frontend/                # React + Vite + TypeScript Web App (PWA)
+nullwasted/
+├── frontend/                # React 18/19 + Vite + TypeScript Web PWA
 │   ├── src/
-│   │   ├── components/      # UI components (AudioRecorder, PreviewCard, QRScanner)
-│   │   ├── hooks/           # Custom React hooks (useAudio, useGeolocation)
-│   │   ├── pages/           # Store Portal & Consumer Marketplace pages
-│   │   └── services/        # API client to FastAPI backend
+│   │   ├── components/      # Modular PWA screens
+│   │   │   ├── AuthScreen.tsx               # Dual-role switch (Merchant vs Consumer)
+│   │   │   ├── MerchantInputScreen.tsx      # Voice & text input with Web Speech API
+│   │   │   ├── MerchantPreviewScreen.tsx    # 1-tap confirmation & BPOM audit card
+│   │   │   ├── MerchantInventoryScreen.tsx  # Active store catalog management
+│   │   │   ├── MerchantCashierScreen.tsx    # Cashier pickup code validation
+│   │   │   ├── ConsumerFeedScreen.tsx       # Discovery feed with closing countdown
+│   │   │   ├── ConsumerDetailModal.tsx      # Dish detail sheet & portion stepper
+│   │   │   └── ConsumerOrdersScreen.tsx     # Order pass list & QR display
+│   │   ├── services/
+│   │   │   ├── api.ts                       # Typed fetch client to FastAPI backend
+│   │   │   └── speech.ts                    # Native browser Web Speech API wrapper
+│   │   ├── types/
+│   │   │   └── listing.ts                   # Pydantic-mirrored TypeScript interfaces
+│   │   ├── App.tsx                          # Smartphone shell container & navigation
+│   │   └── main.tsx                         # React root entry point
 │   ├── index.html
-│   └── package.json
-├── backend/                 # FastAPI REST & WebSocket server
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── vite.config.ts
+├── backend/                 # FastAPI REST API with SQLModel & Google Gemini AI
 │   ├── app/
-│   │   ├── api/             # API routes (auth, listings, orders, store)
-│   │   ├── core/            # Config, security, database sessions
-│   │   ├── models/          # SQLModel database entities (Relational + Vector)
-│   │   ├── schemas/         # Pydantic schemas for data validation
-│   │   └── services/        # Business logic services & AI router client
-│   ├── alembic/             # Database migrations
-│   └── requirements.txt
-├── agent/                   # LangGraph Agentic AI reasoning and tools
-│   ├── agent_graph.py       # LangGraph state machine & orchestration
-│   ├── prompts.py           # Structured system instructions & few-shot examples
-│   ├── tools/               # Agent tool implementations
-│   │   ├── inventory_tool.py  # Entity extraction from speech/text
-│   │   ├── safety_tool.py     # Semantic BPOM food safety verification (pgvector)
-│   │   ├── bundling_tool.py   # Mystery bag bundling algorithm
-│   │   └── pricing_tool.py    # Time-decay dynamic pricing calculator
-│   └── knowledge/           # BPOM food safety rules index & embeddings
-├── docker-compose.yml       # 24/7 self-hosted multi-container setup (DB, Redis, 9Router, Backend, Tunnel)
-├── tests/                   # Automated unit and integration tests
-└── .env.example             # Template for required environment variables
+│   │   ├── api/v1/          # REST route handlers (listings, orders, pickup)
+│   │   ├── core/            # Configuration (.env), DB engine, and AI Gateway
+│   │   ├── data/            # 70 BPOM food rules & 3072-dim embeddings cache
+│   │   ├── models/          # SQLModel table schemas (ItemListing, OrderTicket)
+│   │   ├── schemas/         # Pydantic request/response validation schemas
+│   │   ├── services/        # Extractor (LLM), Guardrail (BPOM RAG), Pricing Engine
+│   │   └── main.py          # Application entry point with CORS and lifespan
+│   ├── tests/
+│   │   └── test_unit_core.py # Automated unit & integration test suite (9 tests)
+│   ├── nullwasted_local.db  # Local SQLite database
+│   ├── pytest.ini           # Pytest async configuration
+│   ├── requirements.txt     # Python dependencies
+│   ├── .env                 # Local environment secrets (API keys)
+│   └── .env.example         # Template for environment variables
+├── run_demo.bat             # 1-Click launcher for Backend (8000) & Frontend (5173)
+├── README.md                # Project architecture & setup documentation
+└── .gitignore               # Git ignore rules for node_modules, DB, and .env
 ```
 
 ---
@@ -80,23 +90,25 @@ project/
 ## System Architecture Diagram
 
 ```
-[ Frontend: React / Vite PWA ] (Vercel / Cloud CDN)
-              │
-              ▼ (HTTPS via Cloudflare Tunnel)
-┌────────────────────────────────────────────────────────┐
-│  24/7 Self-Hosted Machine (Total RAM: ~350 MB)         │
-│                                                        │
-│  FastAPI Backend ──► LangGraph Agent ──► 9Router       │
-│        │                                   │ (Port 20128)
-│        ├────────► Redis 7 (Queue & Cache)  │
-│        │                                   ▼
-│        └────────► PostgreSQL 16 + pgvector │
-└────────────────────────────────────────────┼───────────┘
-                                             │
-               ┌─────────────────────────────┼─────────────────────────────┐
-               ▼                             ▼                             ▼
-       [ Google Gemini ]             [ Chinese LLMs ]               [ Groq Cloud ]
-       Gemini 1.5/2.0 Flash          GLM-4-Flash & Qwen 2.5         Llama 3.3 70B & DeepSeek
+[ Merchant Web / Voice ]        [ Consumer Web / Mobile ]
+ (Web Speech API id-ID)           (Discovery Feed & Pass)
+          │                                  │
+          └─────────────────┬────────────────┘
+                            │
+                            ▼
+              [ React 18/19 Vite PWA Shell ]
+                  (Port 5173 / Earth Tone)
+                            │
+                            ▼ (REST API via HTTP)
+              [ FastAPI Backend Engine ]
+                  (Port 8000 / Python 3.11+)
+                  │            │           │
+       ┌──────────┘            │           └──────────┐
+       ▼                       ▼                      ▼
+[ AI Gateway ]       [ Guardrail & RAG ]      [ SQLModel ORM ]
+- gemini-3.5-flash-lite - gemini-embedding-001  - SQLite Local DB
+- Failover Pool         - 3072-dim Cosine Sim   - Atomic Decrement
+- Local Regex Fallback  - 70 BPOM Dishes Cache  - Order Lifecycle
 ```
 
 ---
@@ -104,38 +116,70 @@ project/
 ## Getting Started
 
 ### Prerequisites
-- Python 3.11+
-- Node.js 18+ (for frontend web client)
-- Docker & Docker Compose
+- **Python 3.11+**
+- **Node.js 18+** & `npm`
+- Google AI Studio API Key (for live Gemini LLM & embedding calls)
 
-### Local Development Setup
-1. Clone the repository and navigate into the project directory:
-   ```bash
-   git clone <repo-url>
-   cd project
-   ```
-2. Copy the environment template:
-   ```bash
-   cp .env.example .env
-   ```
-3. Start the infrastructure services (PostgreSQL with pgvector, Redis, and 9Router):
-   ```bash
-   docker compose up -d
-   ```
-4. Access 9Router Web UI at `http://localhost:20128` to configure your free AI provider keys (Gemini, Zhipu GLM, Qwen, Groq).
-5. Install backend dependencies and run migrations:
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   alembic upgrade head
-   uvicorn app.main:app --reload --port 8000
-   ```
-6. Start the frontend development server:
-   ```bash
-   cd ../frontend
-   npm install
-   npm run dev
-   ```
+### Quick Start (Windows 1-Click Launcher)
+Double-click `run_demo.bat` in the repository root. It will:
+1. Start the FastAPI backend on `http://localhost:8000`.
+2. Start the React Vite PWA on `http://localhost:5173`.
+3. Open `http://localhost:5173` automatically in your default browser.
+
+### Manual Setup
+
+#### 1. Backend Setup
+```bash
+cd backend
+
+# Create and activate virtual environment (optional)
+python -m venv venv
+venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env and supply your GEMINI_API_KEY_1
+
+# Start the backend server
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Interactive API documentation will be available at:
+- Swagger UI: `http://localhost:8000/docs`
+- Health Check: `http://localhost:8000/health`
+
+#### 2. Frontend Setup
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start the Vite development server
+npm run dev
+```
+Open `http://localhost:5173` in Google Chrome or Microsoft Edge to enable native Web Speech Recognition.
+
+---
+
+## Automated Testing
+
+Run the comprehensive unit and integration test suite:
+
+```bash
+cd backend
+py -m pytest tests/ -v
+```
+
+The test suite validates:
+- Dynamic pricing boundaries and rounding (clamped 50%–70%).
+- Deterministic BPOM food safety rejection of spoiled food (> 4 hours room temp santan/dairy).
+- Semantic vector store integrity (3072-dimensional cosine similarity matching).
+- Live Gemini 3.5 Flash Lite entity extractor with fallback parsing.
+- Full order lifecycle: draft ➔ publish ➔ reserve ➔ pickup completion ➔ double-redemption rejection.
 
 ---
 

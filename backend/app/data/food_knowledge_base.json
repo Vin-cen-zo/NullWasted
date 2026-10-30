@@ -1,0 +1,1591 @@
+[
+  {
+    "id": "bpom-001",
+    "canonical_name": "Gulai Ayam Padang",
+    "aliases": [
+      "gulai ayam",
+      "gulai padang",
+      "ayam gulai santan",
+      "sayur gulai",
+      "kuah santan kental",
+      "gulai ayam padang santan kental",
+      "gulai daging",
+      "gulai ikan"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "ayam",
+      "santan kelapa kental",
+      "rempah kunyit",
+      "cabai"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan 08.3 & 01.4 (Santan/Susu)",
+    "hazard_description": "Risiko tinggi proliferasi bakteri patogen Bacillus cereus dan enterotoksin Staphylococcus aureus pada media santan kental yang disimpan di suhu ruang melebihi 4 jam."
+  },
+  {
+    "id": "bpom-002",
+    "canonical_name": "Soto Betawi Kuah Santan Susu",
+    "aliases": [
+      "soto betawi",
+      "soto santan",
+      "soto susu",
+      "soto daging santan",
+      "soto tangkar santan"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "daging sapi",
+      "santan",
+      "susu cair",
+      "jeroan"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan 01.4 (Emulsi Santan & Susu)",
+    "hazard_description": "Emulsi santan dan susu mengalami denaturasi cepat di suhu ruang (>4 jam) yang memicu pertumbuhan cepat Bacillus cereus."
+  },
+  {
+    "id": "bpom-003",
+    "canonical_name": "Opor Ayam Kuning",
+    "aliases": [
+      "opor ayam",
+      "opor tahu",
+      "ayam kuah opor",
+      "lontong opor",
+      "opor telur"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "ayam",
+      "santan kelapa",
+      "kemiri",
+      "serai"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan Berkuah Santan",
+    "hazard_description": "Masakan berbahan santan mudah basi dan berisiko kontaminasi toksin bakteri Bacillus cereus setelah 4 jam di suhu ruang."
+  },
+  {
+    "id": "bpom-004",
+    "canonical_name": "Rendang Daging Sapi Basah",
+    "aliases": [
+      "rendang basah",
+      "kalio daging",
+      "rendang daging",
+      "rendang kuah santan",
+      "kalio sapi",
+      "kalio ayam"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "daging sapi",
+      "santan kelapa",
+      "cabai merah",
+      "rempah"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Olahan Santan & Daging Basah",
+    "hazard_description": "Rendang basah berkadar air santan tinggi rentan terhadap kontaminasi mikroba anaerobik bila disimpan di suhu ruang > 4 jam."
+  },
+  {
+    "id": "bpom-005",
+    "canonical_name": "Sayur Lodeh Labu Siam",
+    "aliases": [
+      "sayur lodeh",
+      "lodeh santan",
+      "lodeh labu",
+      "kuah lodeh",
+      "lodeh terong"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "labu siam",
+      "kacang panjang",
+      "santan kelapa",
+      "tempe"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Sayur Berkuah Santan",
+    "hazard_description": "Sayuran berkuah santan encer sangat rentan fermentasi asam dan pembusukan bakteri setelah 4 jam pada suhu kamar."
+  },
+  {
+    "id": "bpom-006",
+    "canonical_name": "Kari Ayam Santan",
+    "aliases": [
+      "kari ayam",
+      "curry ayam",
+      "ayam kari",
+      "kuah kari",
+      "kari kambing",
+      "kari sapi"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "ayam",
+      "santan kelapa",
+      "bubuk kari",
+      "kentang"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Olahan Kari Santan",
+    "hazard_description": "Olahan rempah kari bersantan memicu pertumbuhan spora bakteri tahan panas Bacillus cereus pada suhu ruang."
+  },
+  {
+    "id": "bpom-007",
+    "canonical_name": "Es Kopi Susu Fresh Milk",
+    "aliases": [
+      "es kopi susu",
+      "kopi susu",
+      "fresh milk",
+      "latte",
+      "cappuccino",
+      "kopi susu gula aren",
+      "es kopi susu aren"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "espresso",
+      "susu segar pasteurisasi",
+      "gula aren"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Minuman Berbasis Susu Segar",
+    "hazard_description": "Susu segar pada suhu ruang mengalami perkembangbiakan eksponensial bakteri asam laktat dan Staphylococcus aureus."
+  },
+  {
+    "id": "bpom-008",
+    "canonical_name": "Puding Vla Susu Vanila",
+    "aliases": [
+      "puding vla",
+      "vla susu",
+      "puding susu",
+      "custard vla",
+      "cream horn vla",
+      "kue sus vla"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "susu cair",
+      "kuning telur",
+      "tepung maizena",
+      "gula"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Olahan Telur dan Susu Semi-Basah",
+    "hazard_description": "Vla berbasis telur dan susu adalah media biakan ideal bagi Salmonella spp. dan Staphylococcus aureus jika tidak didinginkan dalam 4 jam."
+  },
+  {
+    "id": "bpom-009",
+    "canonical_name": "Kolak Pisang Ubi Santan",
+    "aliases": [
+      "kolak pisang",
+      "kolak ubi",
+      "kolak santan",
+      "kolak biji salak",
+      "bubur kolak"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "pisang kepok",
+      "ubi jalar",
+      "santan kelapa",
+      "gula merah"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Olahan Manisan Berkuah Santan",
+    "hazard_description": "Kombinasi gula merah dan santan hangat pada suhu ruang sangat rentan fermentasi asam dan racun bakteri Bacillus cereus."
+  },
+  {
+    "id": "bpom-010",
+    "canonical_name": "Lontong Sayur Padang Santan",
+    "aliases": [
+      "lontong sayur",
+      "ketupat sayur",
+      "lontong santan",
+      "lontong sayur padang",
+      "lontong kuah santan"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "lontong beras",
+      "gulai sayur nangka",
+      "santan kelapa",
+      "telur"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Pangan Siap Saji Kuah Santan",
+    "hazard_description": "Kuah santan sayur nangka mudah mengalami pengasaman dan kontaminasi silang bakteri patogen setelah 4 jam."
+  },
+  {
+    "id": "bpom-011",
+    "canonical_name": "Es Cendol Dawet Santan Nangka",
+    "aliases": [
+      "es cendol",
+      "es dawet",
+      "cendol nangka",
+      "cendol santan",
+      "dawet ayu"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "cendol tepung beras",
+      "santan matang",
+      "gula merah cair",
+      "nangka"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Minuman Tradisional Berbasis Santan",
+    "hazard_description": "Santan mentah/hangat pada es cendol rentan menjadi media pertumbuhan cepat Bacillus cereus dan koliform pada suhu ruang."
+  },
+  {
+    "id": "bpom-012",
+    "canonical_name": "Bubur Sumsum Kuah Santan Manis",
+    "aliases": [
+      "bubur sumsum",
+      "bubur ketan hitam santan",
+      "bubur kacang ijo santan",
+      "bubur candil santan"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "tepung beras",
+      "santan kelapa",
+      "garam",
+      "kinca gula merah"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Bubur Tradisional Bersantan",
+    "hazard_description": "Bubur beras berlumur santan sangat rentan terhadap spora Bacillus cereus yang aktif memproduksi enterotoksin setelah 4 jam."
+  },
+  {
+    "id": "bpom-013",
+    "canonical_name": "Sashimi & Sushi Ikan Mentah",
+    "aliases": [
+      "sashimi",
+      "sushi salmon mentah",
+      "sushi mentai",
+      "raw salmon",
+      "sushi tuna"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "ikan salmon segar mentah",
+      "nasi cuka sushi",
+      "nori"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Pangan Ikan Segar Siap Konsumsi Mentah",
+    "hazard_description": "Ikan laut mentah tanpa pemasakan rentan terhadap proliferasi bakteri Vibrio parahaemolyticus dan pembentukan senyawa histamin beracun."
+  },
+  {
+    "id": "bpom-014",
+    "canonical_name": "Seafood Udang Kerang Saus Padang",
+    "aliases": [
+      "udang saus padang",
+      "kerang saus padang",
+      "cumi saus padang",
+      "kepiting saus tiram",
+      "seafood saus"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "udang",
+      "kerang dara",
+      "cumi",
+      "saus cabai",
+      "telur kocok"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Pangan Hasil Laut Olahan Berkuah Kental",
+    "hazard_description": "Hasil laut berkadar protein tinggi dalam kuah kental sangat cepat mengalami pembusukan bakteri anaerob dan pembentukan histamin."
+  },
+  {
+    "id": "bpom-015",
+    "canonical_name": "Nasi Bento Ayam Teriyaki",
+    "aliases": [
+      "nasi bento",
+      "bento ayam",
+      "chicken teriyaki bento",
+      "chicken katsu bento",
+      "bento box"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "nasi putih",
+      "fillet ayam",
+      "saus teriyaki",
+      "salad sayur"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan 08.0 (Siap Saji Daging & Unggas)",
+    "hazard_description": "Daging ayam matang bersaus rentan terhadap kontaminasi silang Salmonella dan Staphylococcus aureus jika dibiarkan > 8 jam."
+  },
+  {
+    "id": "bpom-016",
+    "canonical_name": "Ayam Penyet Sambal Korek",
+    "aliases": [
+      "ayam penyet",
+      "ayam sambal korek",
+      "ayam penyet goreng",
+      "ayam penyet terasi"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "ayam goreng ungkep",
+      "sambal bawang korek",
+      "lalapan mentimun"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan Unggas Goreng",
+    "hazard_description": "Daging ayam goreng kering memiliki stabilitas cukup baik, namun sambal mentah pendamping dapat menjadi media pertumbuhan mikroba setelah 8 jam."
+  },
+  {
+    "id": "bpom-017",
+    "canonical_name": "Nasi Goreng Spesial Telur",
+    "aliases": [
+      "nasi goreng",
+      "nasgor spesial",
+      "nasi goreng ayam",
+      "nasi goreng telur",
+      "nasi goreng seafood",
+      "nasgor kambing",
+      "nasi goreng kampung"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "nasi pera",
+      "telur ayam",
+      "kecap manis",
+      "bawang merah"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan Olahan Beras Matang",
+    "hazard_description": "Pati nasi matang pada suhu ruang rentan terhadap spora bakteri Bacillus cereus tipe emetik yang menyebabkan muntah jika melampaui 8 jam."
+  },
+  {
+    "id": "bpom-018",
+    "canonical_name": "Mie Goreng Jawa Spesial",
+    "aliases": [
+      "mie goreng",
+      "bakmi goreng",
+      "kwetiau goreng",
+      "bihun goreng",
+      "mie goreng jawa",
+      "mie goreng aceh"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "mie kuning basah",
+      "telur",
+      "kol",
+      "saus tiram",
+      "ayam suwir"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Olahan Mie Siap Saji",
+    "hazard_description": "Kadar air mie goreng memungkinkan perkembangbiakan bakteri mesofilik setelah 8 jam penyimpanan suhu ruang."
+  },
+  {
+    "id": "bpom-019",
+    "canonical_name": "Sate Ayam Madura Bumbu Kacang",
+    "aliases": [
+      "sate ayam",
+      "sate madura",
+      "sate kambing",
+      "sate bumbu kacang",
+      "sate taichan",
+      "sate padang"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "daging ayam bakar",
+      "bumbu kacang tanah",
+      "kecap manis",
+      "bawang merah"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan Daging Panggang",
+    "hazard_description": "Bumbu kacang basah berlemak dapat mengalami ketengikan dan pertumbuhan jamur/bakteri patogen setelah 8 jam."
+  },
+  {
+    "id": "bpom-020",
+    "canonical_name": "Ayam Bakar Taliwang Madu",
+    "aliases": [
+      "ayam bakar",
+      "ayam bakar madu",
+      "ayam bakar taliwang",
+      "ayam bakar kalasan",
+      "ayam panggang"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "daging ayam",
+      "bumbu rempah bakar",
+      "kecap",
+      "madu"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Daging Unggas Panggang",
+    "hazard_description": "Permukaan daging bakar terkaramelisasi menghambat mikroba sementara, namun bagian dalam rentan spora Clostridium perfringens > 8 jam."
+  },
+  {
+    "id": "bpom-021",
+    "canonical_name": "Telur Balado Balado Merah",
+    "aliases": [
+      "telur balado",
+      "telur dadar balado",
+      "telur ceplok balado",
+      "telur mata sapi",
+      "telur bumbu bali"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "telur ayam rebus goreng",
+      "sambal cabai merah",
+      "tomat"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Olahan Telur Matang",
+    "hazard_description": "Telur rebus yang digoreng memiliki lapisan pelindung, tetapi sambal cabai tomat dapat mengalami fermentasi asam setelah 8 jam."
+  },
+  {
+    "id": "bpom-022",
+    "canonical_name": "Siomay Bandung Ikan Tenggiri",
+    "aliases": [
+      "siomay bandung",
+      "siomay ikan",
+      "batagor bandung",
+      "batagor kuah kacang",
+      "siomay kukus"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "pasta ikan tenggiri",
+      "tepung tapioka",
+      "kulit pangsit",
+      "saus kacang"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Pangan Olahan Ikan Kukus",
+    "hazard_description": "Olahan ikan kukus berkadar air tinggi rentan terhadap pertumbuhan bakteri pembusuk Proteus dan Salmonella jika disimpan di atas 8 jam."
+  },
+  {
+    "id": "bpom-023",
+    "canonical_name": "Nasi Uduk Komplit Telur Balado",
+    "aliases": [
+      "nasi uduk",
+      "nasi uduk komplit",
+      "nasi kuning komplit",
+      "nasi liwet komplit",
+      "nasi uduk betawi"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "nasi beras gurih",
+      "bihun goreng",
+      "telur balado",
+      "tempe orek"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Pangan Campuran Nasi Siap Saji",
+    "hazard_description": "Nasi uduk dimasak dengan santan tipis tetapi teksturnya kering; batas aman suhu ruangnya adalah 8 jam sebelum spora Bacillus bereaksi."
+  },
+  {
+    "id": "bpom-024",
+    "canonical_name": "Ayam Geprek Sambal Bawang",
+    "aliases": [
+      "ayam geprek",
+      "geprek sambal bawang",
+      "ayam katsu geprek",
+      "ayam geprek sambal matah",
+      "ayam krispi geprek"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "ayam goreng krispi tepung",
+      "cabai rawit merah",
+      "bawang putih",
+      "minyak panas"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Olahan Unggas Goreng Tepung",
+    "hazard_description": "Ayam goreng tepung relatif kering, namun sambal mentah siram minyak panas dapat mengalami pembusukan bakteri setelah 8 jam."
+  },
+  {
+    "id": "bpom-025",
+    "canonical_name": "Bakso Sapi Kuah Kaldu Daging",
+    "aliases": [
+      "bakso sapi",
+      "bakso kuah",
+      "bakso urat",
+      "bakso malang",
+      "bakwan malang",
+      "mie bakso",
+      "bakso sapi urat kuah kaldu",
+      "bakso sapi kuah"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "daging sapi giling",
+      "tepung sagu",
+      "kuah kaldu tulang",
+      "mie bihun"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Pangan Siap Saji Daging & Sup Berkaldu",
+    "hazard_description": "Kuah kaldu daging kaya protein merupakan media pertumbuhan mikroba mesofilik dan Staphylococcus aureus jika dibiarkan > 8 jam pada suhu ruang."
+  },
+  {
+    "id": "bpom-026",
+    "canonical_name": "Mie Ayam Jamur Pangsit",
+    "aliases": [
+      "mie ayam",
+      "bakmi ayam",
+      "mie ayam jamur",
+      "bakmi pangsit",
+      "mie ayam pangsit",
+      "cwie mie"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "mie kuning basah",
+      "ayam kecap cincang",
+      "jamur merang",
+      "kuah kaldu ayam"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Olahan Mie dan Daging Unggas",
+    "hazard_description": "Ayam kecap jamur memiliki kadar air tinggi yang dapat terkontaminasi silang bakteri Salmonella dan kapang jika melebihi 8 jam."
+  },
+  {
+    "id": "bpom-027",
+    "canonical_name": "Gado-Gado Betawi Bumbu Kacang",
+    "aliases": [
+      "gado-gado",
+      "gado gado",
+      "ketoprak betawi",
+      "pecel sayur",
+      "karedok",
+      "gado gado bumbu kacang"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "sayuran rebus",
+      "tahu tempe",
+      "saus kacang tanah",
+      "kerupuk"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Sayuran Rebus dengan Saus Kacang",
+    "hazard_description": "Sayuran rebus basah yang tercampur bumbu kacang rentan memicu pertumbuhan bakteri asam dan fermentasi kapang setelah 8 jam."
+  },
+  {
+    "id": "bpom-028",
+    "canonical_name": "Pempek Palembang Ikan Tenggiri",
+    "aliases": [
+      "pempek palembang",
+      "empek-empek",
+      "pempek kapal selam",
+      "pempek lenjer",
+      "tekwan ikan",
+      "pempek dos"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "daging ikan tenggiri",
+      "tepung sagu",
+      "kuah cuko asam jawa gula aren"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Produk Olahan Ikan & Pasta Ikan Rebus/Goreng",
+    "hazard_description": "Daging pempek memiliki kadar pati tinggi; kuah cuko yang asam bersifat bakteriostatik, namun pempek basah rentan kapang > 8 jam."
+  },
+  {
+    "id": "bpom-029",
+    "canonical_name": "Dimsum Ayam Shumai Kukus",
+    "aliases": [
+      "dimsum ayam",
+      "dimsum",
+      "shumai",
+      "hakau udang",
+      "siomay dimsum",
+      "dimsum kukus"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "daging ayam cincang",
+      "udang",
+      "kulit gyoza",
+      "saus asam manis"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Olahan Daging Cincang Kukus",
+    "hazard_description": "Kondisi lembap pada dimsum kukus sangat disukai bakteri Salmonella dan Staphylococcus jika tidak disimpan dalam pemanas hangat."
+  },
+  {
+    "id": "bpom-030",
+    "canonical_name": "Martabak Telur Daging Sapi",
+    "aliases": [
+      "martabak telur",
+      "martabak daging",
+      "martabak bebek",
+      "martabak asin"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "kulit martabak terigu",
+      "telur bebek/ayam",
+      "daging sapi cincang",
+      "daun bawang"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Pangan Telur dan Daging Goreng",
+    "hazard_description": "Meskipun digoreng garing di luar, isian telur dan daun bawang basah di dalam rentan menjadi media pertumbuhan mikroba setelah 8 jam."
+  },
+  {
+    "id": "bpom-031",
+    "canonical_name": "Soto Ayam Bening Lamongan",
+    "aliases": [
+      "soto ayam bening",
+      "soto lamongan",
+      "soto kudus",
+      "soto madura bening",
+      "soto ayam"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "daging ayam suwir",
+      "kuah kaldu kuning bening tanpa santan",
+      "soun",
+      "kol"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Sup Daging Unggas Bening Tanpa Santan",
+    "hazard_description": "Sup kaldu bening tanpa santan lebih tahan lama dibanding santan, namun tetap memiliki batas toleransi 8 jam sebelum bakteri mesofilik berkembang."
+  },
+  {
+    "id": "bpom-032",
+    "canonical_name": "Rawon Daging Sapi Kuah Kluwek",
+    "aliases": [
+      "rawon daging",
+      "rawon sapi",
+      "nasi rawon",
+      "kuah rawon kluwek"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "daging sapi sandung lamur",
+      "bumbu kluwek",
+      "tauge pendek",
+      "sambal terasi"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Sup Daging Berempah Non-Santan",
+    "hazard_description": "Kluwek dan rempah memiliki sifat antimikroba alami, namun protein daging sapi dalam kuah tetap berisiko pembusukan setelah 8 jam."
+  },
+  {
+    "id": "bpom-033",
+    "canonical_name": "Capcay Sayuran Goreng Seafood",
+    "aliases": [
+      "capcay",
+      "capcay goreng",
+      "capcay kuah",
+      "tumis sayur",
+      "tumis kangkung",
+      "tumis buncis"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "wortel",
+      "kembang kol",
+      "sawi",
+      "udang",
+      "bakso sapi"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Olahan Sayuran Tumis Siap Saji",
+    "hazard_description": "Sayuran tumis matang kehilangan kerenyahan dan mengalami peningkatan populasi bakteri tanah tahan panas jika dibiarkan > 8 jam."
+  },
+  {
+    "id": "bpom-034",
+    "canonical_name": "Gorengan Tempe Mendoan & Bakwan",
+    "aliases": [
+      "gorengan",
+      "tempe mendoan",
+      "bakwan sayur",
+      "tahu isi",
+      "pisang goreng",
+      "cireng",
+      "singkong goreng"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "tempe kedelai",
+      "tepung beras terigu",
+      "minyak goreng kelapa sawit",
+      "sayuran"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Makanan Gorengan Bertepung",
+    "hazard_description": "Minyak goreng memperlambat pembusukan, namun kadar air tempe dan sayuran di dalam tepung rentan berjamur dan lembap setelah 8 jam."
+  },
+  {
+    "id": "bpom-035",
+    "canonical_name": "Croissant Cokelat Artisan",
+    "aliases": [
+      "croissant",
+      "croissant cokelat",
+      "chocolate croissant",
+      "almond croissant",
+      "butter croissant",
+      "pain au chocolat"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "tepung terigu protein tinggi",
+      "butter mentega laminasi",
+      "cokelat batang",
+      "ragi"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan 07.0 (Produk Roti & Pastry)",
+    "hazard_description": "Kadar air rendah (aw < 0.85) dan proses pemanggangan suhu tinggi (>200C) memberikan stabilitas mikrobiologis optimal hingga 24 jam."
+  },
+  {
+    "id": "bpom-036",
+    "canonical_name": "Roti Sobek Manis Cokelat Keju",
+    "aliases": [
+      "roti sobek",
+      "roti manis",
+      "roti tawar",
+      "roti kasur",
+      "roti cokelat keju",
+      "roti isi cokelat"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "tepung terigu",
+      "ragi instan",
+      "gula pasir",
+      "keju cheddar",
+      "selai cokelat"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan 07.2 (Roti Manis)",
+    "hazard_description": "Roti dengan kadar air terkontrol stabil pada suhu ruang. Pembusukan utama setelah 24-48 jam didominasi kapang Aspergillus niger."
+  },
+  {
+    "id": "bpom-037",
+    "canonical_name": "Donat Kentang Tabur Gula Salju",
+    "aliases": [
+      "donat kentang",
+      "donat gula",
+      "donat cokelat",
+      "donat glaze",
+      "doughnut"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "kentang kukus",
+      "tepung terigu",
+      "gula halus",
+      "minyak nabati"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Produk Roti Goreng Beragi",
+    "hazard_description": "Lapisan minyak dan kadar gula tinggi menekan aktivitas air (water activity), aman dikonsumsi hingga 24 jam."
+  },
+  {
+    "id": "bpom-038",
+    "canonical_name": "Cromboloni Cokelat Pistachio",
+    "aliases": [
+      "cromboloni",
+      "danish pastry",
+      "puff pastry",
+      "croissant roll"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "laminated dough",
+      "selai cokelat filling",
+      "kacang pistachio"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Pastry Kering & Laminated Dough",
+    "hazard_description": "Tekstur kering renyah dan kadar air sangat rendah memberikan resistensi mikrobiologis alami selama 24 jam di suhu kamar."
+  },
+  {
+    "id": "bpom-039",
+    "canonical_name": "Muffin Blueberry Kismis",
+    "aliases": [
+      "muffin",
+      "muffin blueberry",
+      "muffin choco chip",
+      "cupcake vanila"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "tepung terigu",
+      "mentega",
+      "telur matang terpanggang",
+      "buah blueberry kering"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Produk Kue Panggang Lembut",
+    "hazard_description": "Kue panggang dengan rasio gula-lemak cukup tinggi aman dari spora bakteri patogen hingga 24 jam pada suhu ruang sejuk."
+  },
+  {
+    "id": "bpom-040",
+    "canonical_name": "Fudge Brownies Panggang Shiny Crust",
+    "aliases": [
+      "brownies",
+      "brownies panggang",
+      "fudge brownies",
+      "brownies cokelat"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "dark cooking chocolate",
+      "mentega",
+      "tepung terigu",
+      "gula pasir"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kue Cokelat Panggang Padat",
+    "hazard_description": "Kadar gula tinggi dan kelembapan rendah (dense fudge) menciptakan tekanan osmotik tinggi yang menghambat bakteri patogen hingga 24 jam."
+  },
+  {
+    "id": "bpom-041",
+    "canonical_name": "Cinnamon Roll Glaze Gula",
+    "aliases": [
+      "cinnamon roll",
+      "roti kayu manis",
+      "cinnamon bun"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "adonan roti manis",
+      "bubuk kayu manis",
+      "brown sugar",
+      "cream cheese glaze matang"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Roti Berbumbu Rempah Kering",
+    "hazard_description": "Senyawa cinnamaldehyde pada bubuk kayu manis bertindak sebagai biosida alami penekan pertumbuhan bakteri patogen selama 24 jam."
+  },
+  {
+    "id": "bpom-042",
+    "canonical_name": "Kastengel Keju Edam Asli",
+    "aliases": [
+      "kastengel",
+      "kue keju",
+      "kastengel keju",
+      "cheese cookies"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "keju edam tua",
+      "mentega butter",
+      "tepung terigu",
+      "kuning telur panggang"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan 07.4 (Kue Kering / Biskuit)",
+    "hazard_description": "Kue kering berkadar air sangat rendah (<5%) sangat stabil dan tidak mendukung pertumbuhan mikroba patogen mesofilik pada suhu ruang."
+  },
+  {
+    "id": "bpom-043",
+    "canonical_name": "Nastar Nanas Klasik",
+    "aliases": [
+      "nastar",
+      "nastar nanas",
+      "kue nastar",
+      "pineapple tart",
+      "putri salju"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "selai nanas asam pekat",
+      "adonan mentega terigu",
+      "kuning telur"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kue Kering Berisi Selai Buah",
+    "hazard_description": "Tingkat keasaman selai nanas (pH < 4.0) dan pemanggangan adonan biskuit memberikan proteksi mikrobiologis tinggi selama 24 jam."
+  },
+  {
+    "id": "bpom-044",
+    "canonical_name": "Baguette Roti Prancis Klasik",
+    "aliases": [
+      "baguette",
+      "roti prancis",
+      "french bread",
+      "sourdough"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "tepung gandum",
+      "air",
+      "ragi",
+      "garam"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Roti Berkerak Kering",
+    "hazard_description": "Kerak roti tebal dan kering (crusty) melindungi bagian dalam roti dari pembusukan mikrobiologis dalam kurun waktu 24 jam."
+  },
+  {
+    "id": "bpom-045",
+    "canonical_name": "Martabak Manis Terang Bulan",
+    "aliases": [
+      "martabak manis",
+      "terang bulan",
+      "kue terang bulan",
+      "martabak bangka",
+      "martabak cokelat keju"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "tepung terigu",
+      "soda kue",
+      "mentega wijsman",
+      "susu kental manis",
+      "cokelat meses",
+      "keju"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kue Dadar Manis Berpori",
+    "hazard_description": "Kadar gula sangat tinggi (gula pasir & kental manis) memberikan efek pengawet osmotik yang aman disimpan pada suhu ruang hingga 24 jam."
+  },
+  {
+    "id": "bpom-046",
+    "canonical_name": "Roti Bakar Bandung Cokelat Keju",
+    "aliases": [
+      "roti bakar",
+      "roti bakar bandung",
+      "roti panggang cokelat"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "roti tawar tebal",
+      "margarin panggang",
+      "meses cokelat",
+      "keju parut"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Roti Panggang dengan Isian Manis",
+    "hazard_description": "Proses pemanggangan roti kedua kali menurunkan kadar air permukaan, menjaga kelayakan konsumsi hingga 24 jam pada suhu ruang."
+  },
+  {
+    "id": "bpom-047",
+    "canonical_name": "Spageti Carbonara Saus Krim Telur",
+    "aliases": [
+      "spageti carbonara",
+      "spaghetti carbonara",
+      "carbonara",
+      "pasta carbonara",
+      "fettuccine alfredo",
+      "fettucine carbonara",
+      "creamy pasta",
+      "pasta saus krim",
+      "spaghetti cream sauce",
+      "mac and cheese"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "pasta spageti",
+      "saus krim",
+      "kuning telur mentah/setengah matang",
+      "keju parmesan",
+      "smoked beef"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Olahan Pasta Berbasis Emulsi Susu, Krim, dan Kuning Telur",
+    "hazard_description": "Emulsi krim susu dan kuning telur adalah media perkembangbiakan eksponensial bakteri patogen Bacillus cereus, Salmonella, dan enterotoksin Staphylococcus aureus pada suhu ruang > 4 jam."
+  },
+  {
+    "id": "bpom-048",
+    "canonical_name": "Spageti Bolognese Saus Daging Tomat",
+    "aliases": [
+      "spageti bolognese",
+      "spaghetti bolognese",
+      "pasta bolognese",
+      "pasta aglio olio",
+      "spageti aglio olio",
+      "spaghetti pomodoro",
+      "pasta saus tomat"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "pasta spageti",
+      "saus tomat asam",
+      "daging sapi cincang matang",
+      "bawang bombay"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Olahan Pasta Saus Matang Tanpa Santan/Krim",
+    "hazard_description": "Keasaman saus tomat memberikan efek bakteriostatik alami, namun daging cincang matang memiliki batas simpan aman maksimal 8 jam pada suhu ruang."
+  },
+  {
+    "id": "bpom-049",
+    "canonical_name": "Lasagna Panggang Daging Keju",
+    "aliases": [
+      "lasagna",
+      "lasagna panggang",
+      "beef lasagna",
+      "baked ziti",
+      "macaroni schotel panggang",
+      "makaroni skotel"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "lembaran pasta lasagna",
+      "saus daging bechamel matang",
+      "keju mozzarella panggang",
+      "saus tomat"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pasta Panggang Kering & Olahan Daging",
+    "hazard_description": "Proses pemanggangan oven suhu tinggi menurunkan mikroba awal, aman disimpan hingga 8 jam pada suhu ruang."
+  },
+  {
+    "id": "bpom-050",
+    "canonical_name": "Pizza Daging & Keju Panggang",
+    "aliases": [
+      "pizza",
+      "meat lovers pizza",
+      "pepperoni pizza",
+      "pizza margherita",
+      "pizza keju",
+      "pizza hut",
+      "cheese pizza"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "adonan roti gandum",
+      "keju mozzarella panggang",
+      "saus tomat",
+      "sosis daging sapi"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Roti dengan Topping Daging dan Keju Panggang",
+    "hazard_description": "Topping daging olahan dan keju panggang oven memiliki batas aman penyimpanan suhu ruang maksimal 8 jam."
+  },
+  {
+    "id": "bpom-051",
+    "canonical_name": "Burger Sapi & Ayam Matang",
+    "aliases": [
+      "burger",
+      "cheeseburger",
+      "beef burger",
+      "chicken burger",
+      "hamburger",
+      "burger keju"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "bun roti wijen",
+      "patty daging sapi panggang",
+      "keju lembaran",
+      "selada",
+      "saus tomat dan saus sambal"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Roti Lapis Daging Cincang Panggang",
+    "hazard_description": "Patty daging panggang matang dan saus memiliki batas ketahanan mikrobiologis 8 jam pada suhu ruang."
+  },
+  {
+    "id": "bpom-052",
+    "canonical_name": "Steak Daging Sapi Saus Jamur/Lada Hitam",
+    "aliases": [
+      "steak",
+      "steak sapi",
+      "sirloin steak",
+      "tenderloin steak",
+      "ribeye steak",
+      "beef steak",
+      "steak ayam"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "daging sapi panggang matang",
+      "saus lada hitam",
+      "saus jamur",
+      "sayuran buncis wortel rebus"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Daging Merah Panggang Matang",
+    "hazard_description": "Daging merah yang dimasak matang penuh memiliki ketahanan aman hingga 8 jam pada suhu kamar."
+  },
+  {
+    "id": "bpom-053",
+    "canonical_name": "Kentang Goreng French Fries Renyah",
+    "aliases": [
+      "french fries",
+      "kentang goreng",
+      "potato wedges",
+      "hashbrown",
+      "tater tots",
+      "pom pom potato"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "kentang iris",
+      "minyak nabati panas",
+      "garam dapur"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Umbi Goreng Minyak Banyak",
+    "hazard_description": "Kadar air permukaan sangat rendah pasca-penggorengan suhu tinggi 180°C, aman disimpan hingga 24 jam pada suhu ruang."
+  },
+  {
+    "id": "bpom-054",
+    "canonical_name": "Salad Sayur & Buah Saus Mayones / Caesar",
+    "aliases": [
+      "salad buah mayones",
+      "caesar salad",
+      "salad sayur dressing",
+      "salad mayones",
+      "coleslaw",
+      "egg salad",
+      "salad telur"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "sayuran mentah",
+      "dressing mayones emulsi telur",
+      "keju parmesan",
+      "potongan telur rebus"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Salad Siap Saji Berdressing Emulsi Minyak-Telur",
+    "hazard_description": "Saus mayones emulsi dingin dan sayuran mentah tanpa perlakuan panas sangat rentan proliferasi bakteri patogen Salmonella, Listeria monocytogenes, dan Staphylococcus aureus > 4 jam suhu ruang."
+  },
+  {
+    "id": "bpom-055",
+    "canonical_name": "Sushi & Sashimi Ikan Mentah Segar",
+    "aliases": [
+      "sashimi",
+      "sashimi salmon",
+      "sashimi tuna",
+      "sushi salmon mentah",
+      "nigiri mentah",
+      "raw salmon",
+      "raw fish",
+      "tartare ikan"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "irisan ikan salmon mentah",
+      "tuna mentah",
+      "nasi sushi cuka"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Produk Perikanan Segar Non-Thermal (Mentah)",
+    "hazard_description": "Ikan mentah tanpa pemasakan panas merupakan pangan berisiko biologis kritis tertinggi, rentan pembentukan histamin beracun dan bakteri Vibrio serta Salmonella setelah 4 jam suhu ruang."
+  },
+  {
+    "id": "bpom-056",
+    "canonical_name": "Sushi Roll Matang & Kimbap Korea",
+    "aliases": [
+      "sushi roll",
+      "california roll",
+      "kimbap",
+      "ebi tempura roll",
+      "tuna mayo roll matang",
+      "sushi matang"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "nasi cuka jepang",
+      "nori rumput laut",
+      "ebi tempura goreng matang",
+      "timun jepang",
+      "tamago telur dadar matang"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Nasi Berbumbu Asam dengan Isian Matang",
+    "hazard_description": "Kandungan asam asetat pada nasi cuka menurunkan pH di bawah 4.6 yang menghambat spora bakteri, aman hingga 8 jam pada suhu ruang."
+  },
+  {
+    "id": "bpom-057",
+    "canonical_name": "Dimsum Siomay & Hakau Kukus",
+    "aliases": [
+      "dimsum",
+      "siomay dimsum",
+      "hakau",
+      "dimsum ayam",
+      "hakau udang",
+      "gyoza kukus",
+      "wonton kukus"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "daging ayam cincang kukus",
+      "udang cincang",
+      "kulit pangsit gandum",
+      "minyak wijen"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Olahan Daging Kukus / Dimsum",
+    "hazard_description": "Pengukusan uap panas matang penuh mematikan patogen vegetatif; batas aman konsumsi suhu ruang adalah 8 jam."
+  },
+  {
+    "id": "bpom-058",
+    "canonical_name": "Ramen Kuah Kaldu Daging & Mie Jepang",
+    "aliases": [
+      "ramen",
+      "mie ramen",
+      "shoyu ramen",
+      "miso ramen",
+      "ramen kuah kaldu",
+      "udon kuah kaldu",
+      "udon"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "mie ramen gandum",
+      "kuah kaldu tulang daging sapi/ayam",
+      "telur ajitsuke rebus",
+      "daun bawang"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Mie Berkuah Kaldu Hewani",
+    "hazard_description": "Kuah kaldu hewani berkadar protein tinggi rentan pengasaman oleh bakteri mesofilik jika disimpan > 8 jam pada suhu ruang."
+  },
+  {
+    "id": "bpom-059",
+    "canonical_name": "Tom Yum Seafood & Sup Asam Pedas",
+    "aliases": [
+      "tom yum",
+      "tomyam",
+      "tom yam goong",
+      "sup asam pedas seafood",
+      "tomyam seafood"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "udang rebus",
+      "cumi",
+      "serai",
+      "jeruk nipis",
+      "cabai",
+      "kaldu asam"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Sup Asam Rempah Makanan Laut",
+    "hazard_description": "Keasaman asam sitrat alami jeruk nipis memberikan perlindungan mikrobiologis, batas simpan aman 8 jam pada suhu kamar."
+  },
+  {
+    "id": "bpom-060",
+    "canonical_name": "Kue Sus Vla & Eclair Choux Cream",
+    "aliases": [
+      "kue sus",
+      "sus vla",
+      "eclair",
+      "choux cream",
+      "cream puff",
+      "profiterole",
+      "kue sus vla vanila"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "adonan choux pastry",
+      "vla susu vanila",
+      "kuning telur",
+      "mentega"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pastry Isi Krim Vla Susu Telur",
+    "hazard_description": "Vla susu berkadar air tinggi dan kaya protein telur sangat rentan kontaminasi spora Bacillus cereus dan enterotoksin Staphylococcus aureus, wajib dibatasi maksimal 4 jam pada suhu ruang."
+  },
+  {
+    "id": "bpom-061",
+    "canonical_name": "Tiramisu & Cake Krim Basah",
+    "aliases": [
+      "tiramisu",
+      "blackforest krim segar",
+      "shortcake krim",
+      "cheesecake lembut basah",
+      "mille crepes",
+      "kue tart krim basah"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "biskuit ladyfinger",
+      "keju mascarpone",
+      "whipping cream susu",
+      "kuning telur",
+      "bubuk kakao"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Cake Berisi dan Berlapisan Krim Susu Dingin",
+    "hazard_description": "Lapisan krim kocok segar dan keju lunak cepat mengalami ketengikan dan proliferasi bakteri patogen di suhu ruang di atas 4 jam."
+  },
+  {
+    "id": "bpom-062",
+    "canonical_name": "Puding Susu & Caramel Custard",
+    "aliases": [
+      "puding susu",
+      "silky pudding",
+      "caramel custard",
+      "creme brulee",
+      "puding karamel",
+      "puding gyu kaku"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "susu cair segar",
+      "kuning telur",
+      "gula karamel",
+      "agar-agar gelatin"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Makanan Penutup Gel Berbahan Dasar Susu",
+    "hazard_description": "Kandungan susu cair dan telur berkadar air tinggi rentan pengasaman asam laktat cepat dan pembentukan toksin > 4 jam suhu ruang."
+  },
+  {
+    "id": "bpom-063",
+    "canonical_name": "Boba Milk Tea & Minuman Susu Segar",
+    "aliases": [
+      "boba milk tea",
+      "milk tea",
+      "brown sugar boba",
+      "teh tarik susu",
+      "thai tea susu",
+      "matcha latte fresh milk",
+      "minuman susu segar"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "teh hitam pekat",
+      "susu sapi segar pasteurisasi",
+      "tapioca pearl boba",
+      "gula cair"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Minuman Berbahan Dasar Susu Segar dan Gula",
+    "hazard_description": "Susu cair segar pada suhu kamar adalah media optimal bagi pertumbuhan bakteri mesofilik dan Staphylococcus aureus, batas aman maksimal 4 jam."
+  },
+  {
+    "id": "bpom-064",
+    "canonical_name": "Kopi Hitam & Teh Manis Tanpa Susu",
+    "aliases": [
+      "kopi hitam",
+      "americano",
+      "espresso",
+      "long black",
+      "kopi tubruk tanpa susu",
+      "teh manis dingin",
+      "es teh manis"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "ekstrak biji kopi sangrai",
+      "air mineral",
+      "gula tebu murni"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Minuman Kopi dan Teh Infus Bening",
+    "hazard_description": "Kandungan polifenol dan asam klorogenat alami menghambat pertumbuhan mikroba; batas simpan aman suhu ruang adalah 8 jam."
+  },
+  {
+    "id": "bpom-065",
+    "canonical_name": "Nasi Uduk & Nasi Kuning Gurih Santan",
+    "aliases": [
+      "nasi uduk",
+      "nasi uduk betawi",
+      "nasi kuning gurih",
+      "nasi kuning santan",
+      "nasi lemak santan",
+      "nasi liwet santan"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "beras pulen",
+      "santan kelapa gurih",
+      "daun salam",
+      "serai"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan Karbohidrat Olahan Santan",
+    "hazard_description": "Nasi yang dimasak dengan santan memiliki kandungan lemak mudah tengik dan spora Bacillus cereus yang aktif memproduksi enterotoksin setelah 4 jam suhu ruang."
+  },
+  {
+    "id": "bpom-066",
+    "canonical_name": "Rawon Daging Sapi Kuah Kluwek",
+    "aliases": [
+      "rawon sapi",
+      "rawon daging",
+      "nasi rawon",
+      "rawon surabaya",
+      "sop rawon"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "daging sapi sandung lamur",
+      "buah kluwek fermentasi",
+      "bawang merah",
+      "kuah kaldu rempah"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Sup Daging Berempah Kuah Non-Santan",
+    "hazard_description": "Kluwek kaya senyawa tanin dan antioksidan alami yang memperlambat pembusukan; batas simpan aman suhu ruang 8 jam."
+  },
+  {
+    "id": "bpom-067",
+    "canonical_name": "Sate Ayam & Daging Saus Kacang",
+    "aliases": [
+      "sate ayam",
+      "sate ayam madura",
+      "sate kambing",
+      "sate padang",
+      "sate taichan",
+      "sate daging"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "daging ayam/kambing bakar arang",
+      "saus bumbu kacang tanah",
+      "kecap manis",
+      "bawang goreng"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Daging Panggang Tusuk dengan Saus Kacang",
+    "hazard_description": "Daging bakar suhu tinggi matang sempurna memiliki batas ketahanan 8 jam; saus kacang basah berisiko jika melebihi 8 jam."
+  },
+  {
+    "id": "bpom-068",
+    "canonical_name": "Bakwan Sayur & Gorengan Renyah",
+    "aliases": [
+      "gorengan",
+      "bakwan sayur",
+      "bala-bala",
+      "tempe mendoan krispi",
+      "tahu isi goreng",
+      "cireng goreng",
+      "pisang goreng"
+    ],
+    "category": "LOW_PERISHABILITY",
+    "ingredients": [
+      "tepung terigu",
+      "sayuran kol wortel",
+      "minyak goreng kelapa sawit"
+    ],
+    "risk_level": "LOW",
+    "bpom_max_hours": 24.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan Goreng Kering Berbalut Adonan Tepung",
+    "hazard_description": "Kadar air bebas rendah akibat penggorengan minyak panas membuat gorengan aman disimpan pada suhu ruang hingga 24 jam."
+  },
+  {
+    "id": "bpom-069",
+    "canonical_name": "Martabak Telur Daging Sapi",
+    "aliases": [
+      "martabak telur",
+      "martabak daging",
+      "martabak asin",
+      "martabak bebek",
+      "martabak telur spesial"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "kulit martabak gandum",
+      "telur bebek matang",
+      "daging sapi cincang",
+      "daun bawang cincang"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Martabak Gurih Goreng Berisi Telur dan Daging Matang",
+    "hazard_description": "Penggorengan rendam minyak panas mematangkan telur dan daging secara sempurna; batas aman suhu ruang adalah 8 jam."
+  },
+  {
+    "id": "bpom-070",
+    "canonical_name": "Pempek Ikan Kapal Selam Palembang",
+    "aliases": [
+      "pempek kapal selam",
+      "pempek telur",
+      "pempek lenjer",
+      "pempek adaan",
+      "pempek kulit",
+      "pempek palembang"
+    ],
+    "category": "MEDIUM_PERISHABILITY",
+    "ingredients": [
+      "daging ikan tenggiri giling",
+      "tepung tapioka sagu",
+      "telur ayam rebus",
+      "kuah cuko asam manis"
+    ],
+    "risk_level": "MEDIUM",
+    "bpom_max_hours": 8.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Olahan Pasta Ikan Rebus dan Goreng Berisi Telur",
+    "hazard_description": "Perebusan dan penggorengan mematangkan ikan dan telur; keasaman kuah cuko memperlambat bakteri, batas aman 8 jam pada suhu kamar."
+  }
+]
