@@ -346,7 +346,19 @@ def test_guardrail_carbonara_and_universal_perishables():
 def test_live_or_fallback_entity_extractor():
     """Verifies live Gemini 3.5 Flash extractor or fallback accurately parses Indonesian surplus food commands."""
     sentence = "Ada 4 porsi gulai tunjang santan padang, harga normal 28 ribu, masak 5 jam lalu, toko tutup 45 menit lagi"
-    result = asyncio.run(extract_listing_entities(sentence))
+    
+    # Safe runner supporting both standalone CLI and environments with active event loops (e.g. Jupyter Notebook)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            result = pool.submit(asyncio.run, extract_listing_entities(sentence)).result()
+    else:
+        result = asyncio.run(extract_listing_entities(sentence))
 
     assert "Gulai Tunjang" in result["food_name"] or "Santan" in result["food_name"]
     assert result["quantity"] == 4
