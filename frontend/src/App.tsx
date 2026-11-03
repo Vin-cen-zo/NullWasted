@@ -312,6 +312,12 @@ export const App: React.FC = () => {
                     isLoading={isLoadingDraft}
                     storeName={session.storeName || "Dapur Barokah"}
                     storeId={session.storeId || "FTUI-001"}
+                    onDirectPublish={handlePublish}
+                    isPublishing={isPublishing}
+                    closingTime={session.closingTime || "20:30"}
+                    locationName={session.locationName || "Kantin FTUI · 200m"}
+                    latitude={session.latitude}
+                    longitude={session.longitude}
                   />
                 ))}
 

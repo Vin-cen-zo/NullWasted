@@ -186,7 +186,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
           <div>
             <h3 className="font-bold text-xs uppercase tracking-wider text-stone-600 mb-2 flex items-center justify-between">
               <span>Menu Terdaftar ({menuItems.length})</span>
-              <span className="text-[11px] font-normal text-stone-400">RAG Layer 1 Active</span>
+              <span className="text-[11px] font-normal text-stone-500">Katalog Rutin Aktif</span>
             </h3>
 
             {loading ? (
