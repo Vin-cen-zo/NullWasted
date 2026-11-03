@@ -656,3 +656,71 @@ def test_multi_tenant_order_isolation(client: TestClient):
     # Filter by KUTEK-007
     kutek_orders = client.get("/api/v1/orders/active?store_id=KUTEK-007").json()
     assert all(o["store_id"] == "KUTEK-007" for o in kutek_orders)
+
+
+def test_ai_gateway_timeout_hardening():
+    """Verifies that DEFAULT_TIMEOUT in ai_gateway is properly hardened to at least 15s read and 5s connect."""
+    from app.core.ai_gateway import DEFAULT_TIMEOUT
+    assert DEFAULT_TIMEOUT.read is not None and DEFAULT_TIMEOUT.read >= 15.0
+    assert DEFAULT_TIMEOUT.connect is not None and DEFAULT_TIMEOUT.connect >= 5.0
+
+
+def test_autonomous_merchant_and_consumer_registration(client: TestClient):
+    """Tests autonomous registration of merchant store and consumer, duplicate rejection, and login."""
+    # 1. Autonomous Merchant Registration
+    reg_store_payload = {
+        "name": "Kedai Kopi Senja Depok",
+        "pin": "5678",
+        "location_name": "ukm dekat Stasiun UI · 300m",
+        "closing_time": "21:00",
+    }
+    res_reg_store = client.post("/api/v1/auth/merchant-register", json=reg_store_payload)
+    assert res_reg_store.status_code == 200
+    store_data = res_reg_store.json()
+    assert store_data["role"] == "merchant"
+    assert "store_id" in store_data and len(store_data["store_id"]) >= 5
+    assert store_data["token"] is not None and len(store_data["token"]) > 20
+    new_store_id = store_data["store_id"]
+
+    # 2. Login with newly registered merchant
+    res_login_store = client.post(
+        "/api/v1/auth/merchant-login",
+        json={"store_id": new_store_id, "pin": "5678"},
+    )
+    assert res_login_store.status_code == 200
+    assert res_login_store.json()["store_id"] == new_store_id
+
+    # 3. Autonomous Consumer Registration
+    reg_consumer_payload = {
+        "name": "Andi Pratama",
+        "phone": "0813-9988-7766",
+        "address": "Kukusan Teknik Depok",
+    }
+    res_reg_cons = client.post("/api/v1/auth/consumer-register", json=reg_consumer_payload)
+    assert res_reg_cons.status_code == 200
+    cons_data = res_reg_cons.json()
+    assert cons_data["role"] == "consumer"
+    assert cons_data["customer_name"] == "Andi Pratama"
+    assert cons_data["token"] is not None
+
+    # 4. Duplicate phone registration rejected with HTTP 400
+    res_dup = client.post("/api/v1/auth/consumer-register", json=reg_consumer_payload)
+    assert res_dup.status_code == 400
+    assert "sudah terdaftar" in res_dup.json()["detail"]
+
+    # 5. Consumer login with phone only (registered)
+    res_login_cons = client.post(
+        "/api/v1/auth/consumer-login",
+        json={"phone": "0813-9988-7766"},
+    )
+    assert res_login_cons.status_code == 200
+    assert res_login_cons.json()["customer_name"] == "Andi Pratama"
+
+    # 6. Consumer login with unregistered phone without name returns HTTP 404
+    res_unknown = client.post(
+        "/api/v1/auth/consumer-login",
+        json={"phone": "0899-0000-0000"},
+    )
+    assert res_unknown.status_code == 404
+    assert "belum terdaftar" in res_unknown.json()["detail"]
+
