@@ -355,6 +355,7 @@ export const App: React.FC = () => {
                   orders={activeOrders}
                   customerName={session.customerName || "Budi Santoso"}
                   onCancelOrder={handleCancelOrder}
+                  onRefreshOrders={refreshOrders}
                 />
               )}
 

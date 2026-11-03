@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { OrderTicket } from "../types/listing";
 import {
@@ -18,15 +18,31 @@ interface ConsumerOrdersScreenProps {
   orders: OrderTicket[];
   customerName: string;
   onCancelOrder?: (orderId: string) => Promise<void>;
+  onRefreshOrders?: () => Promise<void> | void;
 }
 
 export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
   orders,
   customerName,
   onCancelOrder,
+  onRefreshOrders,
 }) => {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const hasActiveReservedTicket = orders.some((o) => o.status === "RESERVED");
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    if (hasActiveReservedTicket && onRefreshOrders) {
+      timer = setInterval(() => {
+        onRefreshOrders();
+      }, 3500);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [hasActiveReservedTicket, onRefreshOrders]);
 
   const handleCopy = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -54,11 +70,19 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
   return (
     <div className="flex-1 flex flex-col p-4 overflow-y-auto space-y-4">
       {/* Header */}
-      <div>
-        <h2 className="text-sm font-bold text-[#1F1D1A]">Tiket Pesanan Saya</h2>
-        <p className="text-xs text-[#6B655B]">
-          Konsumen: <span className="font-semibold text-emerald-800">{customerName}</span> · SQLite Synced
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-bold text-[#1F1D1A]">Tiket Pesanan Saya</h2>
+          <p className="text-xs text-[#6B655B]">
+            Konsumen: <span className="font-semibold text-emerald-800">{customerName}</span>
+          </p>
+        </div>
+        {hasActiveReservedTicket && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-semibold text-emerald-800 shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Sinkronisasi Status Otomatis Aktif
+          </span>
+        )}
       </div>
 
       {/* Orders List */}
