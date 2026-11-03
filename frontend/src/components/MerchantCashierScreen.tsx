@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   CreditCard,
   Banknote,
+  Receipt,
 } from "lucide-react";
 
 interface MerchantCashierScreenProps {
@@ -69,6 +70,14 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
   const isProcessingScanRef = useRef<boolean>(false);
 
   const reservedOrders = orders.filter((o) => o.status === "RESERVED");
+  const completedOrders = orders.filter((o) => o.status === "COMPLETED");
+  const rescuedPortionsCount = completedOrders.reduce((sum, o) => sum + o.quantity, 0);
+  const cashToCollectTotal = completedOrders
+    .filter((o) => o.payment_method !== "SIMULATED_QRIS")
+    .reduce((sum, o) => sum + o.total_price, 0);
+  const qrisSettledTotal = completedOrders
+    .filter((o) => o.payment_method === "SIMULATED_QRIS")
+    .reduce((sum, o) => sum + o.total_price, 0);
 
   const stopCamera = useCallback(async () => {
     const instance = scannerRef.current;
@@ -233,15 +242,43 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
     }
   };
 
-  const handleFillCode = (code: string) => {
-    setInputCode(code);
-    setErrorMessage(null);
-    setIsCrossStoreFraud(false);
-    setSuccessTicket(null);
-  };
-
   return (
     <div className="flex-1 flex flex-col p-4 overflow-y-auto space-y-4">
+      {/* Cashier POS Daily Shift Summary (Pilar 7) */}
+      <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800">
+            <Receipt className="w-4 h-4 text-emerald-600" />
+            <span className="uppercase tracking-wider">Rekapitulasi Shift Kasir Hari Ini (POS Summary)</span>
+          </div>
+          <span className="text-[10px] text-stone-500 font-semibold">
+            {completedOrders.length} Pesanan Selesai
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl">
+            <span className="text-[10px] text-emerald-800 font-bold block mb-0.5">Porsi Terselamatkan</span>
+            <span className="text-xs sm:text-sm font-black text-emerald-900 font-mono">
+              {completedOrders.length} Tiket ({rescuedPortionsCount} Porsi)
+            </span>
+          </div>
+
+          <div className="p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl">
+            <span className="text-[10px] text-amber-800 font-bold block mb-0.5">Wajib Setor Tunai</span>
+            <span className="text-xs sm:text-sm font-black text-amber-950 font-mono">
+              Rp {cashToCollectTotal.toLocaleString("id-ID")}
+            </span>
+          </div>
+
+          <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-xl">
+            <span className="text-[10px] text-blue-800 font-bold block mb-0.5">Lunas Digital (QRIS)</span>
+            <span className="text-xs sm:text-sm font-black text-blue-950 font-mono">
+              Rp {qrisSettledTotal.toLocaleString("id-ID")}
+            </span>
+          </div>
+        </div>
+      </div>
       {/* Hardware Camera & Visual Scanner Viewfinder Header */}
       <div
         className={`bg-white p-4 rounded-2xl border shadow-sm text-center transition-all ${
@@ -355,7 +392,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           }`}
         >
           {isVerifying ? (
-            <span>Memverifikasi Kode ke SQLite...</span>
+            <span>Memverifikasi Kode Tiket...</span>
           ) : (
             <>
               <span>Verifikasi & Serah Terima</span>
@@ -457,14 +494,6 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                         {ord.food_name} ({ord.quantity} porsi) · Rp {ord.total_price.toLocaleString("id-ID")}
                       </p>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleFillCode(ord.order_code)}
-                      className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-[10px] font-bold text-emerald-800 transition-colors shrink-0"
-                    >
-                      Isi ke Kasir
-                    </button>
                   </div>
 
                   {/* Cashier Payment Instruction Banner */}
