@@ -23,3 +23,4 @@ echo Both servers are launching in separate terminal windows.
 echo - Frontend UI : http://localhost:5173
 echo - Backend Docs: http://localhost:8000/docs
 echo ============================================================================
+
