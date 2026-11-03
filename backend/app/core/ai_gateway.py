@@ -22,7 +22,7 @@ class AIGateway:
     async def generate_content(
         self, prompt: str, audio_base64: Optional[str] = None, model: str = GEMINI_MODEL
     ) -> Optional[str]:
-        """Calls Gemini LLM API (gemini-3.5-flash) with round-robin key pool and silent auto-failover."""
+        """Calls Gemini LLM API (gemini-3.5-flash-lite) with round-robin key pool and silent auto-failover."""
         active_keys = get_active_api_keys()
         if not active_keys:
             logger.info("No active Gemini API keys configured. Using deterministic local fallback.")
@@ -59,7 +59,7 @@ class AIGateway:
                 }
 
                 try:
-                    async with httpx.AsyncClient(timeout=20.0) as client:
+                    async with httpx.AsyncClient(timeout=httpx.Timeout(4.0, connect=2.0)) as client:
                         resp = await client.post(url, json=payload)
                         if resp.status_code == 200:
                             data = resp.json()
@@ -101,7 +101,7 @@ class AIGateway:
             }
 
             try:
-                with httpx.Client(timeout=15.0) as client:
+                with httpx.Client(timeout=10.0) as client:
                     resp = client.post(url, json=payload)
                     if resp.status_code == 200:
                         values = resp.json().get("embedding", {}).get("values")
@@ -142,7 +142,7 @@ class AIGateway:
             ]
 
             try:
-                with httpx.Client(timeout=15.0) as client:
+                with httpx.Client(timeout=10.0) as client:
                     resp = client.post(url, json={"requests": requests_payload})
                     if resp.status_code == 200:
                         embeddings_raw = resp.json().get("embeddings", [])
