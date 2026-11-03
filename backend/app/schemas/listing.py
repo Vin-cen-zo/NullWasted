@@ -125,9 +125,25 @@ class MerchantLoginRequest(BaseModel):
     pin: str = Field(..., min_length=4)
 
 
+class MerchantRegisterRequest(BaseModel):
+    name: str = Field(..., min_length=2)
+    pin: str = Field(..., min_length=4)
+    location_name: str = Field(..., min_length=2)
+    closing_time: str = Field(default="20:30")
+    category: Optional[str] = Field(default="Kuliner & Makanan")
+    latitude: float = Field(default=-6.3621)
+    longitude: float = Field(default=106.8246)
+
+
 class ConsumerLoginRequest(BaseModel):
+    phone: str = Field(..., min_length=8)
+    name: Optional[str] = Field(default=None)
+
+
+class ConsumerRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2)
     phone: str = Field(..., min_length=8)
+    address: Optional[str] = Field(default="Kawasan UI Depok")
 
 
 class AuthResponse(BaseModel):
