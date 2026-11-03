@@ -16,6 +16,7 @@ import {
   fetchActiveOrders,
   reserveOrder,
   completeOrderPickup,
+  cancelOrder,
   deleteListing,
 } from "./services/api";
 import {
@@ -217,6 +218,17 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleCancelOrder = async (orderId: string) => {
+    try {
+      await cancelOrder(orderId);
+      await refreshOrders();
+      await refreshListings();
+      showToast("Pesanan berhasil dibatalkan dan stok dikembalikan ke gerai.", "success");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal membatalkan pesanan.", "error");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#E8E3D9] flex items-center justify-center p-0 sm:p-4 font-sans text-[#1F1D1A]">
       {/* Toast Notification Float */}
@@ -336,6 +348,7 @@ export const App: React.FC = () => {
                 <ConsumerOrdersScreen
                   orders={activeOrders}
                   customerName={session.customerName || "Budi Santoso"}
+                  onCancelOrder={handleCancelOrder}
                 />
               )}
 

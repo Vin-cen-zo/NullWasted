@@ -10,6 +10,9 @@ import {
   ArrowRight,
   User,
   ShoppingBag,
+  ShieldAlert,
+  CreditCard,
+  Banknote,
 } from "lucide-react";
 
 interface MerchantCashierScreenProps {
@@ -53,6 +56,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
 }) => {
   const [inputCode, setInputCode] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isCrossStoreFraud, setIsCrossStoreFraud] = useState(false);
   const [successTicket, setSuccessTicket] = useState<OrderTicket | null>(null);
 
   // Hardware camera scanner states
@@ -120,9 +124,8 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
 
       const extractedCode = extractOrderCodeFromQr(decodedText);
       if (!extractedCode) {
-        setErrorMessage(
-          "Format QR tidak dikenali. Gunakan QR Tiket Resmi NullWasted (#NW-xxxx)."
-        );
+        setErrorMessage("Format QR tidak dikenali. Gunakan QR Tiket Resmi NullWasted (#NW-xxxx).");
+        setIsCrossStoreFraud(false);
         return;
       }
 
@@ -132,6 +135,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
 
       setInputCode(extractedCode);
       setErrorMessage(null);
+      setIsCrossStoreFraud(false);
       setSuccessTicket(null);
 
       await stopCamera();
@@ -140,10 +144,10 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
         const ticket = await onCompletePickup(extractedCode);
         setSuccessTicket(ticket);
         setInputCode("");
-      } catch (err) {
-        setErrorMessage(
-          err instanceof Error ? err.message : "Gagal memverifikasi tiket dari QR."
-        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Gagal memverifikasi tiket dari QR.";
+        setErrorMessage(msg);
+        setIsCrossStoreFraud(msg.includes("LINTAS GERAI") || msg.includes("PENOLAKAN KEAMANAN"));
       } finally {
         isProcessingScanRef.current = false;
       }
@@ -156,6 +160,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
 
     setCameraError(null);
     setErrorMessage(null);
+    setIsCrossStoreFraud(false);
     setSuccessTicket(null);
     setIsStartingCamera(true);
 
@@ -214,20 +219,24 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
     if (!inputCode.trim() || isVerifying) return;
 
     setErrorMessage(null);
+    setIsCrossStoreFraud(false);
     setSuccessTicket(null);
 
     try {
       const ticket = await onCompletePickup(inputCode.trim());
       setSuccessTicket(ticket);
       setInputCode("");
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Gagal memverifikasi tiket.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal memverifikasi tiket.";
+      setErrorMessage(msg);
+      setIsCrossStoreFraud(msg.includes("LINTAS GERAI") || msg.includes("PENOLAKAN KEAMANAN"));
     }
   };
 
   const handleFillCode = (code: string) => {
     setInputCode(code);
     setErrorMessage(null);
+    setIsCrossStoreFraud(false);
     setSuccessTicket(null);
   };
 
@@ -314,7 +323,22 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           />
         </div>
 
-        {errorMessage && (
+        {/* Special Cross-Store Fraud Alert Box */}
+        {isCrossStoreFraud && errorMessage && (
+          <div className="p-3 bg-red-50 border-2 border-red-500 rounded-2xl text-xs text-red-950 space-y-1.5 animate-pulse">
+            <div className="flex items-center gap-1.5 text-red-700 font-extrabold text-xs">
+              <ShieldAlert className="w-4 h-4 text-red-600" />
+              <span>🚨 PERINGATAN FRAUD / SALAH GERAI</span>
+            </div>
+            <p className="text-[11px] font-semibold leading-relaxed">{errorMessage}</p>
+            <p className="text-[10px] text-red-800 italic">
+              Sistem menolak serah terima makanan untuk mencegah penipuan tiket lintas-gerai mitra NullWasted.
+            </p>
+          </div>
+        )}
+
+        {/* Standard Error Notice */}
+        {!isCrossStoreFraud && errorMessage && (
           <div className="flex items-center gap-2 p-2.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
@@ -341,15 +365,20 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
         </button>
       </form>
 
-      {/* Success Confirmation Card */}
+      {/* Success Confirmation Card with Settlement Badge */}
       {successTicket && (
-        <div className="bg-emerald-50 border border-emerald-300 p-4 rounded-2xl text-emerald-950 space-y-2 shadow-sm animate-fade-in">
-          <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-            <span>TRANSAKSI SELESAI (STATUS: COMPLETED)</span>
+        <div className="bg-emerald-50 border border-emerald-300 p-4 rounded-2xl text-emerald-950 space-y-2.5 shadow-sm animate-fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <span>TRANSAKSI SELESAI (STATUS: COMPLETED)</span>
+            </div>
+            <span className="text-[10px] font-extrabold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
+              LUNAS
+            </span>
           </div>
 
-          <div className="text-xs space-y-1 bg-white/70 p-3 rounded-xl border border-emerald-200">
+          <div className="text-xs space-y-1.5 bg-white/80 p-3 rounded-xl border border-emerald-200">
             <div className="flex justify-between">
               <span className="text-[#6B655B]">Kode Tiket:</span>
               <span className="font-mono font-bold text-emerald-800">{successTicket.order_code}</span>
@@ -360,11 +389,19 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
             </div>
             <div className="flex justify-between">
               <span className="text-[#6B655B]">Menu & Porsi:</span>
-              <span className="font-semibold text-[#1F1D1A]">{successTicket.food_name} ({successTicket.quantity} porsi)</span>
+              <span className="font-semibold text-[#1F1D1A]">
+                {successTicket.food_name} ({successTicket.quantity} porsi)
+              </span>
+            </div>
+            <div className="flex justify-between items-center pt-1 border-t border-stone-200">
+              <span className="text-[#6B655B]">Metode Pembayaran:</span>
+              <span className="font-bold text-emerald-700">
+                {successTicket.payment_method === "SIMULATED_QRIS" ? "📱 QRIS Instan (Lunas)" : "💵 Bayar Tunai di Kasir"}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-[#6B655B]">Total Tagihan:</span>
-              <span className="font-bold text-emerald-600">
+              <span className="font-extrabold text-emerald-600 text-sm">
                 Rp {successTicket.total_price.toLocaleString("id-ID")}
               </span>
             </div>
@@ -381,7 +418,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
         </div>
       )}
 
-      {/* Pending Queue List */}
+      {/* Pending Queue List with Cashier Instructions */}
       <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-[#1F1D1A] uppercase tracking-wider">
@@ -396,33 +433,57 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           </p>
         ) : (
           <div className="space-y-2">
-            {reservedOrders.map((ord) => (
-              <div
-                key={ord.id}
-                className="p-2.5 rounded-xl bg-[#F8F6F0] border border-[#E8E2D5] flex items-center justify-between text-xs"
-              >
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono font-bold text-emerald-800">{ord.order_code}</span>
-                    <span className="text-[10px] text-[#6B655B] flex items-center gap-1">
-                      <User className="w-3 h-3 text-gray-400" />
-                      {ord.customer_name}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#1F1D1A] font-medium flex items-center gap-1 mt-0.5">
-                    <ShoppingBag className="w-3 h-3 text-gray-400" />
-                    {ord.food_name} ({ord.quantity} porsi) · Rp {ord.total_price.toLocaleString("id-ID")}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleFillCode(ord.order_code)}
-                  className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-[10px] font-bold text-emerald-800 transition-colors"
+            {reservedOrders.map((ord) => {
+              const isPaid = ord.payment_status === "PAID" || ord.payment_method === "SIMULATED_QRIS";
+
+              return (
+                <div
+                  key={ord.id}
+                  className="p-3 rounded-xl bg-[#F8F6F0] border border-[#E8E2D5] flex flex-col justify-between text-xs space-y-2"
                 >
-                  Isi ke Kasir
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-emerald-800 text-sm">
+                          {ord.order_code}
+                        </span>
+                        <span className="text-[11px] text-[#6B655B] flex items-center gap-1">
+                          <User className="w-3 h-3 text-gray-400" />
+                          {ord.customer_name}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#1F1D1A] font-medium flex items-center gap-1 mt-0.5">
+                        <ShoppingBag className="w-3 h-3 text-gray-400" />
+                        {ord.food_name} ({ord.quantity} porsi) · Rp {ord.total_price.toLocaleString("id-ID")}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleFillCode(ord.order_code)}
+                      className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-[10px] font-bold text-emerald-800 transition-colors shrink-0"
+                    >
+                      Isi ke Kasir
+                    </button>
+                  </div>
+
+                  {/* Cashier Payment Instruction Banner */}
+                  <div className="pt-1.5 border-t border-stone-200 flex items-center justify-between">
+                    {isPaid ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg">
+                        <CreditCard className="w-3 h-3 text-emerald-600" />
+                        ✅ SUDAH LUNAS VIA QRIS (Jangan Tagih Tunai)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-lg">
+                        <Banknote className="w-3 h-3 text-amber-700" />
+                        💵 TAGIHKAN TUNAI: Rp {ord.total_price.toLocaleString("id-ID")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
