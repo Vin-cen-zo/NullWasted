@@ -107,3 +107,4 @@ def compute_minutes_until_closing(closing_time_str: str, fallback_minutes: int =
         return max(45, min(120, simulated))
     except Exception:
         return max(30, fallback_minutes)
+
