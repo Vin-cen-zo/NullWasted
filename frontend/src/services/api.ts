@@ -46,11 +46,49 @@ export async function loginMerchant(storeId: string, pin: string): Promise<AuthR
   return res.json();
 }
 
-export async function loginConsumer(name: string, phone: string): Promise<AuthResponse> {
+export async function registerMerchant(payload: {
+  name: string;
+  pin: string;
+  location_name: string;
+  closing_time: string;
+  category?: string;
+  latitude?: number;
+  longitude?: number;
+}): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE_URL}/auth/merchant-register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Gagal mendaftarkan gerai mitra.");
+  }
+  return res.json();
+}
+
+export async function registerConsumer(payload: {
+  name: string;
+  phone: string;
+  address?: string;
+}): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE_URL}/auth/consumer-register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Gagal mendaftarkan akun konsumen.");
+  }
+  return res.json();
+}
+
+export async function loginConsumer(phone: string, name?: string): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE_URL}/auth/consumer-login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, phone }),
+    body: JSON.stringify({ phone, ...(name ? { name } : {}) }),
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
