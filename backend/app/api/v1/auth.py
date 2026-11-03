@@ -112,3 +112,4 @@ def consumer_login(
         customer_name=user.name,
         customer_phone=user.phone,
     )
+

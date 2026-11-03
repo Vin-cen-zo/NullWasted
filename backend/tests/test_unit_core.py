@@ -5,6 +5,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 from app.core.database import get_session
+from app.core.seed import seed_initial_data
 from app.main import app
 from app.services.extractor import extract_listing_entities, local_rule_based_extract
 from app.services.guardrail import evaluate_food_safety
@@ -21,6 +22,8 @@ def client_fixture():
         poolclass=StaticPool,
     )
     SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        seed_initial_data(session)
 
     def get_test_session():
         with Session(engine) as session:
@@ -346,8 +349,7 @@ def test_guardrail_carbonara_and_universal_perishables():
 def test_live_or_fallback_entity_extractor():
     """Verifies live Gemini 3.5 Flash extractor or fallback accurately parses Indonesian surplus food commands."""
     sentence = "Ada 4 porsi gulai tunjang santan padang, harga normal 28 ribu, masak 5 jam lalu, toko tutup 45 menit lagi"
-    
-    # Safe runner supporting both standalone CLI and environments with active event loops (e.g. Jupyter Notebook)
+
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
@@ -371,3 +373,286 @@ def test_live_or_fallback_entity_extractor():
         "gemini-flash-lite-latest",
         "local-fallback-parser",
     )
+
+
+# ============================================================================
+# 6. SPRINT 2 SYSTEM INTEGRATION EXTENDED TESTS (10 NEW TESTS)
+# ============================================================================
+
+def test_seed_multi_store_and_menu_catalog(client: TestClient):
+    """Verifies that seeder successfully populates 3 partner stores, catalog items, and active listings."""
+    res_stores = client.get("/api/v1/auth/stores")
+    assert res_stores.status_code == 200
+    stores = res_stores.json()
+    store_ids = [s["store_id"] for s in stores]
+    assert "FTUI-001" in store_ids
+    assert "MARGONDA-042" in store_ids
+    assert "KUTEK-007" in store_ids
+
+    res_menu = client.get("/api/v1/menu/FTUI-001")
+    assert res_menu.status_code == 200
+    menu = res_menu.json()
+    assert len(menu) >= 4
+    menu_names = [m["food_name"] for m in menu]
+    assert "Rendang Daging Sapi" in menu_names
+
+    res_listings = client.get("/api/v1/listings/active")
+    assert res_listings.status_code == 200
+    assert len(res_listings.json()) >= 4
+
+
+def test_merchant_and_consumer_jwt_auth(client: TestClient):
+    """Tests merchant PIN verification (success/fail) and consumer phone login with JWT tokens."""
+    # Merchant login success
+    res_ok = client.post("/api/v1/auth/merchant-login", json={"store_id": "FTUI-001", "pin": "1234"})
+    assert res_ok.status_code == 200
+    data_ok = res_ok.json()
+    assert data_ok["role"] == "merchant"
+    assert "token" in data_ok
+    assert data_ok["store_name"] == "Dapur Barokah FTUI"
+
+    # Merchant login wrong PIN
+    res_fail = client.post("/api/v1/auth/merchant-login", json={"store_id": "FTUI-001", "pin": "9999"})
+    assert res_fail.status_code == 401
+
+    # Merchant login unknown store
+    res_unknown = client.post("/api/v1/auth/merchant-login", json={"store_id": "UNKNOWN-999", "pin": "1234"})
+    assert res_unknown.status_code == 401
+
+    # Consumer login
+    res_consumer = client.post("/api/v1/auth/consumer-login", json={"name": "Siti Rahma", "phone": "0812-3456-7890"})
+    assert res_consumer.status_code == 200
+    c_data = res_consumer.json()
+    assert "token" in c_data
+    assert c_data["customer_name"] == "Siti Rahma"
+    assert c_data["role"] == "consumer"
+
+
+def test_store_menu_crud_and_rag_mapping(client: TestClient):
+    """Tests adding new item to store menu catalog with automatic BPOM RAG classification and CRUD lifecycle."""
+    new_item = {
+        "food_name": "Sop Iga Sapi Kuah Rempah",
+        "original_price": 35000,
+        "typical_cooking_time": "15:30",
+        "default_hours_cooked": 2.0,
+        "ingredients": "Iga sapi, wortel, kentang, cengkeh, kayu manis",
+    }
+    create_res = client.post("/api/v1/menu/FTUI-001", json=new_item)
+    assert create_res.status_code == 200
+    created = create_res.json()
+    assert created["food_name"] == "Sop Iga Sapi Kuah Rempah"
+    assert created["original_price"] == 35000
+    assert created["category"] in ("MEDIUM_PERISHABILITY", "HIGH_PERISHABILITY")
+    assert created["bpom_max_hours"] > 0
+    item_id = created["id"]
+
+    # Update item
+    update_res = client.put(f"/api/v1/menu/FTUI-001/{item_id}", json={"original_price": 38000})
+    assert update_res.status_code == 200
+    assert update_res.json()["original_price"] == 38000
+
+    # Delete (soft delete)
+    del_res = client.delete(f"/api/v1/menu/FTUI-001/{item_id}")
+    assert del_res.status_code == 200
+    assert del_res.json()["status"] == "deactivated"
+
+
+def test_context_aware_slot_filling_case_a_and_b(client: TestClient):
+    """Case A: Short input matches catalog menu ('Sisa 3 rendang' -> price Rp24.000). Case B: Explicit time override."""
+    # Case A: Short registered menu input
+    res_a = client.post("/api/v1/listings/draft", json={"text": "Sisa 3 rendang", "store_id": "FTUI-001"})
+    assert res_a.status_code == 200
+    data_a = res_a.json()
+    assert "Rendang" in data_a["food_name"]
+    assert data_a["quantity"] == 3
+    assert data_a["original_price"] == 24000
+    assert data_a["hours_since_cooked"] == 2.0
+    assert data_a["bpom_max_hours"] == 4.0
+    assert data_a["needs_manual_price"] is False
+
+    # Case B: Time cooked override ('Sisa 3 rendang masak jam 10 -> 6 jam lalu')
+    res_b = client.post("/api/v1/listings/draft", json={"text": "Sisa 3 rendang masak jam 10 (sudah 6 jam suhu ruang)", "store_id": "FTUI-001"})
+    assert res_b.status_code == 200
+    data_b = res_b.json()
+    assert data_b["hours_since_cooked"] == 6.0
+    assert data_b["original_price"] == 24000
+    assert data_b["safety_status"] == "REJECTED"
+
+
+def test_context_aware_slot_filling_case_c_and_d(client: TestClient):
+    """Case C: Ad-hoc uncataloged menu with explicit price. Case D: Ad-hoc menu without price -> needs_manual_price."""
+    # Case C: Ad-hoc with price
+    res_c = client.post(
+        "/api/v1/listings/draft",
+        json={"text": "Ada Nasi Rawon sisa 2, harga 30 ribu, baru matang 1 jam lalu", "store_id": "FTUI-001"},
+    )
+    assert res_c.status_code == 200
+    data_c = res_c.json()
+    assert "Rawon" in data_c["food_name"]
+    assert data_c["quantity"] == 2
+    assert data_c["original_price"] == 30000
+    assert data_c["needs_manual_price"] is False
+
+    # Case D: Ad-hoc without price
+    res_d = client.post(
+        "/api/v1/listings/draft",
+        json={"text": "Ada sisa 2 porsi Nasi Rawon Spesial baru matang 1 jam lalu", "store_id": "FTUI-001"},
+    )
+    assert res_d.status_code == 200
+    data_d = res_d.json()
+    assert "Rawon" in data_d["food_name"]
+    assert data_d["quantity"] == 2
+    assert data_d["needs_manual_price"] is True
+
+
+def test_smart_mystery_bag_bundling_engine(client: TestClient):
+    """Tests POST /api/v1/listings/smart-bundle clustering low-stock items into 60-70% discounted bundle."""
+    # MARGONDA-042 has seeded Croissant (qty=2) and Donat (qty=1)
+    bundle_res = client.post(
+        "/api/v1/listings/smart-bundle",
+        json={"store_id": "MARGONDA-042", "custom_bundle_name": "Mystery Bag Pastry Manis", "discount_percent": 65},
+    )
+    assert bundle_res.status_code == 200
+    bundle = bundle_res.json()
+    assert bundle["is_bundle"] is True
+    assert bundle["discount_percent"] == 65
+    assert bundle["original_price"] >= 36000
+    assert bundle["store_id"] == "MARGONDA-042"
+    assert bundle["bundled_items_json"] is not None
+    assert bundle["quantity"] == 1
+    assert bundle["is_active"] is True
+
+    # Active listings for MARGONDA-042 should have bundle active
+    active_res = client.get("/api/v1/listings/active?store_id=MARGONDA-042")
+    assert active_res.status_code == 200
+    active_items = active_res.json()
+    bundle_found = any(item["is_bundle"] for item in active_items)
+    assert bundle_found is True
+
+
+def test_payment_methods_cash_vs_simulated_qris(client: TestClient):
+    """Tests reservation with CASH_ON_PICKUP (UNPAID) vs SIMULATED_QRIS (PAID)."""
+    listings = client.get("/api/v1/listings/active").json()
+    listing = listings[0]
+    l_id = listing["id"]
+
+    # 1. CASH_ON_PICKUP
+    res_cash = client.post(
+        "/api/v1/orders/reserve",
+        json={
+            "listing_id": l_id,
+            "quantity": 1,
+            "customer_name": "Ahmad Dani",
+            "payment_method": "CASH_ON_PICKUP",
+        },
+    )
+    assert res_cash.status_code == 200
+    ticket_cash = res_cash.json()
+    assert ticket_cash["payment_method"] == "CASH_ON_PICKUP"
+    assert ticket_cash["payment_status"] == "UNPAID"
+
+    # 2. SIMULATED_QRIS
+    res_qris = client.post(
+        "/api/v1/orders/reserve",
+        json={
+            "listing_id": l_id,
+            "quantity": 1,
+            "customer_name": "Rina Nose",
+            "payment_method": "SIMULATED_QRIS",
+        },
+    )
+    assert res_qris.status_code == 200
+    ticket_qris = res_qris.json()
+    assert ticket_qris["payment_method"] == "SIMULATED_QRIS"
+    assert ticket_qris["payment_status"] == "PAID"
+
+
+def test_order_cancellation_atomic_stock_rollback(client: TestClient):
+    """Tests POST /api/v1/orders/{id}/cancel returning stock to ItemListing atomically."""
+    active_listings = client.get("/api/v1/listings/active").json()
+    item = next(i for i in active_listings if i["quantity"] >= 2 and not i["is_bundle"])
+    initial_stock = item["quantity"]
+    item_id = item["id"]
+
+    # Reserve 1
+    reserve_res = client.post(
+        "/api/v1/orders/reserve",
+        json={"listing_id": item_id, "quantity": 1, "customer_name": "Test User"},
+    )
+    assert reserve_res.status_code == 200
+    ticket = reserve_res.json()
+    order_id = ticket["id"]
+
+    # Verify stock decremented
+    item_after_reserve = next(i for i in client.get("/api/v1/listings/active").json() if i["id"] == item_id)
+    assert item_after_reserve["quantity"] == initial_stock - 1
+
+    # Cancel order
+    cancel_res = client.post(f"/api/v1/orders/{order_id}/cancel")
+    assert cancel_res.status_code == 200
+    cancelled_ticket = cancel_res.json()
+    assert cancelled_ticket["status"] == "CANCELLED"
+    assert cancelled_ticket["cancelled_at"] is not None
+
+    # Verify stock rolled back
+    item_after_cancel = next(i for i in client.get("/api/v1/listings/active").json() if i["id"] == item_id)
+    assert item_after_cancel["quantity"] == initial_stock
+
+    # Cancelling again returns 400
+    again_res = client.post(f"/api/v1/orders/{order_id}/cancel")
+    assert again_res.status_code == 400
+
+
+def test_cross_store_cashier_fraud_rejection(client: TestClient):
+    """Cashier of MARGONDA-042 attempting to verify ticket of FTUI-001 must be rejected with HTTP 403."""
+    active_listings = client.get("/api/v1/listings/active?store_id=FTUI-001").json()
+    ftui_item = active_listings[0]
+
+    reserve_res = client.post(
+        "/api/v1/orders/reserve",
+        json={"listing_id": ftui_item["id"], "quantity": 1, "customer_name": "Siswa FTUI"},
+    )
+    assert reserve_res.status_code == 200
+    ticket = reserve_res.json()
+    order_code = ticket["order_code"]
+
+    # MARGONDA-042 cashier tries to complete pickup
+    fraud_res = client.post(
+        "/api/v1/orders/complete-pickup",
+        json={"order_code": order_code, "store_id": "MARGONDA-042"},
+    )
+    assert fraud_res.status_code == 403
+    assert "PENOLAKAN KEAMANAN LINTAS GERAI" in fraud_res.json()["detail"]
+
+    # FTUI-001 cashier completes pickup successfully
+    legit_res = client.post(
+        "/api/v1/orders/complete-pickup",
+        json={"order_code": order_code, "store_id": "FTUI-001"},
+    )
+    assert legit_res.status_code == 200
+    assert legit_res.json()["status"] == "COMPLETED"
+
+
+def test_multi_tenant_order_isolation(client: TestClient):
+    """GET /api/v1/orders/active?store_id=FTUI-001 must only return tickets belonging to FTUI-001."""
+    ftui_listings = client.get("/api/v1/listings/active?store_id=FTUI-001").json()
+    kutek_listings = client.get("/api/v1/listings/active?store_id=KUTEK-007").json()
+
+    if ftui_listings:
+        client.post(
+            "/api/v1/orders/reserve",
+            json={"listing_id": ftui_listings[0]["id"], "quantity": 1, "customer_name": "FTUI Consumer"},
+        )
+    if kutek_listings:
+        client.post(
+            "/api/v1/orders/reserve",
+            json={"listing_id": kutek_listings[0]["id"], "quantity": 1, "customer_name": "Kutek Consumer"},
+        )
+
+    # Filter by FTUI-001
+    ftui_orders = client.get("/api/v1/orders/active?store_id=FTUI-001").json()
+    assert all(o["store_id"] == "FTUI-001" for o in ftui_orders)
+
+    # Filter by KUTEK-007
+    kutek_orders = client.get("/api/v1/orders/active?store_id=KUTEK-007").json()
+    assert all(o["store_id"] == "KUTEK-007" for o in kutek_orders)
