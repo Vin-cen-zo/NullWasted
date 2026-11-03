@@ -1,3 +1,30 @@
+export interface StoreMenuItem {
+  id: string;
+  store_id: string;
+  food_name: string;
+  original_price: number;
+  typical_cooking_time: string;
+  default_hours_cooked: number;
+  ingredients: string;
+  canonical_bpom_dish: string;
+  category: string;
+  bpom_max_hours: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface StoreProfile {
+  id: string;
+  store_id: string;
+  name: string;
+  location_name: string;
+  latitude: number;
+  longitude: number;
+  closing_time: string;
+  maps_url: string;
+  is_active: boolean;
+}
+
 export interface DraftResponse {
   food_name: string;
   matched_canonical_dish: string;
@@ -16,6 +43,14 @@ export interface DraftResponse {
   similarity_score: number;
   extraction_source: string;
   can_publish: boolean;
+
+  // New Context-Aware Slot Filling & Multi-Tenant metadata
+  store_id?: string;
+  catalog_match_status?: "MATCHED_CATALOG" | "MATCHED_WITH_OVERRIDE" | "ADHOC_COMPLETE" | "ADHOC_NEEDS_PRICE";
+  matched_menu_item_id?: string | null;
+  needs_manual_price?: boolean;
+  can_save_to_catalog?: boolean;
+  closing_time?: string;
 }
 
 export interface PublishRequest {
@@ -36,13 +71,28 @@ export interface PublishRequest {
   similarity_score?: number;
   store_name?: string;
   location_badge?: string;
+
+  // Multi-tenant & bundling
+  store_id?: string;
+  closing_time?: string;
+  latitude?: number;
+  longitude?: number;
+  is_bundle?: boolean;
+  bundled_items_json?: string | null;
 }
 
 export interface ItemListing {
   id: string;
+  store_id?: string;
   store_name: string;
   location_badge: string;
   maps_url: string;
+  latitude?: number;
+  longitude?: number;
+  closing_time?: string;
+  is_bundle?: boolean;
+  bundled_items_json?: string | null;
+
   food_name: string;
   matched_canonical_dish: string;
   category: string;
@@ -66,7 +116,9 @@ export interface ItemListing {
 export interface OrderTicket {
   id: string;
   order_code: string;
+  store_id?: string;
   customer_name: string;
+  customer_phone?: string;
   listing_id: string;
   food_name: string;
   store_name: string;
@@ -76,15 +128,38 @@ export interface OrderTicket {
   total_price: number;
   pickup_deadline: string;
   qr_payload: string;
-  status: string;
+  payment_method?: string;  // CASH_ON_PICKUP | SIMULATED_QRIS
+  payment_status?: string;  // UNPAID | PAID | REFUNDED
+  status: string;           // RESERVED | COMPLETED | CANCELLED
   created_at: string;
   completed_at?: string | null;
+  cancelled_at?: string | null;
 }
 
 export interface UserSession {
+  token?: string;
   role: "merchant" | "consumer";
+  userId?: string;
   storeId?: string;
   storeName?: string;
   customerName?: string;
   customerPhone?: string;
+  closingTime?: string;
+  locationName?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface AuthResponse {
+  token: string;
+  role: "merchant" | "consumer";
+  user_id?: string;
+  store_id?: string;
+  store_name?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  closing_time?: string;
+  location_name?: string;
+  latitude?: number;
+  longitude?: number;
 }

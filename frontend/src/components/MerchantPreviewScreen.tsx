@@ -1,6 +1,18 @@
 import React, { useState } from "react";
 import { DraftResponse, PublishRequest } from "../types/listing";
-import { ShieldCheck, ShieldAlert, ArrowLeft, Send, Clock, Sparkles } from "lucide-react";
+import {
+  ShieldCheck,
+  ShieldAlert,
+  ArrowLeft,
+  Send,
+  Clock,
+  Sparkles,
+  BookOpen,
+  PlusCircle,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
+import { createStoreMenuItem } from "../services/api";
 
 interface MerchantPreviewScreenProps {
   draft: DraftResponse;
@@ -8,6 +20,7 @@ interface MerchantPreviewScreenProps {
   onPublish: (payload: PublishRequest) => Promise<void>;
   isPublishing: boolean;
   storeName: string;
+  storeId?: string;
 }
 
 export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
@@ -16,26 +29,54 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   onPublish,
   isPublishing,
   storeName,
+  storeId = "FTUI-001",
 }) => {
+  // Interactive editable fields (Human-in-the-Loop)
+  const [foodName, setFoodName] = useState(draft.food_name);
+  const [quantity, setQuantity] = useState<number>(draft.quantity || 1);
+  const [originalPrice, setOriginalPrice] = useState<number>(draft.original_price || 20000);
   const [discountPercent, setDiscountPercent] = useState<number>(
     draft.recommended_discount_percent || 50
   );
 
+  // Catalog saving state
+  const [isSavingToCatalog, setIsSavingToCatalog] = useState(false);
+  const [savedToCatalog, setSavedToCatalog] = useState(false);
+
   const calculatedDiscountedPrice = Math.floor(
-    (draft.original_price * (1 - discountPercent / 100)) / 100
+    (originalPrice * (1 - discountPercent / 100)) / 100
   ) * 100;
 
   const isSafe = draft.safety_status === "SAFE";
+
+  const handleSaveToCatalog = async () => {
+    if (isSavingToCatalog || savedToCatalog) return;
+    try {
+      setIsSavingToCatalog(true);
+      await createStoreMenuItem(storeId, {
+        food_name: foodName,
+        original_price: originalPrice,
+        typical_cooking_time: "16:00",
+        default_hours_cooked: draft.hours_since_cooked || 2.0,
+      });
+      setSavedToCatalog(true);
+    } catch (err: unknown) {
+      console.error("Gagal menyimpan ke buku menu:", err);
+    } finally {
+      setIsSavingToCatalog(false);
+    }
+  };
 
   const handlePublishClick = async () => {
     if (!isSafe || isPublishing) return;
 
     const payload: PublishRequest = {
-      food_name: draft.food_name,
+      store_id: storeId,
+      food_name: foodName.trim() || draft.food_name,
       matched_canonical_dish: draft.matched_canonical_dish,
       category: draft.category,
-      quantity: draft.quantity,
-      original_price: draft.original_price,
+      quantity: Math.max(1, quantity),
+      original_price: Math.max(1000, originalPrice),
       discount_percent: discountPercent,
       discounted_price: calculatedDiscountedPrice,
       hours_since_cooked: draft.hours_since_cooked,
@@ -48,9 +89,45 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       similarity_score: draft.similarity_score,
       store_name: storeName,
       location_badge: "Kantin FTUI · 250m (🚶 3 mnt)",
+      closing_time: draft.closing_time || "20:30",
     };
 
     await onPublish(payload);
+  };
+
+  // Status badge resolver
+  const renderCatalogBadge = () => {
+    switch (draft.catalog_match_status) {
+      case "MATCHED_CATALOG":
+        return (
+          <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300">
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>📚 Terhubung ke Buku Menu Gerai</span>
+          </span>
+        );
+      case "MATCHED_WITH_OVERRIDE":
+        return (
+          <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300">
+            <Clock className="w-3.5 h-3.5" />
+            <span>⏱️ Waktu Masak Diperbarui dari Suara/Teks</span>
+          </span>
+        );
+      case "ADHOC_NEEDS_PRICE":
+        return (
+          <span className="flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-300 animate-pulse">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span>⚠️ Menu Ad-Hoc: Lengkapi Harga Normal</span>
+          </span>
+        );
+      case "ADHOC_COMPLETE":
+      default:
+        return (
+          <span className="flex items-center gap-1 text-[11px] font-bold text-blue-800 bg-blue-100 px-2.5 py-1 rounded-full border border-blue-300">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>✨ Menu Ad-Hoc Lengkap</span>
+          </span>
+        );
+    }
   };
 
   return (
@@ -60,14 +137,50 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-1.5 text-xs font-semibold text-[#6B655B] hover:text-[#1F1D1A] py-1 px-2 rounded-lg bg-white border border-[#E2DDD3]"
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#6B655B] hover:text-[#1F1D1A] py-1 px-2.5 rounded-lg bg-white border border-[#E2DDD3]"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Ubah Input</span>
         </button>
-        <span className="text-[11px] font-mono text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+        <span className="text-[11px] font-mono text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
           Source: {draft.extraction_source}
         </span>
+      </div>
+
+      {/* Catalog Match Resolution Banner */}
+      <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-stone-200 shadow-sm">
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider">
+            Status Pencocokan Katalog
+          </span>
+          {renderCatalogBadge()}
+        </div>
+
+        {/* 1-Click Save to Catalog Button for Ad-Hoc dishes */}
+        {draft.can_save_to_catalog && (
+          <button
+            type="button"
+            onClick={handleSaveToCatalog}
+            disabled={isSavingToCatalog || savedToCatalog}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm ${
+              savedToCatalog
+                ? "bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default"
+                : "bg-stone-100 hover:bg-emerald-50 text-stone-800 hover:text-emerald-800 border border-stone-300"
+            }`}
+          >
+            {savedToCatalog ? (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Tersimpan di Buku Menu</span>
+              </>
+            ) : (
+              <>
+                <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{isSavingToCatalog ? "Menyimpan..." : "➕ Simpan ke Buku Menu"}</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* BPOM Safety Audit Card */}
@@ -116,36 +229,87 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
         </div>
       </div>
 
-      {/* Entity Extraction Summary */}
+      {/* Editable Human-in-the-Loop Entity Card */}
       <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3">
-        <h4 className="text-xs font-bold text-[#1F1D1A] uppercase tracking-wider">
-          Rincian Entitas Terdeteksi
-        </h4>
-
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="p-2.5 rounded-xl bg-[#F8F6F0]">
-            <span className="text-[10px] text-[#6B655B] block">Nama Makanan</span>
-            <span className="font-bold text-[#1F1D1A]">{draft.food_name}</span>
-          </div>
-          <div className="p-2.5 rounded-xl bg-[#F8F6F0]">
-            <span className="text-[10px] text-[#6B655B] block">Kategori BPOM</span>
-            <span className="font-bold text-[#1F1D1A]">{draft.category}</span>
-          </div>
-          <div className="p-2.5 rounded-xl bg-[#F8F6F0]">
-            <span className="text-[10px] text-[#6B655B] block">Jumlah Porsi</span>
-            <span className="font-bold text-[#1F1D1A]">{draft.quantity} Porsi</span>
-          </div>
-          <div className="p-2.5 rounded-xl bg-[#F8F6F0]">
-            <span className="text-[10px] text-[#6B655B] block">Waktu Sejak Dimasak</span>
-            <span className="font-bold text-[#1F1D1A]">
-              {draft.hours_since_cooked} jam / Maks {draft.bpom_max_hours} jam
-            </span>
-          </div>
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold text-[#1F1D1A] uppercase tracking-wider">
+            Rincian Entitas & Verifikasi Staf
+          </h4>
+          <span className="text-[10px] text-stone-400">Klik kolom untuk mengubah</span>
         </div>
 
-        <div className="flex items-center gap-2 text-[11px] text-[#6B655B] pt-1">
-          <Clock className="w-3.5 h-3.5 text-amber-600" />
-          <span>Sisa waktu tutup toko: <strong>{draft.minutes_until_closing} menit</strong></span>
+        <div className="space-y-3 text-xs">
+          {/* Editable Food Name */}
+          <div>
+            <label className="block text-[11px] font-semibold text-stone-600 mb-1">
+              Nama Hidangan
+            </label>
+            <input
+              type="text"
+              value={foodName}
+              onChange={(e) => setFoodName(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-stone-300 font-bold text-stone-800 bg-[#F8F6F0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {/* Editable Quantity */}
+            <div>
+              <label className="block text-[11px] font-semibold text-stone-600 mb-1">
+                Jumlah Porsi
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                className="w-full px-3 py-2 rounded-xl border border-stone-300 font-bold text-stone-800 bg-[#F8F6F0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+              />
+            </div>
+
+            {/* Editable Original Price */}
+            <div>
+              <label className="block text-[11px] font-semibold text-stone-600 mb-1 flex items-center justify-between">
+                <span>Harga Normal (Rp)</span>
+                {draft.needs_manual_price && (
+                  <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1 rounded">
+                    Wajib Diisi
+                  </span>
+                )}
+              </label>
+              <input
+                type="number"
+                step={500}
+                min={1000}
+                value={originalPrice}
+                onChange={(e) => setOriginalPrice(Math.max(1000, parseInt(e.target.value, 10) || 1000))}
+                className={`w-full px-3 py-2 rounded-xl font-bold text-xs focus:outline-none focus:ring-2 ${
+                  draft.needs_manual_price
+                    ? "border-2 border-amber-400 bg-amber-50 text-amber-950 focus:ring-amber-500"
+                    : "border border-stone-300 bg-[#F8F6F0] focus:bg-white text-stone-800 focus:ring-emerald-500"
+                }`}
+              />
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-[#F8F6F0]">
+              <span className="text-[10px] text-[#6B655B] block">Kategori BPOM</span>
+              <span className="font-bold text-[#1F1D1A]">{draft.category}</span>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-[#F8F6F0]">
+              <span className="text-[10px] text-[#6B655B] block">Waktu Sejak Dimasak</span>
+              <span className="font-bold text-[#1F1D1A]">
+                {draft.hours_since_cooked} jam / Maks {draft.bpom_max_hours} jam
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-[11px] text-[#6B655B] pt-1 border-t border-stone-100">
+            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            <span>
+              Sisa waktu tutup toko: <strong>{draft.minutes_until_closing} menit</strong>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -183,7 +347,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
           <div>
             <span className="text-[10px] text-[#6B655B] block">Harga Normal Asli</span>
             <span className="text-xs text-gray-400 line-through">
-              Rp {draft.original_price.toLocaleString("id-ID")}
+              Rp {originalPrice.toLocaleString("id-ID")}
             </span>
           </div>
           <div className="text-right">
@@ -224,4 +388,3 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
     </div>
   );
 };
-
