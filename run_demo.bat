@@ -1,5 +1,5 @@
 @echo off
-title NullWasted - Interactive UI Testing Demo Launcher
+title NullWasted - Surplus Food Marketplace Launcher
 echo ============================================================================
 echo   NULLWASTED: AUTONOMOUS AI-POWERED SURPLUS FOOD MARKETPLACE
 echo   Starting Local Backend (Port 8000) and Frontend PWA (Port 5173)...
