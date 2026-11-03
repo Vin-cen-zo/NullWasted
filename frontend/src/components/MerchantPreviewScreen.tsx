@@ -142,8 +142,14 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Ubah Input</span>
         </button>
-        <span className="text-[11px] font-mono text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-          Source: {draft.extraction_source}
+        <span
+          className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
+            isSafe
+              ? "text-emerald-800 bg-emerald-50 border-emerald-200"
+              : "text-red-800 bg-red-50 border-red-200"
+          }`}
+        >
+          {isSafe ? "Audit Keamanan BPOM: Terverifikasi Aman" : "Ditolak BPOM"}
         </span>
       </div>
 
@@ -209,7 +215,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                 {isSafe ? "PASSED BPOM" : "REJECTED BPOM"}
               </span>
               <span className="text-[10px] text-gray-500">
-                Vector Match: {Math.round(draft.similarity_score * 100)}%
+                Standar PerBPOM No. 16/2019
               </span>
             </div>
             <h3 className="text-sm font-bold mt-1.5">
