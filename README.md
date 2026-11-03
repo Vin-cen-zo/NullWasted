@@ -97,7 +97,6 @@ nullwasted/
 │   ├── .env                 # Local environment secrets (API keys)
 │   └── .env.example         # Template for environment variables
 ├── run_app.bat              # Standard 1-Click launcher for Backend (8000) & Frontend (5173)
-├── run_demo.bat             # Alternative 1-Click launcher
 ├── README.md                # Project architecture & setup documentation
 └── .gitignore               # Git ignore rules for node_modules, DB, and .env
 ```
@@ -138,7 +137,7 @@ nullwasted/
 - Google AI Studio API Key (for live Gemini LLM & embedding calls)
 
 ### Quick Start (Windows 1-Click Launcher)
-Double-click `run_app.bat` (or `run_demo.bat`) in the repository root. It will:
+Double-click `run_app.bat` in the repository root. It will:
 1. Start the FastAPI backend on `http://localhost:8000`.
 2. Start the React Vite PWA on `http://localhost:5173`.
 3. Open `http://localhost:5173` automatically in your default browser.
