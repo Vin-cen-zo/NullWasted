@@ -50,14 +50,16 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   const isSafe = draft.safety_status === "SAFE";
 
   const handleSaveToCatalog = async () => {
-    if (isSavingToCatalog || savedToCatalog) return;
+    // Hardening: strictly prevent spoiled / rejected items from entering catalog
+    if (!isSafe || !draft.can_publish || isSavingToCatalog || savedToCatalog) return;
     try {
       setIsSavingToCatalog(true);
       await createStoreMenuItem(storeId, {
-        food_name: foodName,
-        original_price: originalPrice,
+        food_name: foodName.trim() || draft.food_name,
+        original_price: Math.max(1000, Math.min(2000000, originalPrice)),
         typical_cooking_time: "16:00",
         default_hours_cooked: draft.hours_since_cooked || 2.0,
+        portion_size: draft.portion_size || "Reguler",
       });
       setSavedToCatalog(true);
     } catch (err: unknown) {
@@ -68,15 +70,15 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   };
 
   const handlePublishClick = async () => {
-    if (!isSafe || isPublishing) return;
+    if (!isSafe || !draft.can_publish || isPublishing) return;
 
     const payload: PublishRequest = {
       store_id: storeId,
       food_name: foodName.trim() || draft.food_name,
       matched_canonical_dish: draft.matched_canonical_dish,
       category: draft.category,
-      quantity: Math.max(1, quantity),
-      original_price: Math.max(1000, originalPrice),
+      quantity: Math.max(1, Math.min(200, quantity)),
+      original_price: Math.max(1000, Math.min(2000000, originalPrice)),
       discount_percent: discountPercent,
       discounted_price: calculatedDiscountedPrice,
       hours_since_cooked: draft.hours_since_cooked,
@@ -90,6 +92,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       store_name: storeName,
       location_badge: "Kantin FTUI · 250m (🚶 3 mnt)",
       closing_time: draft.closing_time || "20:30",
+      portion_size: draft.portion_size || "Reguler",
     };
 
     await onPublish(payload);
@@ -162,8 +165,8 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
           {renderCatalogBadge()}
         </div>
 
-        {/* 1-Click Save to Catalog Button for Ad-Hoc dishes */}
-        {draft.can_save_to_catalog && (
+        {/* 1-Click Save to Catalog Button for Ad-Hoc dishes: ONLY if safe and can_publish */}
+        {draft.can_save_to_catalog && isSafe && draft.can_publish && (
           <button
             type="button"
             onClick={handleSaveToCatalog}
@@ -171,7 +174,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm ${
               savedToCatalog
                 ? "bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default"
-                : "bg-stone-100 hover:bg-emerald-50 text-stone-800 hover:text-emerald-800 border border-stone-300"
+                : "bg-stone-100 hover:bg-emerald-50 text-stone-800 hover:text-emerald-800 border border-stone-300 cursor-pointer"
             }`}
           >
             {savedToCatalog ? (
@@ -259,21 +262,22 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {/* Editable Quantity */}
+            {/* Editable Quantity bounded 1 - 200 */}
             <div>
               <label className="block text-[11px] font-semibold text-stone-600 mb-1">
-                Jumlah Porsi
+                Jumlah Porsi (Maks 200)
               </label>
               <input
                 type="number"
                 min={1}
+                max={200}
                 value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                onChange={(e) => setQuantity(Math.max(1, Math.min(200, parseInt(e.target.value, 10) || 1)))}
                 className="w-full px-3 py-2 rounded-xl border border-stone-300 font-bold text-stone-800 bg-[#F8F6F0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
               />
             </div>
 
-            {/* Editable Original Price */}
+            {/* Editable Original Price bounded 1000 - 2000000 */}
             <div>
               <label className="block text-[11px] font-semibold text-stone-600 mb-1 flex items-center justify-between">
                 <span>Harga Normal (Rp)</span>
@@ -287,8 +291,9 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                 type="number"
                 step={500}
                 min={1000}
+                max={2000000}
                 value={originalPrice}
-                onChange={(e) => setOriginalPrice(Math.max(1000, parseInt(e.target.value, 10) || 1000))}
+                onChange={(e) => setOriginalPrice(Math.max(1000, Math.min(2000000, parseInt(e.target.value, 10) || 1000)))}
                 className={`w-full px-3 py-2 rounded-xl font-bold text-xs focus:outline-none focus:ring-2 ${
                   draft.needs_manual_price
                     ? "border-2 border-amber-400 bg-amber-50 text-amber-950 focus:ring-amber-500"
@@ -369,17 +374,17 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       <div className="pt-2">
         <button
           type="button"
-          disabled={!isSafe || isPublishing}
+          disabled={!isSafe || !draft.can_publish || isPublishing}
           onClick={handlePublishClick}
           className={`w-full py-3.5 px-4 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all ${
-            !isSafe
+            !isSafe || !draft.can_publish
               ? "bg-red-200 text-red-600 cursor-not-allowed shadow-none border border-red-300"
               : isPublishing
               ? "bg-gray-300 text-gray-500 cursor-not-allowed shadow-none"
-              : "bg-[#10B981] hover:bg-[#059669] text-white shadow-emerald-500/20 active:scale-[0.98]"
+              : "bg-[#10B981] hover:bg-[#059669] text-white shadow-emerald-500/20 active:scale-[0.98] cursor-pointer"
           }`}
         >
-          {!isSafe ? (
+          {!isSafe || !draft.can_publish ? (
             <span>🔒 DITOLAK OLEH GUARDRAIL BPOM (TIDAK DAPAT DITERBITKAN)</span>
           ) : isPublishing ? (
             <span>Menerbitkan Listing ke Marketplace...</span>

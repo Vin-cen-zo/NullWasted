@@ -32,6 +32,8 @@ interface MerchantInputScreenProps {
   locationName?: string;
   latitude?: number;
   longitude?: number;
+  initialText?: string;
+  onTextChange?: (text: string) => void;
 }
 
 export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
@@ -45,21 +47,27 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   locationName = "Kantin FTUI · 200m",
   latitude = -6.3621,
   longitude = 106.8246,
+  initialText = "",
+  onTextChange,
 }) => {
-  // Navigation: Dual-Mode Tabs
-  const [inputMode, setInputMode] = useState<"catalog" | "ai">("catalog");
+  // Navigation: Dual-Mode Tabs (Default to AI if initialText provided)
+  const [inputMode, setInputMode] = useState<"catalog" | "ai">(() =>
+    initialText && initialText.trim().length > 0 ? "ai" : "catalog"
+  );
 
   // Jalur 1: Catalog Routine Items State
   const [menuItems, setMenuItems] = useState<StoreMenuItem[]>([]);
   const [isLoadingMenu, setIsLoadingMenu] = useState(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState<StoreMenuItem | null>(null);
   const [batchQty, setBatchQty] = useState(3);
-  const [batchCookTime, setBatchCookTime] = useState("16:00");
+  const [batchCookHour, setBatchCookHour] = useState("16");
+  const [batchCookMinute, setBatchCookMinute] = useState("00");
   const [batchDiscountPercent, setBatchDiscountPercent] = useState(60);
+  const [batchPortionSize, setBatchPortionSize] = useState<string>("Reguler");
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
 
   // Jalur 2: Voice & AI Ad-Hoc State
-  const [inputText, setInputText] = useState("");
+  const [inputText, setInputText] = useState(initialText);
   const [isRecording, setIsRecording] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
   const [speechStopFn, setSpeechStopFn] = useState<(() => void) | null>(null);
@@ -67,6 +75,20 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
 
   // Catalog Modal Manager
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+
+  useEffect(() => {
+    if (initialText && initialText !== inputText) {
+      setInputText(initialText);
+      setInputMode("ai");
+    }
+  }, [initialText]);
+
+  const handleTextChange = (text: string) => {
+    setInputText(text);
+    if (onTextChange) {
+      onTextChange(text);
+    }
+  };
 
   // Load store menu items
   const loadMenuItems = async () => {
@@ -101,7 +123,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
       onResult: (transcript, isFinal) => {
         const prefix = baseTextRef.current;
         const combined = prefix ? `${prefix} ${transcript}`.trim() : transcript.trim();
-        setInputText(combined);
+        handleTextChange(combined);
         if (isFinal) {
           baseTextRef.current = combined;
           setIsRecording(false);
@@ -129,8 +151,24 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   const handleOpenBatchModal = (item: StoreMenuItem) => {
     setSelectedMenuItem(item);
     setBatchQty(3);
-    setBatchCookTime(item.typical_cooking_time || "16:00");
+    const parts = (item.typical_cooking_time || "16:00").split(":");
+    setBatchCookHour(parts[0] ? parts[0].padStart(2, "0") : "16");
+    setBatchCookMinute(parts[1] ? parts[1].padStart(2, "0") : "00");
     setBatchDiscountPercent(60);
+    setBatchPortionSize(item.portion_size || "Reguler");
+  };
+
+  const handleSetCurrentTime = () => {
+    const now = new Date();
+    setBatchCookHour(String(now.getHours()).padStart(2, "0"));
+    setBatchCookMinute(String(Math.floor(now.getMinutes() / 5) * 5).padStart(2, "0"));
+  };
+
+  const handleSetTypicalTime = () => {
+    if (!selectedMenuItem) return;
+    const parts = (selectedMenuItem.typical_cooking_time || "16:00").split(":");
+    setBatchCookHour(parts[0] ? parts[0].padStart(2, "0") : "16");
+    setBatchCookMinute(parts[1] ? parts[1].padStart(2, "0") : "00");
   };
 
   // Real-Time BPOM Guardrail Evaluation in Modal
@@ -138,7 +176,8 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   let isBpomRejected = false;
   if (selectedMenuItem) {
     const [closeH, closeM] = (closingTime || "20:30").split(":").map(Number);
-    const [cookH, cookM] = batchCookTime.split(":").map(Number);
+    const cookH = parseInt(batchCookHour, 10) || 16;
+    const cookM = parseInt(batchCookMinute, 10) || 0;
     diffHours = Number(Math.max(0.5, ((closeH * 60 + closeM) - (cookH * 60 + cookM)) / 60).toFixed(1));
     isBpomRejected = diffHours > selectedMenuItem.bpom_max_hours;
   }
@@ -159,7 +198,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
         food_name: selectedMenuItem.food_name,
         matched_canonical_dish: selectedMenuItem.canonical_bpom_dish || selectedMenuItem.food_name,
         category: selectedMenuItem.category || "MEDIUM_PERISHABILITY",
-        quantity: Math.max(1, batchQty),
+        quantity: Math.max(1, Math.min(200, batchQty)),
         original_price: selectedMenuItem.original_price,
         discount_percent: batchDiscountPercent,
         discounted_price: calculatedDiscountedPrice,
@@ -175,6 +214,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
         closing_time: closingTime || "20:30",
         latitude: latitude,
         longitude: longitude,
+        portion_size: batchPortionSize,
       };
 
       if (onDirectPublish) {
@@ -189,6 +229,9 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
       setIsSubmittingBatch(false);
     }
   };
+
+  const hourOptions = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+  const minuteOptions = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
 
   return (
     <div className="flex-1 flex flex-col p-4 overflow-y-auto">
@@ -326,15 +369,15 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               <textarea
                 rows={4}
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                onChange={(e) => handleTextChange(e.target.value)}
                 placeholder="Ketik deskripsi sisa makanan atau tekan tombol Dikte Suara di bawah..."
                 className="w-full p-3.5 text-xs rounded-2xl border border-[#D8D2C5] bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 resize-none text-[#1F1D1A] leading-relaxed placeholder:text-gray-400"
               />
               {inputText && (
                 <button
                   type="button"
-                  onClick={() => setInputText("")}
-                  className="absolute right-3 top-3 text-[10px] text-gray-400 hover:text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded"
+                  onClick={() => handleTextChange("")}
+                  className="absolute right-3 top-3 text-[10px] text-gray-400 hover:text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded cursor-pointer"
                 >
                   Hapus
                 </button>
@@ -433,11 +476,11 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               </button>
             </div>
 
-            {/* Stepper Porsi Sisa */}
+            {/* Stepper Porsi Sisa (1 - 200) */}
             <div className="p-3 bg-[#F8F6F0] rounded-2xl border border-stone-200 flex items-center justify-between">
               <div>
                 <span className="text-xs font-bold text-stone-800 block">Jumlah Porsi Sisa</span>
-                <span className="text-[11px] text-stone-500">Porsi tersedia untuk konsumen</span>
+                <span className="text-[11px] text-stone-500">Porsi tersedia (maks 200)</span>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -447,12 +490,12 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                 >
                   <Minus className="w-4 h-4" />
                 </button>
-                <span className="w-6 text-center text-base font-black text-stone-900">
+                <span className="w-8 text-center text-base font-black text-stone-900">
                   {batchQty}
                 </span>
                 <button
                   type="button"
-                  onClick={() => setBatchQty((prev) => prev + 1)}
+                  onClick={() => setBatchQty((prev) => Math.min(200, prev + 1))}
                   className="w-8 h-8 rounded-xl bg-white border border-stone-300 flex items-center justify-center text-stone-700 hover:bg-stone-100 font-bold active:scale-95 transition"
                 >
                   <Plus className="w-4 h-4" />
@@ -460,32 +503,75 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               </div>
             </div>
 
-            {/* Jam Matang Batch & Quick Chips */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-stone-700">
-                Jam Matang Batch Ini (HH:MM):
+            {/* Varian Ukuran Porsi */}
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Ukuran Porsi:
               </label>
-              <input
-                type="time"
-                value={batchCookTime}
-                onChange={(e) => setBatchCookTime(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 bg-white font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-              <div className="flex gap-1.5 pt-1">
-                {["11:00", "16:00", "18:30"].map((timeChip) => (
-                  <button
-                    key={timeChip}
-                    type="button"
-                    onClick={() => setBatchCookTime(timeChip)}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-semibold border transition ${
-                      batchCookTime === timeChip
-                        ? "bg-emerald-100 border-emerald-400 text-emerald-900 font-bold"
-                        : "bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100"
-                    }`}
+              <select
+                value={batchPortionSize}
+                onChange={(e) => setBatchPortionSize(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 bg-white text-stone-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="Reguler">Reguler</option>
+                <option value="Kecil / Hemat">Kecil / Hemat</option>
+                <option value="Besar / Jumbo">Besar / Jumbo</option>
+              </select>
+            </div>
+
+            {/* Jam Matang Batch 24-Jam (Dual Dropdown) & Quick Action Buttons */}
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-stone-700">
+                Jam Matang Batch Ini (Format 24 Jam):
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-[10px] text-stone-500 block mb-0.5">Jam (00 - 23)</span>
+                  <select
+                    value={batchCookHour}
+                    onChange={(e) => setBatchCookHour(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs rounded-xl border border-stone-300 bg-white font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
-                    {timeChip === "11:00" ? "11:00 Siang" : timeChip === "16:00" ? "16:00 Sore" : "18:30 Malam"}
-                  </button>
-                ))}
+                    {hourOptions.map((h) => (
+                      <option key={h} value={h}>
+                        {h}:00
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <span className="text-[10px] text-stone-500 block mb-0.5">Menit (00 - 55)</span>
+                  <select
+                    value={batchCookMinute}
+                    onChange={(e) => setBatchCookMinute(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs rounded-xl border border-stone-300 bg-white font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    {minuteOptions.map((m) => (
+                      <option key={m} value={m}>
+                        :{m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Quick Preset Action Buttons */}
+              <div className="flex gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSetCurrentTime}
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition flex items-center gap-1"
+                >
+                  <Clock className="w-3 h-3 text-emerald-600" />
+                  <span>⏱️ Waktu Sekarang</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSetTypicalTime}
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-300 transition"
+                >
+                  <span>Jadwal Rutin ({selectedMenuItem.typical_cooking_time})</span>
+                </button>
               </div>
             </div>
 
@@ -520,7 +606,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] font-bold text-emerald-800 block">
-                      Diskon {batchDiscountPercent}% (Harga Surplus)
+                      Diskon {batchDiscountPercent}% ({batchPortionSize})
                     </span>
                     <span className="text-base font-black text-emerald-700">
                       Rp {calculatedDiscountedPrice.toLocaleString("id-ID")}
