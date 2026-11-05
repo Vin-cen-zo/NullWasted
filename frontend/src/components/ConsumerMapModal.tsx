@@ -149,13 +149,31 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
     };
   }, [isOpen, listings.length, userCoords]);
 
+  // Leaflet map invalidation on store panel toggle and responsive window resize
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
+      mapInstanceRef.current?.invalidateSize();
+    }, 150);
+
+    const handleResize = () => {
+      mapInstanceRef.current?.invalidateSize();
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [isOpen, selectedStoreId]);
+
   if (!isOpen) return null;
 
   const activeStoreData = selectedStoreId ? storeMap.get(selectedStoreId) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3">
-      <div className="w-full max-w-md bg-stone-50 rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col h-[85vh]">
+      <div className="w-full max-w-4xl bg-stone-50 rounded-2xl sm:rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col h-[85vh] sm:h-[82vh]">
         {/* Header */}
         <div className="bg-emerald-700 text-white px-5 py-3.5 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2">
@@ -215,13 +233,13 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
               href={`https://www.google.com/maps/dir/?api=1&destination=${activeStoreData.lat},${activeStoreData.lng}`}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition shadow-2xs"
+              className="flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition shadow-sm"
             >
               <span>🗺️ Buka Petunjuk Arah di Google Maps</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
 
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {activeStoreData.items.map((item) => (
                 <div
                   key={item.id}
@@ -243,7 +261,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
                       onClose();
                       onSelectItem(item);
                     }}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition shadow-xs cursor-pointer"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition shadow-sm cursor-pointer"
                   >
                     <ShoppingBag className="w-3 h-3" />
                     <span>Pilih & Pesan</span>

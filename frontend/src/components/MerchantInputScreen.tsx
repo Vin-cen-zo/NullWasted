@@ -234,9 +234,9 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   const minuteOptions = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
 
   return (
-    <div className="flex-1 flex flex-col p-4 overflow-y-auto">
+    <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full space-y-4">
       {/* Top Banner / Store Context & Catalog Quick Action */}
-      <div className="bg-white p-3.5 rounded-2xl border border-[#E2DDD3] shadow-sm mb-4">
+      <div className="bg-white p-3.5 rounded-2xl border border-[#E2DDD3] shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold text-[#1F1D1A]">Buat Listing Makanan Surplus</h2>
@@ -247,7 +247,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
           <button
             type="button"
             onClick={() => setIsCatalogOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition shadow-sm cursor-pointer"
           >
             <BookOpen className="w-3.5 h-3.5" />
             <span>Kelola Buku Menu</span>
@@ -256,11 +256,11 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
       </div>
 
       {/* Dual-Mode Tabs */}
-      <div className="grid grid-cols-2 gap-1 p-1 bg-[#E8E3D9]/60 rounded-xl border border-[#D8D2C5] mb-4">
+      <div className="grid grid-cols-2 gap-1 p-1 bg-[#E8E3D9]/60 rounded-xl border border-[#D8D2C5]">
         <button
           type="button"
           onClick={() => setInputMode("catalog")}
-          className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
+          className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
             inputMode === "catalog"
               ? "bg-white text-[#1F1D1A] shadow-sm border border-black/5"
               : "text-[#6B655B] hover:text-[#1F1D1A]"
@@ -272,7 +272,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
         <button
           type="button"
           onClick={() => setInputMode("ai")}
-          className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
+          className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
             inputMode === "ai"
               ? "bg-white text-[#1F1D1A] shadow-sm border border-black/5"
               : "text-[#6B655B] hover:text-[#1F1D1A]"
@@ -317,13 +317,13 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {menuItems.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => handleOpenBatchModal(item)}
-                  className="p-3 text-left bg-white hover:bg-emerald-50/50 rounded-2xl border border-stone-200 hover:border-emerald-400 shadow-xs transition-all flex flex-col justify-between space-y-2 group"
+                  className="p-3 text-left bg-white hover:bg-emerald-50/50 rounded-2xl border border-stone-200 hover:border-emerald-400 shadow-sm transition-all flex flex-col justify-between h-full space-y-2 group cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="font-bold text-xs text-stone-900 group-hover:text-emerald-900 leading-snug">
@@ -452,8 +452,8 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
       {/* MODAL BOTTOM-SHEET: PENERBITAN INSTAN BATCH MENU RUTIN                     */}
       {/* ========================================================================= */}
       {selectedMenuItem && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-stone-200 p-5 space-y-4 max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-stone-200 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-start justify-between">
               <div>
@@ -629,7 +629,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                 type="button"
                 disabled={isBpomRejected || isSubmittingBatch || isPublishing}
                 onClick={handleBatchPublish}
-                className="flex-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-[2] py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isSubmittingBatch || isPublishing ? (
                   <>

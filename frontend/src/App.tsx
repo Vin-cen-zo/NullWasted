@@ -233,10 +233,10 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#E8E3D9] flex items-center justify-center p-0 sm:p-4 font-sans text-[#1F1D1A]">
+    <div className="min-h-screen bg-[#F8F6F0] font-sans text-[#1F1D1A] flex flex-col">
       {/* Toast Notification Float */}
       {toast && (
-        <div className="fixed top-5 z-60 animate-bounce">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] animate-bounce pointer-events-none">
           <div
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold shadow-lg flex items-center gap-2 border ${
               toast.type === "error"
@@ -249,12 +249,12 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Mobile Smartphone Frame Container */}
-      <div className="w-full max-w-[440px] h-screen sm:h-[860px] bg-[#F8F6F0] sm:rounded-[36px] shadow-2xl sm:border-[6px] border-[#1F1D1A] flex flex-col overflow-hidden relative">
-        {/* Top App Bar Header */}
-        <header className="px-4 py-3 bg-white border-b border-[#E2DDD3] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xs shadow-xs">
+      {/* Sticky Top Navbar */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E2DDD3] shadow-sm shrink-0">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4 w-full">
+          {/* Sisi Kiri: Brand & Identity */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
               NW
             </div>
             <div>
@@ -263,13 +263,13 @@ export const App: React.FC = () => {
                 <div className="flex items-center gap-1 text-[10px] text-[#6B655B]">
                   {session.role === "merchant" ? (
                     <>
-                      <Store className="w-3 h-3 text-emerald-600" />
-                      <span>{session.storeName}</span>
+                      <Store className="w-3 h-3 text-emerald-600 shrink-0" />
+                      <span className="truncate max-w-[140px] sm:max-w-xs">{session.storeName}</span>
                     </>
                   ) : (
                     <>
-                      <MapPin className="w-3 h-3 text-emerald-600" />
-                      <span>{session.customerName} (UI Depok)</span>
+                      <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                      <span className="truncate max-w-[140px] sm:max-w-xs">{session.customerName} (UI Depok)</span>
                     </>
                   )}
                 </div>
@@ -279,181 +279,263 @@ export const App: React.FC = () => {
             </div>
           </div>
 
+          {/* Sisi Tengah (Desktop Only Nav Tabs) */}
           {session && (
+            <div className="hidden md:flex items-center gap-1.5 bg-[#F8F6F0] p-1 rounded-xl border border-[#E2DDD3]">
+              {session.role === "merchant" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMerchantTab("create");
+                      setActiveDraft(null);
+                    }}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                      merchantTab === "create"
+                        ? "bg-emerald-600 text-white font-bold shadow-sm"
+                        : "text-[#6B655B] hover:text-[#1F1D1A] hover:bg-white/60 font-semibold"
+                    }`}
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Buat Listing</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMerchantTab("inventory")}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                      merchantTab === "inventory"
+                        ? "bg-emerald-600 text-white font-bold shadow-sm"
+                        : "text-[#6B655B] hover:text-[#1F1D1A] hover:bg-white/60 font-semibold"
+                    }`}
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    <span>Inventaris ({activeListings.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMerchantTab("cashier")}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                      merchantTab === "cashier"
+                        ? "bg-emerald-600 text-white font-bold shadow-sm"
+                        : "text-[#6B655B] hover:text-[#1F1D1A] hover:bg-white/60 font-semibold"
+                    }`}
+                  >
+                    <QrCode className="w-4 h-4" />
+                    <span>Kasir QR</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setConsumerTab("explore")}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                      consumerTab === "explore"
+                        ? "bg-emerald-600 text-white font-bold shadow-sm"
+                        : "text-[#6B655B] hover:text-[#1F1D1A] hover:bg-white/60 font-semibold"
+                    }`}
+                  >
+                    <UtensilsCrossed className="w-4 h-4" />
+                    <span>Jelajah ({activeListings.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setConsumerTab("orders")}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                      consumerTab === "orders"
+                        ? "bg-emerald-600 text-white font-bold shadow-sm"
+                        : "text-[#6B655B] hover:text-[#1F1D1A] hover:bg-white/60 font-semibold"
+                    }`}
+                  >
+                    <Ticket className="w-4 h-4" />
+                    <span>Pesanan Saya ({activeOrders.length})</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Sisi Kanan: Logout / Switch Role */}
+          {session ? (
             <button
               type="button"
               onClick={handleLogout}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-[11px] font-bold text-gray-700 transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700 transition-colors shrink-0 cursor-pointer"
               title="Ganti Peran / Logout"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Ganti Akun</span>
             </button>
+          ) : (
+            <div className="w-16" />
           )}
-        </header>
+        </div>
+      </header>
 
-        {/* Dynamic Screen Viewport */}
-        <main className="flex-1 flex flex-col overflow-hidden relative">
-          {!session ? (
-            <AuthScreen onLogin={handleLogin} />
-          ) : session.role === "merchant" ? (
-            /* Merchant Screens */
-            <>
-              {merchantTab === "create" &&
-                (activeDraft ? (
-                  <MerchantPreviewScreen
-                    draft={activeDraft}
-                    onBack={() => setActiveDraft(null)}
-                    onPublish={handlePublish}
-                    isPublishing={isPublishing}
-                    storeName={session.storeName || "Dapur Barokah"}
-                    storeId={session.storeId || "FTUI-001"}
-                  />
-                ) : (
-                  <MerchantInputScreen
-                    onAnalyze={handleAnalyzeText}
-                    isLoading={isLoadingDraft}
-                    storeName={session.storeName || "Dapur Barokah"}
-                    storeId={session.storeId || "FTUI-001"}
-                    onDirectPublish={handlePublish}
-                    isPublishing={isPublishing}
-                    closingTime={session.closingTime || "20:30"}
-                    locationName={session.locationName || "Kantin FTUI · 200m"}
-                    latitude={session.latitude}
-                    longitude={session.longitude}
-                    initialText={lastInputText}
-                    onTextChange={(val) => setLastInputText(val)}
-                  />
-                ))}
-
-              {merchantTab === "inventory" && (
-                <MerchantInventoryScreen
-                  listings={activeListings}
-                  onDeleteListing={handleDeleteListing}
-                  onNavigateToCreate={() => setMerchantTab("create")}
-                  onCreateSmartBundle={handleCreateSmartBundle}
+      {/* Dynamic Screen Viewport */}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-4 md:py-6 flex flex-col pb-24 md:pb-10">
+        {!session ? (
+          <AuthScreen onLogin={handleLogin} />
+        ) : session.role === "merchant" ? (
+          /* Merchant Screens */
+          <>
+            {merchantTab === "create" &&
+              (activeDraft ? (
+                <MerchantPreviewScreen
+                  draft={activeDraft}
+                  onBack={() => setActiveDraft(null)}
+                  onPublish={handlePublish}
+                  isPublishing={isPublishing}
                   storeName={session.storeName || "Dapur Barokah"}
+                  storeId={session.storeId || "FTUI-001"}
                 />
-              )}
+              ) : (
+                <MerchantInputScreen
+                  onAnalyze={handleAnalyzeText}
+                  isLoading={isLoadingDraft}
+                  storeName={session.storeName || "Dapur Barokah"}
+                  storeId={session.storeId || "FTUI-001"}
+                  onDirectPublish={handlePublish}
+                  isPublishing={isPublishing}
+                  closingTime={session.closingTime || "20:30"}
+                  locationName={session.locationName || "Kantin FTUI · 200m"}
+                  latitude={session.latitude}
+                  longitude={session.longitude}
+                  initialText={lastInputText}
+                  onTextChange={(val) => setLastInputText(val)}
+                />
+              ))}
 
-              {merchantTab === "cashier" && (
-                <MerchantCashierScreen
-                  orders={activeOrders}
-                  onCompletePickup={handleCompletePickup}
-                  isVerifying={isVerifying}
-                />
-              )}
+            {merchantTab === "inventory" && (
+              <MerchantInventoryScreen
+                listings={activeListings}
+                onDeleteListing={handleDeleteListing}
+                onNavigateToCreate={() => setMerchantTab("create")}
+                onCreateSmartBundle={handleCreateSmartBundle}
+                storeName={session.storeName || "Dapur Barokah"}
+              />
+            )}
+
+            {merchantTab === "cashier" && (
+              <MerchantCashierScreen
+                orders={activeOrders}
+                onCompletePickup={handleCompletePickup}
+                isVerifying={isVerifying}
+              />
+            )}
+          </>
+        ) : (
+          /* Consumer Screens */
+          <>
+            {consumerTab === "explore" && (
+              <ConsumerFeedScreen
+                listings={activeListings}
+                onSelectItem={(item) => setSelectedFeedItem(item)}
+                customerName={session.customerName || "Budi Santoso"}
+              />
+            )}
+
+            {consumerTab === "orders" && (
+              <ConsumerOrdersScreen
+                orders={activeOrders}
+                customerName={session.customerName || "Budi Santoso"}
+                onCancelOrder={handleCancelOrder}
+                onRefreshOrders={refreshOrders}
+              />
+            )}
+
+            {/* Detail Sheet Modal */}
+            <ConsumerDetailModal
+              item={selectedFeedItem}
+              onClose={() => setSelectedFeedItem(null)}
+              onReserve={handleReserve}
+              isReserving={isReserving}
+            />
+          </>
+        )}
+      </main>
+
+      {/* Bottom Navigation Bar */}
+      {session && (
+        <nav className="flex md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E2DDD3] px-3 py-2 items-center justify-around shadow-lg">
+          {session.role === "merchant" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setMerchantTab("create");
+                  setActiveDraft(null);
+                }}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
+                  merchantTab === "create"
+                    ? "text-emerald-600 font-bold"
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
+              >
+                <PlusCircle className="w-5 h-5" />
+                <span className="text-[10px]">Buat Listing</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMerchantTab("inventory")}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all relative ${
+                  merchantTab === "inventory"
+                    ? "text-emerald-600 font-bold"
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
+              >
+                <ClipboardList className="w-5 h-5" />
+                <span className="text-[10px]">Inventaris ({activeListings.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMerchantTab("cashier")}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all relative ${
+                  merchantTab === "cashier"
+                    ? "text-emerald-600 font-bold"
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
+              >
+                <QrCode className="w-5 h-5" />
+                <span className="text-[10px]">Kasir QR</span>
+              </button>
             </>
           ) : (
-            /* Consumer Screens */
             <>
-              {consumerTab === "explore" && (
-                <ConsumerFeedScreen
-                  listings={activeListings}
-                  onSelectItem={(item) => setSelectedFeedItem(item)}
-                  customerName={session.customerName || "Budi Santoso"}
-                />
-              )}
+              <button
+                type="button"
+                onClick={() => setConsumerTab("explore")}
+                className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${
+                  consumerTab === "explore"
+                    ? "text-emerald-600 font-bold"
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
+              >
+                <UtensilsCrossed className="w-5 h-5" />
+                <span className="text-[10px]">Jelajah ({activeListings.length})</span>
+              </button>
 
-              {consumerTab === "orders" && (
-                <ConsumerOrdersScreen
-                  orders={activeOrders}
-                  customerName={session.customerName || "Budi Santoso"}
-                  onCancelOrder={handleCancelOrder}
-                  onRefreshOrders={refreshOrders}
-                />
-              )}
-
-              {/* Detail Sheet Modal */}
-              <ConsumerDetailModal
-                item={selectedFeedItem}
-                onClose={() => setSelectedFeedItem(null)}
-                onReserve={handleReserve}
-                isReserving={isReserving}
-              />
+              <button
+                type="button"
+                onClick={() => setConsumerTab("orders")}
+                className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all relative ${
+                  consumerTab === "orders"
+                    ? "text-emerald-600 font-bold"
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
+              >
+                <Ticket className="w-5 h-5" />
+                <span className="text-[10px]">Pesanan Saya ({activeOrders.length})</span>
+              </button>
             </>
           )}
-        </main>
-
-        {/* Bottom Navigation Bar */}
-        {session && (
-          <nav className="bg-white border-t border-[#E2DDD3] px-3 py-2 flex items-center justify-around shrink-0 shadow-lg">
-            {session.role === "merchant" ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMerchantTab("create");
-                    setActiveDraft(null);
-                  }}
-                  className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
-                    merchantTab === "create"
-                      ? "text-emerald-600 font-bold"
-                      : "text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  <PlusCircle className="w-5 h-5" />
-                  <span className="text-[10px]">Buat Listing</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMerchantTab("inventory")}
-                  className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all relative ${
-                    merchantTab === "inventory"
-                      ? "text-emerald-600 font-bold"
-                      : "text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  <ClipboardList className="w-5 h-5" />
-                  <span className="text-[10px]">Inventaris ({activeListings.length})</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMerchantTab("cashier")}
-                  className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all relative ${
-                    merchantTab === "cashier"
-                      ? "text-emerald-600 font-bold"
-                      : "text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  <QrCode className="w-5 h-5" />
-                  <span className="text-[10px]">Kasir QR</span>
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setConsumerTab("explore")}
-                  className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${
-                    consumerTab === "explore"
-                      ? "text-emerald-600 font-bold"
-                      : "text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  <UtensilsCrossed className="w-5 h-5" />
-                  <span className="text-[10px]">Jelajah ({activeListings.length})</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setConsumerTab("orders")}
-                  className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all relative ${
-                    consumerTab === "orders"
-                      ? "text-emerald-600 font-bold"
-                      : "text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  <Ticket className="w-5 h-5" />
-                  <span className="text-[10px]">Pesanan Saya ({activeOrders.length})</span>
-                </button>
-              </>
-            )}
-          </nav>
-        )}
-      </div>
+        </nav>
+      )}
     </div>
   );
 };

@@ -174,8 +174,8 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-fade-in">
-      <div className="w-full max-w-[440px] bg-white rounded-t-[32px] sm:rounded-[32px] p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto space-y-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-fade-in">
+      <div className="w-full max-w-xl bg-white rounded-t-[32px] sm:rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[88vh] overflow-y-auto space-y-4">
         {/* ========================================================================= */}
         {/* STEP 1: ITEM DETAIL & QUANTITY CHECKOUT STEP                              */}
         {/* ========================================================================= */}
@@ -232,7 +232,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                   <Package className="w-4 h-4 text-purple-600" />
                   <span>Rincian Isi Paket Kejutan & Alergen:</span>
                 </div>
-                <div className="space-y-2 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   {bundledList.map((b, idx) => {
                     const info = resolveBundleItemAllergens(b.food_name, b.ingredients, b.allergen_tags);
 
@@ -349,7 +349,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
             )}
 
             {/* Transparent Bill Settlement Sheet */}
-            <div className="p-3.5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-2 text-xs">
+            <div className="p-3.5 rounded-2xl bg-white border border-stone-200 shadow-sm space-y-2 text-xs">
               <h4 className="font-bold text-[11px] text-stone-700 uppercase tracking-wider">
                 Ringkasan Tagihan Transparan
               </h4>
@@ -382,7 +382,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                   onClick={() => setPaymentMethod("CASH_ON_PICKUP")}
                   className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                     paymentMethod === "CASH_ON_PICKUP"
-                      ? "bg-amber-50/80 border-amber-400 font-bold text-amber-950 shadow-xs ring-1 ring-amber-400"
+                      ? "bg-amber-50/80 border-amber-400 font-bold text-amber-950 shadow-sm ring-1 ring-amber-400"
                       : "bg-white border-stone-200 text-stone-600 hover:border-amber-300"
                   }`}
                 >
@@ -398,7 +398,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                   onClick={() => setPaymentMethod("SIMULATED_QRIS")}
                   className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                     paymentMethod === "SIMULATED_QRIS"
-                      ? "bg-emerald-50/80 border-emerald-500 font-bold text-emerald-950 shadow-xs ring-1 ring-emerald-500"
+                      ? "bg-emerald-50/80 border-emerald-500 font-bold text-emerald-950 shadow-sm ring-1 ring-emerald-500"
                       : "bg-white border-stone-200 text-stone-600 hover:border-emerald-300"
                   }`}
                 >
@@ -511,7 +511,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                 type="button"
                 disabled={isConfirmingQris || isReserving}
                 onClick={handleConfirmQrisPayment}
-                className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition active:scale-98 disabled:opacity-50 cursor-pointer"
+                className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
                 {isConfirmingQris ? (
                   <>

@@ -130,7 +130,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   });
 
   return (
-    <div className="flex-1 flex flex-col p-4 overflow-y-auto space-y-3">
+    <div className="flex-1 flex flex-col space-y-4">
       {/* Header Greeting, GPS Anchor Toggle & Open Map CTA */}
       <div className="flex items-center justify-between">
         <div>
@@ -163,25 +163,65 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
         </button>
       </div>
 
-      {/* Search Input Bar */}
-      <div className="relative">
-        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Cari makanan surplus, menu, atau gerai..."
-          className="w-full text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-[#D8D2C5] bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 text-[#1F1D1A]"
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => setSearchQuery("")}
-            className="absolute right-3 top-3 text-[10px] text-gray-400 hover:text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded cursor-pointer"
-          >
-            Hapus
-          </button>
-        )}
+      {/* Responsive Search Input & Radius Distance Toolbar */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+        {/* Search Input Bar */}
+        <div className="relative md:col-span-7">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari makanan surplus, menu, atau gerai..."
+            className="w-full text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-[#D8D2C5] bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 text-[#1F1D1A]"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-3 text-[10px] text-gray-400 hover:text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded cursor-pointer"
+            >
+              Hapus
+            </button>
+          )}
+        </div>
+
+        {/* Radius Distance Filter Row */}
+        <div className="flex items-center justify-between gap-2 text-[11px] bg-stone-100 p-1.5 rounded-xl text-stone-600 md:col-span-5">
+          <div className="flex items-center gap-1.5 shrink-0 ml-1">
+            <Navigation className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="font-semibold text-stone-700">Radius:</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setSelectedRadius("ALL")}
+              className={`px-2 py-0.5 rounded-lg font-medium transition cursor-pointer ${
+                selectedRadius === "ALL" ? "bg-white font-bold text-emerald-800 shadow-sm" : "hover:text-stone-900"
+              }`}
+            >
+              Semua
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedRadius("500")}
+              className={`px-2 py-0.5 rounded-lg font-medium transition cursor-pointer ${
+                selectedRadius === "500" ? "bg-white font-bold text-emerald-800 shadow-sm" : "hover:text-stone-900"
+              }`}
+            >
+              &lt; 500m (🚶)
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedRadius("1500")}
+              className={`px-2 py-0.5 rounded-lg font-medium transition cursor-pointer ${
+                selectedRadius === "1500" ? "bg-white font-bold text-emerald-800 shadow-sm" : "hover:text-stone-900"
+              }`}
+            >
+              &lt; 1.5km (🛵)
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Category Filter Pills (Including Mystery Bag) */}
@@ -233,42 +273,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
         </button>
       </div>
 
-      {/* Radius Distance Filter Row */}
-      <div className="flex items-center gap-2 text-[11px] bg-stone-100 p-1.5 rounded-xl text-stone-600">
-        <Navigation className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
-        <span className="font-semibold text-stone-700">Radius Jarak:</span>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setSelectedRadius("ALL")}
-            className={`px-2 py-0.5 rounded-lg font-medium transition cursor-pointer ${
-              selectedRadius === "ALL" ? "bg-white font-bold text-emerald-800 shadow-xs" : "hover:text-stone-900"
-            }`}
-          >
-            Semua
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedRadius("500")}
-            className={`px-2 py-0.5 rounded-lg font-medium transition cursor-pointer ${
-              selectedRadius === "500" ? "bg-white font-bold text-emerald-800 shadow-xs" : "hover:text-stone-900"
-            }`}
-          >
-            &lt; 500m (🚶 Jalan Kaki)
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedRadius("1500")}
-            className={`px-2 py-0.5 rounded-lg font-medium transition cursor-pointer ${
-              selectedRadius === "1500" ? "bg-white font-bold text-emerald-800 shadow-xs" : "hover:text-stone-900"
-            }`}
-          >
-            &lt; 1.5km (🛵 Motor)
-          </button>
-        </div>
-      </div>
-
-      {/* Food Discovery Cards List */}
+      {/* Food Discovery Cards Grid */}
       {filteredListings.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white rounded-2xl border border-dashed border-[#D8D2C5]">
           <Utensils className="w-10 h-10 text-gray-300 mb-2" />
@@ -278,7 +283,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
           {filteredListings.map((item) => {
             const [itemLat, itemLng] = resolveItemCoords(item);
             const distM = calculateDistanceMeters(itemLat, itemLng, userCoords[0], userCoords[1]);
@@ -288,7 +293,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
               <div
                 key={item.id}
                 onClick={() => onSelectItem(item)}
-                className={`bg-white p-3.5 rounded-2xl border shadow-sm hover:border-emerald-500 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-2.5 ${
+                className={`bg-white p-4 rounded-2xl border shadow-sm hover:border-emerald-500 hover:shadow-md transition-all cursor-pointer h-full flex flex-col justify-between space-y-3 ${
                   item.is_bundle
                     ? "border-purple-300 bg-gradient-to-b from-purple-50/30 to-white"
                     : "border-[#E2DDD3]"
@@ -339,16 +344,16 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] pt-2 border-t border-gray-100 text-[#6B655B]">
-                  <div className="flex items-center gap-1 truncate max-w-[210px]">
+                <div className="flex items-center justify-between text-[11px] pt-2 border-t border-gray-100 text-[#6B655B] mt-auto">
+                  <div className="flex items-center gap-1 min-w-0 flex-1 mr-2">
                     <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     <span className="truncate">{item.location_badge || `${distLabel} dari lokasi Anda`}</span>
                   </div>
-                  <div className="text-right font-medium flex items-center gap-2">
-                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                  <div className="text-right font-medium flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">
                       {distLabel}
                     </span>
-                    <span>Tersisa: <strong className="text-stone-800">{item.quantity} porsi</strong></span>
+                    <span className="shrink-0">Tersisa: <strong className="text-stone-800">{item.quantity} porsi</strong></span>
                   </div>
                 </div>
               </div>
