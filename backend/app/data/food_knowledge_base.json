@@ -1587,5 +1587,31 @@
     "bpom_max_hours": 8.0,
     "regulation_ref": "PerBPOM No. 16/2019 Kategori Olahan Pasta Ikan Rebus dan Goreng Berisi Telur",
     "hazard_description": "Perebusan dan penggorengan mematangkan ikan dan telur; keasaman kuah cuko memperlambat bakteri, batas aman 8 jam pada suhu kamar."
+  },
+  {
+    "id": "bpom-071",
+    "canonical_name": "Klappertaart Panggang Fla Susu",
+    "aliases": [
+      "klappertaart",
+      "klapertart",
+      "kue fla susu kelapa",
+      "custard tart",
+      "pie susu",
+      "fla susu"
+    ],
+    "category": "HIGH_PERISHABILITY",
+    "ingredients": [
+      "kelapa muda",
+      "susu cair",
+      "kuning telur",
+      "mentega",
+      "tepung maizena",
+      "kismis",
+      "kayu manis"
+    ],
+    "risk_level": "HIGH",
+    "bpom_max_hours": 4.0,
+    "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan Olahan Susu/Telur Basah",
+    "hazard_description": "Kandungan fla susu dan custard kelapa rentan pertumbuhan cepat Staphylococcus aureus dan Bacillus cereus jika disimpan di atas 4 jam suhu ruang."
   }
 ]
