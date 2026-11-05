@@ -38,7 +38,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
   };
 
   return (
-    <div className="flex-1 flex flex-col p-4 overflow-y-auto space-y-4">
+    <div className="flex-1 flex flex-col space-y-4">
       {/* Header Info */}
       <div className="flex items-center justify-between">
         <div>
@@ -48,7 +48,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
         <button
           type="button"
           onClick={onNavigateToCreate}
-          className="flex items-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm shadow-emerald-500/20 active:scale-95 transition-all"
+          className="flex items-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
         >
           <PlusCircle className="w-4 h-4" />
           <span>Tambah Menu</span>
@@ -56,7 +56,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
       </div>
 
       {/* Smart Mystery Bag Bundling Action Banner */}
-      <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-emerald-50 p-3.5 rounded-2xl border border-purple-200 shadow-sm flex items-center justify-between">
+      <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-emerald-50 p-3.5 rounded-2xl border border-purple-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="space-y-0.5">
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-purple-600" />
@@ -78,7 +78,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
               ? "bg-stone-200 text-stone-400 cursor-not-allowed border border-stone-300"
               : isBundling
               ? "bg-purple-300 text-white cursor-wait"
-              : "bg-purple-600 hover:bg-purple-700 text-white active:scale-95 shadow-purple-500/20"
+              : "bg-purple-600 hover:bg-purple-700 text-white active:scale-95 shadow-purple-500/20 cursor-pointer"
           }`}
         >
           <Package className="w-3.5 h-3.5" />
@@ -99,13 +99,13 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
           <button
             type="button"
             onClick={onNavigateToCreate}
-            className="mt-4 text-xs font-bold text-emerald-600 underline"
+            className="mt-4 text-xs font-bold text-emerald-600 underline cursor-pointer"
           >
             Buat Listing Sekarang
           </button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
           {listings.map((item) => {
             let bundledList: Array<{ food_name: string; quantity: number }> = [];
             if (item.is_bundle && item.bundled_items_json) {
@@ -119,7 +119,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
             return (
               <div
                 key={item.id}
-                className={`bg-white p-3.5 rounded-2xl border shadow-sm transition-all flex flex-col justify-between space-y-2.5 ${
+                className={`bg-white p-4 rounded-2xl border shadow-sm transition-all h-full flex flex-col justify-between space-y-3 ${
                   item.is_bundle
                     ? "border-purple-300 bg-gradient-to-b from-purple-50/40 to-white"
                     : "border-[#E2DDD3] hover:border-emerald-300"

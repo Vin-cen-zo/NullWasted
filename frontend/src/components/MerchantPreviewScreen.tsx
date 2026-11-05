@@ -134,13 +134,13 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col p-4 overflow-y-auto space-y-4">
+    <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full space-y-4">
       {/* Top Bar Navigation */}
       <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-1.5 text-xs font-semibold text-[#6B655B] hover:text-[#1F1D1A] py-1 px-2.5 rounded-lg bg-white border border-[#E2DDD3]"
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#6B655B] hover:text-[#1F1D1A] py-1 px-2.5 rounded-lg bg-white border border-[#E2DDD3] cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Ubah Input</span>
@@ -238,134 +238,141 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
         </div>
       </div>
 
-      {/* Editable Human-in-the-Loop Entity Card */}
-      <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs font-bold text-[#1F1D1A] uppercase tracking-wider">
-            Rincian Entitas & Verifikasi Staf
-          </h4>
-          <span className="text-[10px] text-stone-400">Klik kolom untuk mengubah</span>
-        </div>
-
-        <div className="space-y-3 text-xs">
-          {/* Editable Food Name */}
+      {/* 2-Column Responsive Grid: Human-in-the-Loop Entity Card & Dynamic Pricing Card */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+        {/* Editable Human-in-the-Loop Entity Card */}
+        <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3 h-full flex flex-col justify-between">
           <div>
-            <label className="block text-[11px] font-semibold text-stone-600 mb-1">
-              Nama Hidangan
-            </label>
-            <input
-              type="text"
-              value={foodName}
-              onChange={(e) => setFoodName(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-stone-300 font-bold text-stone-800 bg-[#F8F6F0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {/* Editable Quantity bounded 1 - 200 */}
-            <div>
-              <label className="block text-[11px] font-semibold text-stone-600 mb-1">
-                Jumlah Porsi (Maks 200)
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={200}
-                value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, Math.min(200, parseInt(e.target.value, 10) || 1)))}
-                className="w-full px-3 py-2 rounded-xl border border-stone-300 font-bold text-stone-800 bg-[#F8F6F0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
-              />
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-xs font-bold text-[#1F1D1A] uppercase tracking-wider">
+                Rincian Entitas & Verifikasi Staf
+              </h4>
+              <span className="text-[10px] text-stone-400">Klik kolom untuk mengubah</span>
             </div>
 
-            {/* Editable Original Price bounded 1000 - 2000000 */}
-            <div>
-              <label className="block text-[11px] font-semibold text-stone-600 mb-1 flex items-center justify-between">
-                <span>Harga Normal (Rp)</span>
-                {draft.needs_manual_price && (
-                  <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1 rounded">
-                    Wajib Diisi
+            <div className="space-y-3 text-xs">
+              {/* Editable Food Name */}
+              <div>
+                <label className="block text-[11px] font-semibold text-stone-600 mb-1">
+                  Nama Hidangan
+                </label>
+                <input
+                  type="text"
+                  value={foodName}
+                  onChange={(e) => setFoodName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-stone-300 font-bold text-stone-800 bg-[#F8F6F0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {/* Editable Quantity bounded 1 - 200 */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-stone-600 mb-1">
+                    Jumlah Porsi (Maks 200)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={quantity}
+                    onChange={(e) => setQuantity(Math.max(1, Math.min(200, parseInt(e.target.value, 10) || 1)))}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-300 font-bold text-stone-800 bg-[#F8F6F0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+                  />
+                </div>
+
+                {/* Editable Original Price bounded 1000 - 2000000 */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-stone-600 mb-1 flex items-center justify-between">
+                    <span>Harga Normal (Rp)</span>
+                    {draft.needs_manual_price && (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1 rounded">
+                        Wajib Diisi
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    step={500}
+                    min={1000}
+                    max={2000000}
+                    value={originalPrice}
+                    onChange={(e) => setOriginalPrice(Math.max(1000, Math.min(2000000, parseInt(e.target.value, 10) || 1000)))}
+                    className={`w-full px-3 py-2 rounded-xl font-bold text-xs focus:outline-none focus:ring-2 ${
+                      draft.needs_manual_price
+                        ? "border-2 border-amber-400 bg-amber-50 text-amber-950 focus:ring-amber-500"
+                        : "border border-stone-300 bg-[#F8F6F0] focus:bg-white text-stone-800 focus:ring-emerald-500"
+                    }`}
+                  />
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-[#F8F6F0]">
+                  <span className="text-[10px] text-[#6B655B] block">Kategori BPOM</span>
+                  <span className="font-bold text-[#1F1D1A]">{draft.category}</span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-[#F8F6F0]">
+                  <span className="text-[10px] text-[#6B655B] block">Waktu Sejak Dimasak</span>
+                  <span className="font-bold text-[#1F1D1A]">
+                    {draft.hours_since_cooked} jam / Maks {draft.bpom_max_hours} jam
                   </span>
-                )}
-              </label>
-              <input
-                type="number"
-                step={500}
-                min={1000}
-                max={2000000}
-                value={originalPrice}
-                onChange={(e) => setOriginalPrice(Math.max(1000, Math.min(2000000, parseInt(e.target.value, 10) || 1000)))}
-                className={`w-full px-3 py-2 rounded-xl font-bold text-xs focus:outline-none focus:ring-2 ${
-                  draft.needs_manual_price
-                    ? "border-2 border-amber-400 bg-amber-50 text-amber-950 focus:ring-amber-500"
-                    : "border border-stone-300 bg-[#F8F6F0] focus:bg-white text-stone-800 focus:ring-emerald-500"
-                }`}
-              />
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-[#F8F6F0]">
-              <span className="text-[10px] text-[#6B655B] block">Kategori BPOM</span>
-              <span className="font-bold text-[#1F1D1A]">{draft.category}</span>
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-[#F8F6F0]">
-              <span className="text-[10px] text-[#6B655B] block">Waktu Sejak Dimasak</span>
-              <span className="font-bold text-[#1F1D1A]">
-                {draft.hours_since_cooked} jam / Maks {draft.bpom_max_hours} jam
-              </span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-[#6B655B] pt-1 border-t border-stone-100">
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
+          <div className="flex items-center gap-2 text-[11px] text-[#6B655B] pt-2 border-t border-stone-100 mt-2">
+            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span>
               Sisa waktu tutup toko: <strong>{draft.minutes_until_closing} menit</strong>
             </span>
           </div>
         </div>
-      </div>
 
-      {/* Dynamic Pricing Interactive Slider */}
-      <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-emerald-600" />
-            <h4 className="text-xs font-bold text-[#1F1D1A]">Dynamic Pricing (50% – 70%)</h4>
-          </div>
-          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-            Diskon: {discountPercent}%
-          </span>
-        </div>
-
-        <div>
-          <input
-            type="range"
-            min={50}
-            max={70}
-            step={1}
-            value={discountPercent}
-            onChange={(e) => setDiscountPercent(Number(e.target.value))}
-            className="w-full accent-emerald-600 cursor-pointer"
-          />
-          <div className="flex justify-between text-[10px] text-[#6B655B] mt-1">
-            <span>50% (Awal Window)</span>
-            <span>Rekomendasi AI: {draft.recommended_discount_percent}%</span>
-            <span>70% (Menjelang Tutup)</span>
-          </div>
-        </div>
-
-        {/* Pricing Calculation Display */}
-        <div className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200/60 flex items-center justify-between">
+        {/* Dynamic Pricing Interactive Slider */}
+        <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3 h-full flex flex-col justify-between">
           <div>
-            <span className="text-[10px] text-[#6B655B] block">Harga Normal Asli</span>
-            <span className="text-xs text-gray-400 line-through">
-              Rp {originalPrice.toLocaleString("id-ID")}
-            </span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-emerald-600" />
+                <h4 className="text-xs font-bold text-[#1F1D1A]">Dynamic Pricing (50% – 70%)</h4>
+              </div>
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                Diskon: {discountPercent}%
+              </span>
+            </div>
+
+            <div className="space-y-2 mt-3">
+              <input
+                type="range"
+                min={50}
+                max={70}
+                step={1}
+                value={discountPercent}
+                onChange={(e) => setDiscountPercent(Number(e.target.value))}
+                className="w-full accent-emerald-600 cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-[#6B655B]">
+                <span>50% (Awal Window)</span>
+                <span>Rekomendasi AI: {draft.recommended_discount_percent}%</span>
+                <span>70% (Menjelang Tutup)</span>
+              </div>
+            </div>
           </div>
-          <div className="text-right">
-            <span className="text-[10px] font-bold text-emerald-800 block">Harga Surplus Terkunci</span>
-            <span className="text-base font-extrabold text-emerald-600">
-              Rp {calculatedDiscountedPrice.toLocaleString("id-ID")}
-            </span>
+
+          {/* Pricing Calculation Display */}
+          <div className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200/60 flex items-center justify-between mt-3">
+            <div>
+              <span className="text-[10px] text-[#6B655B] block">Harga Normal Asli</span>
+              <span className="text-xs text-gray-400 line-through">
+                Rp {originalPrice.toLocaleString("id-ID")}
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] font-bold text-emerald-800 block">Harga Surplus Terkunci</span>
+              <span className="text-base font-extrabold text-emerald-600">
+                Rp {calculatedDiscountedPrice.toLocaleString("id-ID")}
+              </span>
+            </div>
           </div>
         </div>
       </div>

@@ -112,7 +112,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg bg-stone-50 rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-2xl bg-stone-50 rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="bg-emerald-700 text-white px-5 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -256,7 +256,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                 Belum ada menu tersimpan di Buku Menu. Tambahkan hidangan di atas.
               </p>
             ) : (
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {menuItems.map((item) => (
                   <div
                     key={item.id}
