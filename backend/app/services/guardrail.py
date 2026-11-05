@@ -1,5 +1,20 @@
+import re
 from typing import Any
 from app.services.vector_store import vector_store
+
+FORBIDDEN_NON_FOOD = [
+    "racun", "tikus", "arsenik", "sianida", "pestisida", "baterai", "aki",
+    "deterjen", "sabun", "oli", "obat nyamuk", "logam", "plastik", "kaca",
+    "semen", "bensin", "solar", "formalin", "boraks", "tawas", "kaporit",
+]
+
+FORBIDDEN_WILDLIFE = [
+    "anjing", "kucing", "kelelawar", "celeng", "biawak", "monyet", "kera", "ular", "buaya",
+]
+
+FUTURE_TIME_KEYWORDS = [
+    "besok", "nanti malam", "akan datang", "belum dimasak", "akan dimasak", "masak besok",
+]
 
 
 def evaluate_food_safety(
@@ -11,6 +26,58 @@ def evaluate_food_safety(
     0% LLM hallucination - 100% rule-based threshold comparison.
     """
     search_query = f"{food_name} {raw_text}".strip()
+    query_lower = search_query.lower()
+
+    # 1. Non-food / Poison / Chemical defense (Word boundary \b)
+    for kw in FORBIDDEN_NON_FOOD:
+        if re.search(rf"\b{re.escape(kw)}\b", query_lower):
+            return {
+                "matched_canonical_dish": "Bukan Bahan Pangan (Ditolak)",
+                "category": "FORBIDDEN_NON_FOOD",
+                "bpom_max_hours": 0.0,
+                "similarity_score": 0.0,
+                "safety_status": "REJECTED",
+                "can_publish": False,
+                "safety_reason": (
+                    f"BAHAYA FATAL (NON-PANGAN): Terdeteksi entitas berbahaya atau non-makanan ('{kw}'). "
+                    f"Dilarang keras memperjualbelikan bahan kimia, racun, atau benda non-pangan."
+                ),
+                "hazard_description": "Substansi beracun atau benda non-pangan dapat menyebabkan intoksikasi mematikan dan dilarang mutlak oleh hukum pangan.",
+                "regulation_ref": "UU No. 18/2012 tentang Pangan & Standar Keamanan Pangan BPOM",
+            }
+
+    # 2. Wildlife / Non-consumption meat defense (Word boundary \b)
+    for kw in FORBIDDEN_WILDLIFE:
+        if re.search(rf"\b{re.escape(kw)}\b", query_lower):
+            return {
+                "matched_canonical_dish": "Bahan Hewani Non-Pangan (Ditolak)",
+                "category": "FORBIDDEN_WILDLIFE",
+                "bpom_max_hours": 0.0,
+                "similarity_score": 0.0,
+                "safety_status": "REJECTED",
+                "can_publish": False,
+                "safety_reason": (
+                    f"DITOLAK (BAHAN HEWANI TERLARANG): Bahan hewani '{kw}' tidak terdaftar dalam "
+                    f"standar pangan konsumsi retail yang diizinkan PerBPOM."
+                ),
+                "hazard_description": "Daging satwa liar atau hewan peliharaan rentan membawa zoonosis berbahaya dan dilarang dalam rantai pasok pangan ritel.",
+                "regulation_ref": "PerBPOM No. 16/2019 & Standar Pangan Hewani Asuh",
+            }
+
+    # 3. Future cooking time defense
+    if re.search(r"\b(besok|nanti malam|akan datang|belum dimasak|akan dimasak|masak besok)\b", query_lower):
+        return {
+            "matched_canonical_dish": "Waktu Masak Tidak Valid (Ditolak)",
+            "category": "INVALID_COOKING_TIME",
+            "bpom_max_hours": 0.0,
+            "similarity_score": 0.0,
+            "safety_status": "REJECTED",
+            "can_publish": False,
+            "safety_reason": "DITOLAK (WAKTU MASA DEPAN): Waktu matang hidangan tidak boleh berada di masa depan. Makanan surplus harus merupakan hidangan yang sudah selesai dimasak.",
+            "hazard_description": "Ketidakpastian waktu produksi aktual melanggar ketentuan ketertelusuran keamanan pangan BPOM.",
+            "regulation_ref": "PerBPOM No. 16/2019 Standar Penanganan Pangan Siap Saji",
+        }
+
     matched_item, similarity_score = vector_store.search_similar_dish(search_query)
 
     bpom_max_hours = float(matched_item.get("bpom_max_hours", 8.0))
@@ -22,7 +89,7 @@ def evaluate_food_safety(
         "Risiko mikrobiologis meningkat seiring waktu simpan melebihi ambang batas aman suhu ruang."
     )
 
-    # Lexical high-risk override for santan, dairy, cream sauces, raw meats, and egg emulsions
+    # Lexical high-risk override for santan, dairy, cream sauces, raw meats, egg emulsions, and klappertaart
     high_risk_keywords = [
         # Santan & Indonesian High-Risk Wet Coconut Milk
         "santan", "gulai", "opor", "soto betawi", "kari", "lodeh", "cendol", "dawet", "nasi uduk", "nasi kuning gurih", "nasi lemak",
@@ -30,20 +97,30 @@ def evaluate_food_safety(
         "carbonara", "karbonara", "alfredo", "cream", "krim", "creamy", "keju cair", "cheese sauce",
         "mayones", "mayo", "tartar", "caesar salad", "salad telur", "egg salad",
         "vla", "custard", "tiramisu", "choux", "kue sus", "eclair", "puding susu", "cheesecake basah",
+        "klappertaart", "klapertart", "fla susu", "pie susu",
         "milk tea", "boba fresh milk", "susu segar", "fresh milk", "latte",
         # Raw / Semi-Raw Ingredients
         "sashimi", "raw salmon", "raw tuna", "raw fish", "ikan mentah", "daging mentah", "tartare",
         "telur setengah matang", "raw egg", "telur mentah"
     ]
-    query_lower = search_query.lower()
-    if any(k in query_lower for k in high_risk_keywords):
+    has_high_risk = any(k in query_lower for k in high_risk_keywords)
+    if has_high_risk:
         category = "HIGH_PERISHABILITY"
         bpom_max_hours = min(bpom_max_hours, 4.0)
         regulation_ref = "PerBPOM No. 16/2019 Kategori Pangan Basah Mudah Rusak (Santan/Susu/Krim/Telur/Mentah)"
         hazard_description = "Olahan bersantan, saus emulsi krim/susu, telur setengah matang, dan bahan mentah sangat rentan terhadap proliferasi cepat Bacillus cereus, Salmonella, dan enterotoksin Staphylococcus aureus pada suhu kamar."
 
-    # Deterministic Evaluation
-    if hours_since_cooked > bpom_max_hours:
+    # 4. Unknown entity threshold check (< 0.65 similarity)
+    if similarity_score < 0.65 and not has_high_risk:
+        safety_status = "REJECTED"
+        can_publish = False
+        category = "REJECTED_UNKNOWN_FOOD"
+        safety_reason = (
+            f"DITOLAK (ENTITAS TIDAK DIKENALI): Hidangan '{food_name}' tidak dikenali sebagai pangan "
+            f"siap saji yang valid (skor kemiripan {similarity_score:.2f} < 0.65)."
+        )
+    # 5. Deterministic Time Limit Evaluation
+    elif hours_since_cooked > bpom_max_hours:
         safety_status = "REJECTED"
         can_publish = False
         if category == "HIGH_PERISHABILITY":
