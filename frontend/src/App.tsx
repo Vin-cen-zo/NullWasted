@@ -47,6 +47,7 @@ export const App: React.FC = () => {
 
   // Data States
   const [activeDraft, setActiveDraft] = useState<DraftResponse | null>(null);
+  const [lastInputText, setLastInputText] = useState<string>("");
   const [activeListings, setActiveListings] = useState<ItemListing[]>([]);
   const [activeOrders, setActiveOrders] = useState<OrderTicket[]>([]);
   const [selectedFeedItem, setSelectedFeedItem] = useState<ItemListing | null>(null);
@@ -133,6 +134,7 @@ export const App: React.FC = () => {
   // Merchant Actions
   const handleAnalyzeText = async (text: string) => {
     setIsLoadingDraft(true);
+    setLastInputText(text);
     try {
       const storeId = session?.storeId || "FTUI-001";
       const draft = await createDraft(text, undefined, storeId);
@@ -154,6 +156,7 @@ export const App: React.FC = () => {
     try {
       await publishListing(payload);
       setActiveDraft(null);
+      setLastInputText("");
       await refreshListings();
       setMerchantTab("inventory");
       showToast("Listing resmi berhasil diterbitkan ke marketplace!", "success");
@@ -318,6 +321,8 @@ export const App: React.FC = () => {
                     locationName={session.locationName || "Kantin FTUI · 200m"}
                     latitude={session.latitude}
                     longitude={session.longitude}
+                    initialText={lastInputText}
+                    onTextChange={(val) => setLastInputText(val)}
                   />
                 ))}
 

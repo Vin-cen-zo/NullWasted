@@ -516,6 +516,84 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           </div>
         )}
       </div>
+
+      {/* Completed Orders History (POS Reconciliation) */}
+      <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Receipt className="w-4 h-4 text-emerald-600" />
+            <h3 className="text-xs font-bold text-[#1F1D1A] uppercase tracking-wider">
+              Riwayat Penjualan Selesai Hari Ini ({completedOrders.length})
+            </h3>
+          </div>
+          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            Status: COMPLETED
+          </span>
+        </div>
+
+        {completedOrders.length === 0 ? (
+          <p className="text-xs text-[#6B655B] text-center py-4 italic">
+            Belum ada pesanan yang diselesaikan hari ini.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {completedOrders.map((ord) => {
+              const formattedTime = ord.completed_at
+                ? new Date(ord.completed_at).toLocaleTimeString("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }) + " WIB"
+                : "Hari ini";
+
+              return (
+                <div
+                  key={ord.id}
+                  className="p-3 rounded-xl bg-stone-50 border border-stone-200 flex flex-col justify-between text-xs space-y-1.5"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-emerald-800 text-sm">
+                          {ord.order_code}
+                        </span>
+                        <span className="text-[11px] font-semibold text-stone-800 flex items-center gap-1">
+                          <User className="w-3 h-3 text-stone-400" />
+                          {ord.customer_name}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-stone-700 mt-0.5">
+                        {ord.food_name} · <span className="font-semibold">{ord.quantity} porsi</span>
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-xs font-extrabold text-stone-900 block">
+                        Rp {ord.total_price.toLocaleString("id-ID")}
+                      </span>
+                      <span className="text-[10px] text-stone-400">{formattedTime}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-1.5 border-t border-stone-200 flex items-center justify-between">
+                    <span className="text-[10px] text-stone-500">Metode Pembayaran:</span>
+                    {ord.payment_method === "SIMULATED_QRIS" ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+                        <CreditCard className="w-3 h-3 text-emerald-600" />
+                        <span>📱 Lunas QRIS</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md">
+                        <Banknote className="w-3 h-3 text-amber-700" />
+                        <span>💵 Tunai Diterima</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

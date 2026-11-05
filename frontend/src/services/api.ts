@@ -10,6 +10,38 @@ import {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
 
+/**
+ * Normalizes Pydantic 422 validation errors, backend string details, or unknown errors
+ * into human-readable Indonesian error messages without ever rendering "[object Object]".
+ */
+export function formatApiError(detail: unknown, fallback: string = "Terjadi kesalahan pada sistem."): string {
+  if (!detail) return fallback;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object" && "msg" in item) {
+          const loc = Array.isArray((item as { loc?: unknown[] }).loc)
+            ? (item as { loc: unknown[] }).loc.slice(-1)[0]
+            : "";
+          const prefix = loc && typeof loc === "string" && !loc.startsWith("body") ? `${loc}: ` : "";
+          return `${prefix}${String((item as { msg: unknown }).msg)}`;
+        }
+        return JSON.stringify(item);
+      })
+      .filter(Boolean);
+    return messages.length > 0 ? messages.join(" | ") : fallback;
+  }
+  if (typeof detail === "object") {
+    if ("message" in detail && typeof (detail as { message: unknown }).message === "string") {
+      return (detail as { message: string }).message;
+    }
+    return JSON.stringify(detail);
+  }
+  return String(detail);
+}
+
 function getAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const token = localStorage.getItem("nw_session_token");
@@ -41,7 +73,7 @@ export async function loginMerchant(storeId: string, pin: string): Promise<AuthR
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Store ID atau PIN Staf Dapur tidak valid.");
+    throw new Error(formatApiError(errorData.detail, "Store ID atau PIN Staf Dapur tidak valid."));
   }
   return res.json();
 }
@@ -62,7 +94,7 @@ export async function registerMerchant(payload: {
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Gagal mendaftarkan gerai mitra.");
+    throw new Error(formatApiError(errorData.detail, "Gagal mendaftarkan gerai mitra."));
   }
   return res.json();
 }
@@ -79,7 +111,7 @@ export async function registerConsumer(payload: {
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Gagal mendaftarkan akun konsumen.");
+    throw new Error(formatApiError(errorData.detail, "Gagal mendaftarkan akun konsumen."));
   }
   return res.json();
 }
@@ -92,7 +124,7 @@ export async function loginConsumer(phone: string, name?: string): Promise<AuthR
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Gagal masuk sebagai konsumen.");
+    throw new Error(formatApiError(errorData.detail, "Gagal masuk sebagai konsumen."));
   }
   return res.json();
 }
@@ -119,6 +151,7 @@ export async function createStoreMenuItem(
     typical_cooking_time?: string;
     default_hours_cooked?: number;
     ingredients?: string;
+    portion_size?: string;
   }
 ): Promise<StoreMenuItem> {
   const res = await fetch(`${API_BASE_URL}/menu/${storeId}`, {
@@ -128,7 +161,7 @@ export async function createStoreMenuItem(
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Gagal menambahkan menu ke buku menu gerai.");
+    throw new Error(formatApiError(errorData.detail, "Gagal menambahkan menu ke buku menu gerai."));
   }
   return res.json();
 }
@@ -164,7 +197,7 @@ export async function createDraft(
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Gagal menganalisis draf listing.");
+    throw new Error(formatApiError(errorData.detail, "Gagal menganalisis draf listing."));
   }
   return res.json();
 }
@@ -178,7 +211,7 @@ export async function publishListing(payload: PublishRequest): Promise<ItemListi
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Listing ditolak atau gagal diterbitkan.");
+    throw new Error(formatApiError(errorData.detail, "Listing ditolak atau gagal diterbitkan."));
   }
   return res.json();
 }
@@ -200,7 +233,7 @@ export async function createSmartBundle(
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Gagal membuat paket Mystery Bag otomatis.");
+    throw new Error(formatApiError(errorData.detail, "Gagal membuat paket Mystery Bag otomatis."));
   }
   return res.json();
 }
@@ -252,7 +285,7 @@ export async function reserveOrder(
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Gagal melakukan reservasi porsi.");
+    throw new Error(formatApiError(errorData.detail, "Gagal melakukan reservasi porsi."));
   }
   return res.json();
 }
@@ -285,7 +318,7 @@ export async function cancelOrder(orderId: string): Promise<OrderTicket> {
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Gagal membatalkan pesanan.");
+    throw new Error(formatApiError(errorData.detail, "Gagal membatalkan pesanan."));
   }
   return res.json();
 }
@@ -302,7 +335,7 @@ export async function completeOrderPickup(
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Gagal memverifikasi dan menyelesaikan tiket pesanan.");
+    throw new Error(formatApiError(errorData.detail, "Gagal memverifikasi dan menyelesaikan tiket pesanan."));
   }
   return res.json();
 }
