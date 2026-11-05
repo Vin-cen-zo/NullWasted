@@ -11,10 +11,12 @@ import { ConsumerOrdersScreen } from "./components/ConsumerOrdersScreen";
 import {
   createDraft,
   publishListing,
+  createSmartBundle,
   fetchActiveListings,
   fetchActiveOrders,
   reserveOrder,
   completeOrderPickup,
+  cancelOrder,
   deleteListing,
 } from "./services/api";
 import {
@@ -30,7 +32,14 @@ import {
 
 export const App: React.FC = () => {
   // Session State
-  const [session, setSession] = useState<UserSession | null>(null);
+  const [session, setSession] = useState<UserSession | null>(() => {
+    try {
+      const saved = localStorage.getItem("nw_user_session");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
 
   // Tab Navigation State
   const [merchantTab, setMerchantTab] = useState<"create" | "inventory" | "cashier">("create");
@@ -59,7 +68,8 @@ export const App: React.FC = () => {
   // Synchronize data from SQLite
   const refreshListings = async () => {
     try {
-      const data = await fetchActiveListings();
+      const storeFilter = session?.role === "merchant" ? session.storeId : undefined;
+      const data = await fetchActiveListings(storeFilter);
       setActiveListings(data);
     } catch (err) {
       console.error("Gagal memuat katalog:", err);
@@ -68,7 +78,13 @@ export const App: React.FC = () => {
 
   const refreshOrders = async () => {
     try {
-      const data = await fetchActiveOrders();
+      const filters =
+        session?.role === "merchant"
+          ? { storeId: session.storeId }
+          : session?.role === "consumer"
+          ? { customerPhone: session.customerPhone, customerName: session.customerName }
+          : undefined;
+      const data = await fetchActiveOrders(filters);
       setActiveOrders(data);
     } catch (err) {
       console.error("Gagal memuat pesanan:", err);
@@ -83,6 +99,15 @@ export const App: React.FC = () => {
   // Auth Handler
   const handleLogin = (newSession: UserSession) => {
     setSession(newSession);
+    try {
+      localStorage.setItem("nw_user_session", JSON.stringify(newSession));
+      if (newSession.token) {
+        localStorage.setItem("nw_session_token", newSession.token);
+      }
+    } catch (e) {
+      console.error("Failed to persist session:", e);
+    }
+
     setActiveDraft(null);
     setSelectedFeedItem(null);
     if (newSession.role === "merchant") {
@@ -95,6 +120,12 @@ export const App: React.FC = () => {
 
   const handleLogout = () => {
     setSession(null);
+    try {
+      localStorage.removeItem("nw_user_session");
+      localStorage.removeItem("nw_session_token");
+    } catch (e) {
+      console.error("Failed to clear session:", e);
+    }
     setActiveDraft(null);
     setSelectedFeedItem(null);
   };
@@ -103,7 +134,8 @@ export const App: React.FC = () => {
   const handleAnalyzeText = async (text: string) => {
     setIsLoadingDraft(true);
     try {
-      const draft = await createDraft(text);
+      const storeId = session?.storeId || "FTUI-001";
+      const draft = await createDraft(text, undefined, storeId);
       setActiveDraft(draft);
       if (draft.safety_status === "REJECTED") {
         showToast("Peringatan: Makanan ditolak oleh Guardrail BPOM!", "error");
@@ -132,6 +164,17 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleCreateSmartBundle = async () => {
+    try {
+      const storeId = session?.storeId || "FTUI-001";
+      const newBundle = await createSmartBundle(storeId, 65);
+      await refreshListings();
+      showToast(`Sukses membuat ${newBundle.food_name} dengan diskon 65%!`, "success");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal membuat Mystery Bag.", "error");
+    }
+  };
+
   const handleDeleteListing = async (id: string) => {
     try {
       await deleteListing(id);
@@ -145,7 +188,8 @@ export const App: React.FC = () => {
   const handleCompletePickup = async (orderCode: string): Promise<OrderTicket> => {
     setIsVerifying(true);
     try {
-      const ticket = await completeOrderPickup(orderCode);
+      const storeId = session?.storeId || "FTUI-001";
+      const ticket = await completeOrderPickup(orderCode, storeId);
       await refreshOrders();
       await refreshListings();
       showToast(`Pesanan ${ticket.order_code} berhasil diselesaikan!`, "success");
@@ -156,11 +200,12 @@ export const App: React.FC = () => {
   };
 
   // Consumer Actions
-  const handleReserve = async (listingId: string, quantity: number) => {
+  const handleReserve = async (listingId: string, quantity: number, paymentMethod: string = "CASH_ON_PICKUP") => {
     setIsReserving(true);
     try {
       const custName = session?.customerName || "Budi Santoso";
-      const ticket = await reserveOrder(listingId, quantity, custName);
+      const custPhone = session?.customerPhone || "0812-8899-0011";
+      const ticket = await reserveOrder(listingId, quantity, custName, custPhone, paymentMethod);
       setSelectedFeedItem(null);
       await refreshListings();
       await refreshOrders();
@@ -170,6 +215,17 @@ export const App: React.FC = () => {
       showToast(err instanceof Error ? err.message : "Gagal melakukan reservasi.", "error");
     } finally {
       setIsReserving(false);
+    }
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    try {
+      await cancelOrder(orderId);
+      await refreshOrders();
+      await refreshListings();
+      showToast("Pesanan berhasil dibatalkan dan stok dikembalikan ke gerai.", "success");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal membatalkan pesanan.", "error");
     }
   };
 
@@ -248,12 +304,20 @@ export const App: React.FC = () => {
                     onPublish={handlePublish}
                     isPublishing={isPublishing}
                     storeName={session.storeName || "Dapur Barokah"}
+                    storeId={session.storeId || "FTUI-001"}
                   />
                 ) : (
                   <MerchantInputScreen
                     onAnalyze={handleAnalyzeText}
                     isLoading={isLoadingDraft}
                     storeName={session.storeName || "Dapur Barokah"}
+                    storeId={session.storeId || "FTUI-001"}
+                    onDirectPublish={handlePublish}
+                    isPublishing={isPublishing}
+                    closingTime={session.closingTime || "20:30"}
+                    locationName={session.locationName || "Kantin FTUI · 200m"}
+                    latitude={session.latitude}
+                    longitude={session.longitude}
                   />
                 ))}
 
@@ -262,6 +326,7 @@ export const App: React.FC = () => {
                   listings={activeListings}
                   onDeleteListing={handleDeleteListing}
                   onNavigateToCreate={() => setMerchantTab("create")}
+                  onCreateSmartBundle={handleCreateSmartBundle}
                   storeName={session.storeName || "Dapur Barokah"}
                 />
               )}
@@ -289,6 +354,8 @@ export const App: React.FC = () => {
                 <ConsumerOrdersScreen
                   orders={activeOrders}
                   customerName={session.customerName || "Budi Santoso"}
+                  onCancelOrder={handleCancelOrder}
+                  onRefreshOrders={refreshOrders}
                 />
               )}
 
@@ -385,4 +452,5 @@ export const App: React.FC = () => {
     </div>
   );
 };
+
 export default App;

@@ -5,6 +5,8 @@ from app.core.config import GEMINI_EMBEDDING_MODEL, GEMINI_MODEL, get_active_api
 
 logger = logging.getLogger("ai_gateway")
 
+DEFAULT_TIMEOUT = httpx.Timeout(15.0, connect=5.0)
+
 
 class AIGateway:
     def __init__(self) -> None:
@@ -22,7 +24,7 @@ class AIGateway:
     async def generate_content(
         self, prompt: str, audio_base64: Optional[str] = None, model: str = GEMINI_MODEL
     ) -> Optional[str]:
-        """Calls Gemini LLM API (gemini-3.5-flash) with round-robin key pool and silent auto-failover."""
+        """Calls Gemini LLM API (gemini-3.5-flash-lite) with round-robin key pool and silent auto-failover."""
         active_keys = get_active_api_keys()
         if not active_keys:
             logger.info("No active Gemini API keys configured. Using deterministic local fallback.")
@@ -59,7 +61,7 @@ class AIGateway:
                 }
 
                 try:
-                    async with httpx.AsyncClient(timeout=20.0) as client:
+                    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
                         resp = await client.post(url, json=payload)
                         if resp.status_code == 200:
                             data = resp.json()
@@ -68,13 +70,13 @@ class AIGateway:
                                 content_parts = candidates[0].get("content", {}).get("parts", [])
                                 if content_parts:
                                     return content_parts[0].get("text", "")
-                        elif resp.status_code in (429, 403, 503):
+                        elif resp.status_code in (404, 429, 403, 503):
                             logger.warning(
-                                f"Gemini model {target_model} returned status {resp.status_code}. Trying next key/model."
+                                f"Gemini model {target_model} returned HTTP {resp.status_code}. Rotating key/model."
                             )
                             continue
                 except Exception as e:
-                    logger.warning(f"Error calling Gemini generateContent ({target_model}): {e}. Rotating.")
+                    logger.warning(f"Error calling Gemini ({target_model}): {repr(e)}. Rotating key.")
                     continue
 
         return None
@@ -101,16 +103,16 @@ class AIGateway:
             }
 
             try:
-                with httpx.Client(timeout=15.0) as client:
+                with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
                     resp = client.post(url, json=payload)
                     if resp.status_code == 200:
                         values = resp.json().get("embedding", {}).get("values")
                         if isinstance(values, list) and len(values) > 0:
                             return [float(v) for v in values]
-                    elif resp.status_code in (429, 403, 503):
+                    elif resp.status_code in (404, 429, 403, 503):
                         continue
             except Exception as e:
-                logger.warning(f"Error calling Gemini embedContent: {e}")
+                logger.warning(f"Error calling Gemini embedContent: {repr(e)}")
                 continue
 
         return None
@@ -142,16 +144,16 @@ class AIGateway:
             ]
 
             try:
-                with httpx.Client(timeout=15.0) as client:
+                with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
                     resp = client.post(url, json={"requests": requests_payload})
                     if resp.status_code == 200:
                         embeddings_raw = resp.json().get("embeddings", [])
                         if len(embeddings_raw) == len(texts):
                             return [[float(v) for v in emb.get("values", [])] for emb in embeddings_raw]
-                    elif resp.status_code in (429, 403, 503):
+                    elif resp.status_code in (404, 429, 403, 503):
                         continue
             except Exception as e:
-                logger.warning(f"Error calling Gemini batchEmbedContents: {e}")
+                logger.warning(f"Error calling Gemini batchEmbedContents: {repr(e)}")
                 continue
 
         return None
