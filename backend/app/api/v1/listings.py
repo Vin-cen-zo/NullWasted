@@ -72,6 +72,7 @@ def get_store_menu(store_id: str, session: Session = Depends(get_session)) -> Li
             category=item.category,
             bpom_max_hours=item.bpom_max_hours,
             portion_size=getattr(item, "portion_size", "Reguler") or "Reguler",
+            image_url=item.image_url,
             is_active=item.is_active,
             created_at=item.created_at,
         )
@@ -106,6 +107,7 @@ def create_store_menu_item(
         category=safety["category"],
         bpom_max_hours=safety["bpom_max_hours"],
         portion_size=payload.portion_size or "Reguler",
+        image_url=payload.image_url,
         is_active=True,
     )
     session.add(menu_item)
@@ -124,6 +126,7 @@ def create_store_menu_item(
         category=menu_item.category,
         bpom_max_hours=menu_item.bpom_max_hours,
         portion_size=menu_item.portion_size or "Reguler",
+        image_url=menu_item.image_url,
         is_active=menu_item.is_active,
         created_at=menu_item.created_at,
     )
@@ -153,6 +156,8 @@ def update_store_menu_item(
         item.ingredients = payload.ingredients
     if payload.portion_size is not None:
         item.portion_size = payload.portion_size
+    if payload.image_url is not None:
+        item.image_url = payload.image_url
     if payload.is_active is not None:
         item.is_active = payload.is_active
 
@@ -187,6 +192,7 @@ def update_store_menu_item(
         category=item.category,
         bpom_max_hours=item.bpom_max_hours,
         portion_size=getattr(item, "portion_size", "Reguler") or "Reguler",
+        image_url=item.image_url,
         is_active=item.is_active,
         created_at=item.created_at,
     )
@@ -254,6 +260,7 @@ async def create_draft_listing(
     # Context-Aware Slot Resolution
     if matched_menu:
         food_name = matched_menu.food_name
+        image_url = matched_menu.image_url
         # Price resolution
         if not extracted.get("price_mentioned", False):
             original_price = matched_menu.original_price
@@ -275,6 +282,7 @@ async def create_draft_listing(
     else:
         # Ad-hoc item
         food_name = extracted["food_name"]
+        image_url = None
         can_save_to_catalog = True
         matched_menu_item_id = None
         hours_since_cooked = extracted["hours_since_cooked"]
@@ -341,6 +349,7 @@ async def create_draft_listing(
         needs_manual_price=needs_manual_price,
         can_save_to_catalog=can_save_to_catalog,
         closing_time=store_closing,
+        image_url=image_url,
     )
 
 
@@ -370,6 +379,10 @@ def publish_listing(
         raw_price = payload.original_price * (1.0 - discount_percent / 100.0)
         discounted_price = int((raw_price // 100) * 100)
 
+    image_url = payload.image_url
+    if payload.is_bundle and not image_url:
+        image_url = "/assets/foods/mystery_bag.jpg"
+
     listing = ItemListing(
         store_id=payload.store_id,
         store_name=payload.store_name,
@@ -397,6 +410,7 @@ def publish_listing(
         regulation_ref=payload.regulation_ref,
         similarity_score=payload.similarity_score,
         portion_size=payload.portion_size or "Reguler",
+        image_url=image_url,
         is_active=True,
     )
 
@@ -520,6 +534,7 @@ def create_smart_bundle(
         hazard_description="Paket makanan kombinasi tersertifikasi aman mikrobiologis PerBPOM No. 16/2019.",
         regulation_ref="PerBPOM No. 16/2019 Rekomendasi Bundling",
         similarity_score=0.95,
+        image_url="/assets/foods/mystery_bag.jpg",
         is_active=True,
     )
 
@@ -587,6 +602,7 @@ def reserve_order(
         food_name=listing.food_name,
         store_name=listing.store_name,
         location_badge=listing.location_badge,
+        image_url=listing.image_url,
         quantity=payload.quantity,
         unit_price=listing.discounted_price,
         total_price=total_price,
