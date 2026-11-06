@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ItemListing, getFoodImage, humanizeBpomText } from "../types/listing";
+import { ItemListing, humanizeBpomText, resolveImageUrl } from "../types/listing";
 import {
   ShieldCheck,
   Search,
@@ -77,6 +77,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   const [userCoords, setUserCoords] = useState<[number, number]>(DEFAULT_FTUI_COORDS);
   const [gpsStatus, setGpsStatus] = useState<"FTUI_ANCHOR" | "LIVE_GPS">("FTUI_ANCHOR");
   const [isGpsLoading, setIsGpsLoading] = useState(false);
+  const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
 
   const toggleBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -343,7 +344,8 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
             const [itemLat, itemLng] = resolveItemCoords(item);
             const distM = calculateDistanceMeters(itemLat, itemLng, userCoords[0], userCoords[1]);
             const distLabel = distM < 1000 ? `${distM}m away` : `${(distM / 1000).toFixed(1)}km away`;
-            const foodImg = getFoodImage(item);
+            const resolvedImg = resolveImageUrl(item.image_url, item.is_bundle);
+            const hasImage = Boolean(resolvedImg && !failedImageIds.has(item.id));
             const isBookmarked = bookmarkedIds.includes(item.id);
 
             return (
@@ -400,32 +402,55 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
                   </button>
                 </div>
 
-                {/* 2. Food Image Banner with Overlay Badges */}
-                <div className="relative w-full h-44 overflow-hidden bg-stone-100 group">
-                  <img
-                    alt={item.food_name}
-                    src={foodImg}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
+                {/* 2. Adaptive Image Presentation: Full Banner or Sleek Compact Header */}
+                {hasImage ? (
+                  <div className="relative w-full h-44 overflow-hidden bg-stone-100 group">
+                    <img
+                      alt={item.food_name}
+                      src={resolvedImg!}
+                      onError={() => {
+                        setFailedImageIds((prev) => new Set(prev).add(item.id));
+                      }}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
 
-                  {/* Stock Pill (Top Left) */}
-                  {item.quantity <= 2 ? (
-                    <div className="absolute top-3 left-3 bg-amber-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1 text-[11px] font-bold shadow-md">
-                      <span>!</span>
-                      <span>{item.is_bundle ? `Hanya ${item.quantity} Paket Sisa!` : `Tersisa ${item.quantity} Porsi!`}</span>
-                    </div>
-                  ) : (
-                    <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-md border border-stone-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-[11px] font-semibold text-stone-800 shadow-sm">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      <span>{item.quantity} porsi tersisa</span>
-                    </div>
-                  )}
+                    {/* Stock Pill (Top Left) */}
+                    {item.quantity <= 2 ? (
+                      <div className="absolute top-3 left-3 bg-amber-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1 text-[11px] font-bold shadow-md">
+                        <span>!</span>
+                        <span>{item.is_bundle ? `Hanya ${item.quantity} Paket Sisa!` : `Tersisa ${item.quantity} Porsi!`}</span>
+                      </div>
+                    ) : (
+                      <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-md border border-stone-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-[11px] font-semibold text-stone-800 shadow-sm">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>{item.quantity} porsi tersisa</span>
+                      </div>
+                    )}
 
-                  {/* Discount Badge (Top Right) */}
-                  <div className="absolute top-3 right-3 bg-emerald-500 text-white font-bold text-[11px] px-2 py-0.5 rounded-md shadow">
-                    {item.discount_percent}% OFF
+                    {/* Discount Badge (Top Right) */}
+                    <div className="absolute top-3 right-3 bg-emerald-500 text-white font-bold text-[11px] px-2 py-0.5 rounded-md shadow">
+                      {item.discount_percent}% OFF
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  /* Sleek Compact Card Stock & Discount Row (When No Image Banner) */
+                  <div className="px-4 pt-3 pb-1 flex items-center justify-between gap-2 border-b border-stone-50 bg-[#FCFBF9]">
+                    {item.quantity <= 2 ? (
+                      <div className="bg-amber-500 text-white px-2.5 py-0.5 rounded-lg flex items-center gap-1 text-[11px] font-bold shadow-2xs">
+                        <span>!</span>
+                        <span>{item.is_bundle ? `Hanya ${item.quantity} Paket Sisa!` : `Tersisa ${item.quantity} Porsi!`}</span>
+                      </div>
+                    ) : (
+                      <div className="bg-white border border-stone-200 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 text-[11px] font-semibold text-stone-700 shadow-2xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span>{item.quantity} porsi tersisa</span>
+                      </div>
+                    )}
+                    <span className="bg-emerald-600 text-white font-bold text-[11px] px-2 py-0.5 rounded-md shadow-2xs shrink-0">
+                      {item.discount_percent}% OFF
+                    </span>
+                  </div>
+                )}
 
                 {/* 3. Card Content */}
                 <div className="p-4 flex flex-col space-y-2.5 flex-1 justify-between">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { OrderTicket } from "../types/listing";
+import { OrderTicket, resolveImageUrl } from "../types/listing";
 import {
   QrCode,
   Camera,
@@ -385,6 +385,23 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
               </div>
 
               <div className="text-xs space-y-1.5 bg-white/80 p-3 rounded-xl border border-emerald-200">
+                {resolveImageUrl(successTicket.image_url) && (
+                  <div className="flex items-center gap-3 pb-2 border-b border-emerald-100">
+                    <img
+                      src={resolveImageUrl(successTicket.image_url)!}
+                      alt={successTicket.food_name}
+                      className="w-16 h-16 rounded-xl object-cover shrink-0 border border-emerald-200 shadow-2xs"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-800">Menu Ditebus</span>
+                      <p className="font-bold text-stone-900 text-sm truncate">{successTicket.food_name}</p>
+                      <p className="text-[11px] text-stone-600 font-medium">{successTicket.quantity} porsi</p>
+                    </div>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-[#6B655B]">Kode Tiket:</span>
                   <span className="font-mono font-bold text-emerald-800">{successTicket.order_code}</span>
@@ -486,8 +503,8 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                       key={ord.id}
                       className="p-3 rounded-xl bg-[#F8F6F0] border border-[#E8E2D5] flex flex-col justify-between text-xs space-y-2"
                     >
-                      <div className="flex items-start justify-between">
-                        <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold text-emerald-800 text-sm">
                               {ord.order_code}
@@ -498,10 +515,20 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                             </span>
                           </div>
                           <p className="text-[11px] text-[#1F1D1A] font-medium flex items-center gap-1 mt-0.5">
-                            <ShoppingBag className="w-3 h-3 text-gray-400" />
-                            {ord.food_name} ({ord.quantity} porsi) · Rp {ord.total_price.toLocaleString("id-ID")}
+                            <ShoppingBag className="w-3 h-3 text-gray-400 shrink-0" />
+                            <span className="truncate">{ord.food_name} ({ord.quantity} porsi) · Rp {ord.total_price.toLocaleString("id-ID")}</span>
                           </p>
                         </div>
+                        {resolveImageUrl(ord.image_url) && (
+                          <img
+                            src={resolveImageUrl(ord.image_url)!}
+                            alt={ord.food_name}
+                            className="w-12 h-12 rounded-xl object-cover shrink-0 border border-stone-200 bg-white shadow-2xs"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = "none";
+                            }}
+                          />
+                        )}
                       </div>
 
                       {/* Cashier Payment Instruction Banner */}
@@ -558,8 +585,8 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                       key={ord.id}
                       className="p-3 rounded-xl bg-stone-50 border border-stone-200 flex flex-col justify-between text-xs space-y-1.5"
                     >
-                      <div className="flex items-start justify-between">
-                        <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold text-emerald-800 text-sm">
                               {ord.order_code}
@@ -569,16 +596,28 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                               {ord.customer_name}
                             </span>
                           </div>
-                          <p className="text-[11px] text-stone-700 mt-0.5">
+                          <p className="text-[11px] text-stone-700 mt-0.5 truncate">
                             {ord.food_name} · <span className="font-semibold">{ord.quantity} porsi</span>
                           </p>
                         </div>
 
-                        <div className="text-right">
-                          <span className="text-xs font-extrabold text-stone-900 block">
-                            Rp {ord.total_price.toLocaleString("id-ID")}
-                          </span>
-                          <span className="text-[10px] text-stone-400">{formattedTime}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {resolveImageUrl(ord.image_url) && (
+                            <img
+                              src={resolveImageUrl(ord.image_url)!}
+                              alt={ord.food_name}
+                              className="w-10 h-10 rounded-lg object-cover shrink-0 border border-stone-200 bg-white shadow-2xs"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = "none";
+                              }}
+                            />
+                          )}
+                          <div className="text-right">
+                            <span className="text-xs font-extrabold text-stone-900 block">
+                              Rp {ord.total_price.toLocaleString("id-ID")}
+                            </span>
+                            <span className="text-[10px] text-stone-400">{formattedTime}</span>
+                          </div>
                         </div>
                       </div>
 
