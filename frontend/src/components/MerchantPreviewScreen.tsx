@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { DraftResponse, PublishRequest } from "../types/listing";
+import { DraftResponse, PublishRequest, getFriendlyCategory, humanizeBpomText } from "../types/listing";
 import {
   ShieldCheck,
   ShieldAlert,
@@ -90,7 +90,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       regulation_ref: draft.regulation_ref,
       similarity_score: draft.similarity_score,
       store_name: storeName,
-      location_badge: "Kantin FTUI · 250m (🚶 3 mnt)",
+      location_badge: "Kantin FTUI · 250m (3 mnt)",
       closing_time: draft.closing_time || "20:30",
       portion_size: draft.portion_size || "Reguler",
     };
@@ -103,31 +103,31 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
     switch (draft.catalog_match_status) {
       case "MATCHED_CATALOG":
         return (
-          <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300">
             <BookOpen className="w-3.5 h-3.5" />
-            <span>📚 Terhubung ke Buku Menu Gerai</span>
+            <span>Terhubung ke Buku Menu Gerai</span>
           </span>
         );
       case "MATCHED_WITH_OVERRIDE":
         return (
-          <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300">
             <Clock className="w-3.5 h-3.5" />
-            <span>⏱️ Waktu Masak Diperbarui dari Suara/Teks</span>
+            <span>Waktu Masak Diperbarui dari Suara/Teks</span>
           </span>
         );
       case "ADHOC_NEEDS_PRICE":
         return (
-          <span className="flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-300 animate-pulse">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-300 animate-pulse">
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span>⚠️ Menu Ad-Hoc: Lengkapi Harga Normal</span>
+            <span>Menu Ad-Hoc: Lengkapi Harga Normal</span>
           </span>
         );
       case "ADHOC_COMPLETE":
       default:
         return (
-          <span className="flex items-center gap-1 text-[11px] font-bold text-blue-800 bg-blue-100 px-2.5 py-1 rounded-full border border-blue-300">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold text-blue-800 bg-blue-100 px-2.5 py-1 rounded-full border border-blue-300">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>✨ Menu Ad-Hoc Lengkap</span>
+            <span>Menu Ad-Hoc Lengkap</span>
           </span>
         );
     }
@@ -185,7 +185,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
             ) : (
               <>
                 <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{isSavingToCatalog ? "Menyimpan..." : "➕ Simpan ke Buku Menu"}</span>
+                <span>{isSavingToCatalog ? "Menyimpan..." : "Simpan ke Buku Menu"}</span>
               </>
             )}
           </button>
@@ -224,7 +224,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
             <h3 className="text-sm font-bold mt-1.5">
               {isSafe ? "Lolos Verifikasi Keamanan Pangan" : "Ditolak: Pelanggaran Batas Suhu Ruang"}
             </h3>
-            <p className="text-xs mt-1 leading-relaxed opacity-90">{draft.safety_reason}</p>
+            <p className="text-xs mt-1 leading-relaxed opacity-90">{humanizeBpomText(draft.safety_reason)}</p>
 
             <div className="mt-2.5 pt-2 border-t border-black/10 text-[10px] space-y-0.5">
               <div>
@@ -260,7 +260,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                   type="text"
                   value={foodName}
                   onChange={(e) => setFoodName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-stone-300 font-bold text-stone-800 bg-[#F8F6F0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+                  className="w-full px-3 py-2 rounded-xl border border-stone-200 font-bold text-stone-800 bg-[#F4F3F7] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs transition-colors"
                 />
               </div>
 
@@ -276,7 +276,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                     max={200}
                     value={quantity}
                     onChange={(e) => setQuantity(Math.max(1, Math.min(200, parseInt(e.target.value, 10) || 1)))}
-                    className="w-full px-3 py-2 rounded-xl border border-stone-300 font-bold text-stone-800 bg-[#F8F6F0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+                    className="w-full px-3 py-2 rounded-xl border border-stone-200 font-bold text-stone-800 bg-[#F4F3F7] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs transition-colors"
                   />
                 </div>
 
@@ -300,17 +300,17 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                     className={`w-full px-3 py-2 rounded-xl font-bold text-xs focus:outline-none focus:ring-2 ${
                       draft.needs_manual_price
                         ? "border-2 border-amber-400 bg-amber-50 text-amber-950 focus:ring-amber-500"
-                        : "border border-stone-300 bg-[#F8F6F0] focus:bg-white text-stone-800 focus:ring-emerald-500"
+                        : "border border-stone-200 bg-[#F4F3F7] focus:bg-white text-stone-800 focus:ring-emerald-500 transition-colors"
                     }`}
                   />
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-[#F8F6F0]">
-                  <span className="text-[10px] text-[#6B655B] block">Kategori BPOM</span>
-                  <span className="font-bold text-[#1F1D1A]">{draft.category}</span>
+                <div className="p-2.5 rounded-xl bg-[#F4F3F7] border border-stone-200/50">
+                  <span className="text-[10px] text-[#6B655B] block">Kategori Pangan</span>
+                  <span className="font-bold text-[#1F1D1A]">{getFriendlyCategory(draft.category).label}</span>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-[#F8F6F0]">
+                <div className="p-2.5 rounded-xl bg-[#F4F3F7] border border-stone-200/50">
                   <span className="text-[10px] text-[#6B655B] block">Waktu Sejak Dimasak</span>
                   <span className="font-bold text-[#1F1D1A]">
                     {draft.hours_since_cooked} jam / Maks {draft.bpom_max_hours} jam
@@ -392,7 +392,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
           }`}
         >
           {!isSafe || !draft.can_publish ? (
-            <span>🔒 DITOLAK OLEH GUARDRAIL BPOM (TIDAK DAPAT DITERBITKAN)</span>
+            <span>DITOLAK OLEH GUARDRAIL BPOM (TIDAK DAPAT DITERBITKAN)</span>
           ) : isPublishing ? (
             <span>Menerbitkan Listing ke Marketplace...</span>
           ) : (

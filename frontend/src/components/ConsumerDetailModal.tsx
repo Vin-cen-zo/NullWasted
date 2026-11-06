@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ItemListing } from "../types/listing";
+import { ItemListing, getFriendlyCategory, getFoodImage, humanizeBpomText } from "../types/listing";
 import {
   X,
   ShieldCheck,
@@ -105,6 +105,16 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
     setQrisSecondsLeft(900);
   }, [item?.id]);
 
+  // Lock background scroll when modal is active
+  useEffect(() => {
+    if (!item) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [item]);
+
   // QRIS 15-minute countdown timer
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null;
@@ -174,26 +184,39 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-fade-in">
-      <div className="w-full max-w-xl bg-white rounded-t-[32px] sm:rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[88vh] overflow-y-auto space-y-4">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-fade-in overscroll-contain"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-xl bg-white rounded-t-[32px] sm:rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[88vh] overflow-y-auto overscroll-contain space-y-4"
+      >
         {/* ========================================================================= */}
         {/* STEP 1: ITEM DETAIL & QUANTITY CHECKOUT STEP                              */}
         {/* ========================================================================= */}
         {modalStep === "DETAIL" ? (
           <>
             {/* Top Handle / Close */}
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100 shrink-0">
               <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Badge 1: Diskon (Clean text, no emoji) */}
+                <span className="text-[11px] font-black tracking-wider text-emerald-900 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300 shadow-xs">
+                  {item.discount_percent}% OFF
+                </span>
+
+                {/* Badge 2: Kategori Ramah Konsumen (Clean text, no emoji) */}
                 {item.is_bundle ? (
-                  <span className="text-[11px] font-extrabold tracking-wider text-purple-900 bg-purple-100 px-2.5 py-1 rounded-full uppercase border border-purple-300 flex items-center gap-1">
+                  <span className="text-[11px] font-bold tracking-wide text-purple-900 bg-purple-100 px-2.5 py-1 rounded-full border border-purple-300 flex items-center gap-1">
                     <Package className="w-3.5 h-3.5" />
-                    MYSTERY BAG ({item.discount_percent}% OFF)
+                    Mystery Bag
                   </span>
                 ) : (
-                  <span className="text-[11px] font-bold tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full uppercase border border-emerald-200">
-                    {item.category} ({item.discount_percent}% OFF)
+                  <span className="text-[11px] font-bold tracking-wide text-stone-700 bg-stone-100 px-2.5 py-1 rounded-full border border-stone-200">
+                    {getFriendlyCategory(item.category).label}
                   </span>
                 )}
+
                 {item.portion_size && item.portion_size !== "Reguler" && (
                   <span className="text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
                     Porsi: {item.portion_size}
@@ -207,6 +230,22 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Food Image Banner (Fixed shrink bug and removed emoji) */}
+            <div className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden bg-stone-100 shadow-xs shrink-0">
+              <img
+                src={getFoodImage(item)}
+                alt={item.food_name}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
+              <div className="absolute bottom-2.5 left-3 text-white flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20 flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-emerald-400" />
+                  {item.store_name}
+                </span>
+              </div>
             </div>
 
             {/* Food Info & Pricing */}
@@ -301,7 +340,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 <span>Jaminan Keamanan Pangan BPOM</span>
               </div>
-              <p className="text-[11px] text-emerald-950 leading-relaxed">{item.safety_reason}</p>
+              <p className="text-[11px] text-emerald-950 leading-relaxed">{humanizeBpomText(item.safety_reason)}</p>
               <div className="flex items-center justify-between text-[10px] text-emerald-800/80 pt-1 border-t border-emerald-200">
                 <span>
                   Dimasak: {item.hours_since_cooked} jam lalu (Maks: {item.bpom_max_hours} jam)
@@ -382,15 +421,17 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                   onClick={() => setPaymentMethod("CASH_ON_PICKUP")}
                   className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                     paymentMethod === "CASH_ON_PICKUP"
-                      ? "bg-amber-50/80 border-amber-400 font-bold text-amber-950 shadow-sm ring-1 ring-amber-400"
-                      : "bg-white border-stone-200 text-stone-600 hover:border-amber-300"
+                      ? "bg-emerald-500 border-emerald-500 text-white font-bold shadow-sm"
+                      : "bg-white border-stone-200 text-stone-700 hover:border-emerald-300"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Banknote className="w-4 h-4 text-amber-600" />
+                    <Banknote className={`w-4 h-4 ${paymentMethod === "CASH_ON_PICKUP" ? "text-white" : "text-emerald-600"}`} />
                     <span className="font-bold text-[11px]">Tunai di Kasir</span>
                   </div>
-                  <span className="text-[10px] text-stone-500 font-normal">Cash on Pickup</span>
+                  <span className={`text-[10px] font-normal ${paymentMethod === "CASH_ON_PICKUP" ? "text-emerald-100" : "text-stone-500"}`}>
+                    Cash on Pickup
+                  </span>
                 </button>
 
                 <button
@@ -398,15 +439,17 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                   onClick={() => setPaymentMethod("SIMULATED_QRIS")}
                   className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                     paymentMethod === "SIMULATED_QRIS"
-                      ? "bg-emerald-50/80 border-emerald-500 font-bold text-emerald-950 shadow-sm ring-1 ring-emerald-500"
-                      : "bg-white border-stone-200 text-stone-600 hover:border-emerald-300"
+                      ? "bg-emerald-500 border-emerald-500 text-white font-bold shadow-sm"
+                      : "bg-white border-stone-200 text-stone-700 hover:border-emerald-300"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
-                    <QrCode className="w-4 h-4 text-emerald-600" />
+                    <QrCode className={`w-4 h-4 ${paymentMethod === "SIMULATED_QRIS" ? "text-white" : "text-emerald-600"}`} />
                     <span className="font-bold text-[11px]">QRIS Instan</span>
                   </div>
-                  <span className="text-[10px] text-stone-500 font-normal">Pembayaran Digital</span>
+                  <span className={`text-[10px] font-normal ${paymentMethod === "SIMULATED_QRIS" ? "text-emerald-100" : "text-stone-500"}`}>
+                    Pembayaran Digital
+                  </span>
                 </button>
               </div>
             </div>
@@ -496,8 +539,9 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                 Rp {totalPrice.toLocaleString("id-ID")}
               </span>
               <div className="pt-1">
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold font-mono">
-                  ⏱️ Selesaikan dalam {formatCountdown(qrisSecondsLeft)}
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold font-mono">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Selesaikan dalam {formatCountdown(qrisSecondsLeft)}</span>
                 </span>
               </div>
               <p className="text-[10px] text-stone-400 pt-1">

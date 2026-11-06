@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+  <title>NullWasted - AI Listing Preview</title>
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Public+Sans:wght@500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            earth: {
+              bg: "#F8F6F0",
+              surface: "#FFFFFF",
+              border: "#E7E1D7",
+              muted: "#78716C",
+              primary: "#10B981",
+              charcoal: "#1F1D1A"
+            }
+          },
+          borderRadius: {
+            "DEFAULT": "0.5rem",
+            "lg": "1rem",
+            "xl": "1.5rem",
+            "full": "9999px"
+          },
+          fontFamily: {
+            headline: ["Public Sans", "sans-serif"],
+            display: ["Public Sans", "sans-serif"],
+            body: ["Inter", "sans-serif"],
+            label: ["Public Sans", "sans-serif"]
+          }
+        },
+      },
+    }
+  </script>
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .material-symbols-fill {
+      font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+    }
+    body { min-height: max(884px, 100dvh); }
+  </style>
+</head>
+<body class="bg-[#F8F6F0] text-stone-800 font-body antialiased min-h-screen flex flex-col justify-between pb-40 selection:bg-emerald-500/20 selection:text-emerald-900">
+  
+  <!-- Mobile App Frame Wrapper -->
+  <div class="w-full max-w-md mx-auto min-h-screen flex flex-col relative px-4 pt-3">
+    
+    <!-- TOP NAVIGATION BAR -->
+    <header class="flex items-center justify-between py-2.5 px-3 mb-3 bg-white/95 rounded-2xl border border-stone-200 shadow-xs">
+      <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 active:scale-95 transition-all text-xs font-semibold" onclick="history.back()">
+        <span class="material-symbols-outlined text-base">arrow_back</span>
+        <span>Back</span>
+      </button>
+      <div class="flex flex-col items-center">
+        <h1 class="font-headline font-bold text-sm tracking-tight text-stone-900 flex items-center gap-1.5">
+          AI Listing Preview
+        </h1>
+      </div>
+      <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+        <span class="material-symbols-outlined text-xs material-symbols-fill text-emerald-600">auto_awesome</span>
+        <span>AI Parsed</span>
+      </div>
+    </header>
+
+    <!-- MAIN SCROLLABLE CONTENT CANVAS -->
+    <main class="space-y-3.5 flex-1">
+      
+      <!-- 1. SAFETY BANNER (BPOM Safety Guardrail Verification Card) -->
+      <section class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3.5 relative overflow-hidden shadow-xs">
+        <div class="flex items-start gap-3">
+          <div class="p-2 rounded-xl bg-emerald-100 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
+            <span class="material-symbols-outlined text-xl material-symbols-fill">verified_user</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between gap-1 flex-wrap">
+              <span class="font-headline font-bold text-xs uppercase tracking-wide text-emerald-800">
+                BPOM Safety Guardrail: PASSED
+              </span>
+              <span class="px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-800 text-[10px] font-bold">
+                Score: 98%
+              </span>
+            </div>
+            <p class="text-xs text-emerald-800/90 mt-1 leading-snug">
+              No High-Risk Ingredients Detected (Safe 6h room temp)
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. EXTRACTED ITEM DETAILS CARD -->
+      <article class="rounded-2xl bg-white border border-stone-200 p-4 shadow-sm space-y-3">
+        <div class="flex items-start justify-between gap-2">
+          <div class="space-y-1">
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-stone-700 text-xs font-medium">
+              <span>🥐</span>
+              <span>Pastry &amp; Bakery</span>
+            </div>
+            <h2 class="font-headline font-bold text-lg text-stone-900 leading-tight pt-1">
+              Croissant Keju &amp; Roti Smoked Beef
+            </h2>
+          </div>
+        </div>
+        <div class="border-t border-stone-100 pt-3 flex items-center justify-between text-xs text-stone-500">
+          <div class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-sm text-stone-400">schedule</span>
+            <span>Cooked At: <span class="text-stone-800 font-semibold">Today, 16:30</span></span>
+          </div>
+          <div class="flex items-center gap-1 px-2 py-0.5 rounded bg-stone-50 text-stone-600 font-mono text-[11px] border border-stone-200">
+            <span>Surplus Age: 3.5h</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- 3. PORTION STEPPER SECTION -->
+      <section class="rounded-2xl bg-white border border-stone-200 p-4 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-label text-[11px] font-bold tracking-wider text-stone-500 uppercase">
+            Portion Count
+          </span>
+          <span class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+            <span class="material-symbols-outlined text-xs">tune</span>
+            Auto-calculated from photo
+          </span>
+        </div>
+        <!-- Ergonomic Stepper Control -->
+        <div class="flex items-center justify-between bg-stone-50 rounded-xl p-1.5 border border-stone-200">
+          <button aria-label="Decrease portion" class="w-12 h-12 rounded-lg bg-white text-stone-700 hover:bg-stone-100 active:scale-90 transition-all flex items-center justify-center border border-stone-200 select-none shadow-xs" id="decrement-btn">
+            <span class="material-symbols-outlined text-xl">remove</span>
+          </button>
+          <div class="text-center">
+            <span class="font-headline font-extrabold text-2xl text-stone-900 block tracking-tight" id="portion-value">4 Portions</span>
+            <span class="text-[10px] text-stone-500 block -mt-0.5 font-medium">Box container: standard L</span>
+          </div>
+          <button aria-label="Increase portion" class="w-12 h-12 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 active:scale-90 transition-all flex items-center justify-center select-none shadow-xs" id="increment-btn">
+            <span class="material-symbols-outlined text-xl">add</span>
+          </button>
+        </div>
+        <div class="flex items-center gap-1.5 mt-2.5 text-xs text-stone-500">
+          <span class="material-symbols-outlined text-emerald-600 text-sm material-symbols-fill">check_circle</span>
+          <span id="yield-summary">Total rescue yield: <strong class="text-stone-800 font-semibold">4 portions</strong> reserved</span>
+        </div>
+      </section>
+
+      <!-- 4. DYNAMIC PRICING RECOMMENDATION SECTION -->
+      <section class="rounded-2xl bg-white border border-stone-200 p-4 shadow-sm space-y-3.5">
+        <!-- Retail Benchmark & Discount Badge -->
+        <div class="flex items-center justify-between pb-1">
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-stone-500">Standard Retail:</span>
+            <span class="text-sm line-through text-stone-400 font-medium font-mono">Rp 35.000</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
+              60% OFF
+            </span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[11px] font-semibold border border-amber-200 flex items-center gap-1">
+              <span class="material-symbols-outlined text-xs">timer</span>
+              Closing Window: 42m
+            </span>
+          </div>
+        </div>
+
+        <!-- FINAL LOCKED PRICE Callout Card -->
+        <div class="rounded-xl bg-[#F8F6F0] border border-emerald-300 p-4 text-center relative overflow-hidden">
+          <span class="text-[11px] uppercase tracking-wider font-label font-bold text-emerald-800 block mb-1">
+            FINAL LOCKED RESCUE PRICE
+          </span>
+          <div class="flex items-baseline justify-center gap-1.5">
+            <span class="font-headline font-black text-3xl md:text-4xl text-emerald-700 tracking-tight" id="display-price">
+              Rp 14.000
+            </span>
+            <span class="text-xs text-stone-500 font-medium">/ portion</span>
+          </div>
+          <div class="text-[11px] text-stone-500 mt-1">
+            Combined Total: <span class="text-emerald-800 font-semibold font-mono" id="total-revenue">Rp 56.000</span> (est. instant clearance)
+          </div>
+        </div>
+
+        <!-- Invariant Notice Callout -->
+        <div class="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
+          <span class="material-symbols-outlined text-amber-600 text-base shrink-0 mt-0.5">warning</span>
+          <p>
+            <strong class="font-semibold text-amber-900">Notice:</strong> Price is permanently locked upon publication to prevent bargaining disputes and ensure immediate diner pickup.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <!-- 5. THUMB-ZONE ACTION BUTTONS -->
+    <footer class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-stone-200 py-3.5 px-4 shadow-lg">
+      <div class="max-w-md mx-auto space-y-2.5">
+        <!-- Giant Primary 1-Tap Publish CTA -->
+        <button class="w-full min-h-[52px] py-3.5 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-headline font-extrabold text-base tracking-wide flex items-center justify-center gap-2.5 shadow-md shadow-emerald-500/25 active:scale-[0.98] transition-all" id="publish-btn" onclick="triggerPublishSuccess()">
+          <span class="material-symbols-outlined text-2xl material-symbols-fill">bolt</span>
+          <span>1-TAP CONFIRM &amp; PUBLISH</span>
+        </button>
+        <!-- Secondary Action Row for Kitchen Staff -->
+        <div class="grid grid-cols-2 gap-2.5">
+          <button class="min-h-[44px] px-3 py-2 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-xs" type="button">
+            <span class="material-symbols-outlined text-sm">edit</span>
+            <span>Edit Manually</span>
+          </button>
+          <button class="min-h-[44px] px-3 py-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all" onclick="confirmDiscard()" type="button">
+            <span class="material-symbols-outlined text-sm">delete</span>
+            <span>Discard Listing</span>
+          </button>
+        </div>
+        <div class="text-center pt-0.5">
+          <p class="text-[10px] text-stone-400 flex items-center justify-center gap-1">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Syncs instantly to 1.4km nearby food rescue community
+          </p>
+        </div>
+      </div>
+    </footer>
+
+    <!-- SUCCESS MODAL -->
+    <div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-200" id="toast-modal">
+      <div class="bg-white border border-stone-200 rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl transform scale-95 transition-transform duration-200" id="toast-card">
+        <div class="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 mx-auto flex items-center justify-center">
+          <span class="material-symbols-outlined text-3xl material-symbols-fill">check_circle</span>
+        </div>
+        <div class="space-y-1">
+          <h3 class="font-headline font-bold text-xl text-stone-900">Listing Published!</h3>
+          <p class="text-xs text-stone-500">Croissant &amp; Pastry batch is now live for reservations at Rp 14.000/portion.</p>
+        </div>
+        <button class="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold text-sm tracking-wide hover:bg-emerald-600 transition-colors shadow-sm" onclick="dismissToast()">
+          View Active Rescue Feed
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Micro-Interactions JavaScript -->
+  <script>
+    let portions = 4;
+    const unitPrice = 14000;
+    const portionEl = document.getElementById('portion-value');
+    const yieldEl = document.getElementById('yield-summary');
+    const totalEl = document.getElementById('total-revenue');
+    const decBtn = document.getElementById('decrement-btn');
+    const incBtn = document.getElementById('increment-btn');
+
+    function updateView() {
+      portionEl.innerText = `${portions} Portion${portions > 1 ? 's' : ''}`;
+      yieldEl.innerHTML = `Total rescue yield: <strong class="text-stone-800 font-semibold">${portions} portion${portions > 1 ? 's' : ''}</strong> reserved`;
+      const totalCost = portions * unitPrice;
+      totalEl.innerText = `Rp ${totalCost.toLocaleString('id-ID')}`;
+      
+      if (portions <= 1) {
+        decBtn.classList.add('opacity-40', 'cursor-not-allowed');
+      } else {
+        decBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+      }
+    }
+
+    decBtn.addEventListener('click', () => {
+      if (portions > 1) {
+        portions--;
+        updateView();
+      }
+    });
+
+    incBtn.addEventListener('click', () => {
+      if (portions < 30) {
+        portions++;
+        updateView();
+      }
+    });
+
+    function triggerPublishSuccess() {
+      const modal = document.getElementById('toast-modal');
+      const card = document.getElementById('toast-card');
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        card.classList.remove('scale-95');
+        card.classList.add('scale-100');
+      }, 10);
+    }
+
+    function dismissToast() {
+      const modal = document.getElementById('toast-modal');
+      const card = document.getElementById('toast-card');
+      modal.classList.add('opacity-0');
+      card.classList.remove('scale-100');
+      card.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+      }, 200);
+    }
+
+    function confirmDiscard() {
+      if (confirm('Discard this surplus bakery listing? This cannot be undone.')) {
+        window.history.back();
+      }
+    }
+  </script>
+</body>
+</html>

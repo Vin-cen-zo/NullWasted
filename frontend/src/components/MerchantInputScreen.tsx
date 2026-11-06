@@ -19,7 +19,7 @@ import {
 import { startIndonesianSpeechRecognition } from "../services/speech";
 import { fetchStoreMenu, publishListing } from "../services/api";
 import { MerchantCatalogModal } from "./MerchantCatalogModal";
-import { PublishRequest, StoreMenuItem } from "../types/listing";
+import { PublishRequest, StoreMenuItem, getFriendlyCategory } from "../types/listing";
 
 interface MerchantInputScreenProps {
   onAnalyze: (text: string) => Promise<void>;
@@ -464,7 +464,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                   {selectedMenuItem.food_name}
                 </h3>
                 <p className="text-xs text-stone-500">
-                  Kategori BPOM: <strong className="text-stone-700">{selectedMenuItem.category}</strong> · Batas Maks: <strong className="text-emerald-700">{selectedMenuItem.bpom_max_hours} jam</strong>
+                  Kategori: <strong className="text-stone-700">{getFriendlyCategory(selectedMenuItem.category).label}</strong> · Batas Maks: <strong className="text-emerald-700">{selectedMenuItem.bpom_max_hours} jam</strong>
                 </p>
               </div>
               <button
@@ -563,7 +563,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                   className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition flex items-center gap-1"
                 >
                   <Clock className="w-3 h-3 text-emerald-600" />
-                  <span>⏱️ Waktu Sekarang</span>
+                  <span>Waktu Sekarang</span>
                 </button>
                 <button
                   type="button"
@@ -580,7 +580,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               <div className="p-3.5 rounded-2xl bg-red-50 border border-red-300 text-red-950 space-y-1">
                 <div className="flex items-center gap-2 font-bold text-xs text-red-800">
                   <ShieldAlert className="w-4 h-4 text-red-600" />
-                  <span>⚠️ Ditolak BPOM: Melebihi Batas Suhu Ruang</span>
+                  <span>Ditolak BPOM: Melebihi Batas Suhu Ruang</span>
                 </div>
                 <p className="text-[11px] text-red-800 leading-relaxed">
                   Waktu simpan <strong>({diffHours} jam)</strong> melebihi batas aman suhu ruang <strong>({selectedMenuItem.bpom_max_hours} jam)</strong> sesuai standar PerBPOM No. 16/2019. Hidangan ini tidak dapat diterbitkan.
@@ -590,7 +590,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-2">
                 <div className="flex items-center gap-2 font-bold text-xs text-emerald-800">
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>✅ Terverifikasi Aman Dikonsumsi</span>
+                  <span>Terverifikasi Aman Dikonsumsi</span>
                 </div>
                 <p className="text-[11px] text-emerald-800">
                   Waktu simpan: <strong>{diffHours} jam</strong> (Batas aman: {selectedMenuItem.bpom_max_hours} jam hingga tutup gerai pk {closingTime}).
