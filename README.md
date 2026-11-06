@@ -98,6 +98,7 @@ nullwasted/
 │   └── .env.example         # Template for environment variables
 ├── run_app.bat              # Standard 1-Click launcher for Backend (8000) & Frontend (5173)
 ├── README.md                # Project architecture & setup documentation
+├── TEST_CASES.md            # System verification specification & master test cases
 └── .gitignore               # Git ignore rules for node_modules, DB, and .env
 ```
 
@@ -181,16 +182,18 @@ Open `http://localhost:5173` in Google Chrome or Microsoft Edge to enable native
 
 ---
 
-## Automated Testing
+## Automated & Manual Testing
 
-Run the comprehensive unit and integration test suite:
+Run the comprehensive automated test suite (30 unit & integration tests):
 
 ```bash
 cd backend
 py -m pytest tests/ -v
 ```
 
-The 22 automated test cases validate:
+For the complete end-to-end manual verification procedures, adversarial safety checks, and user flow checklists, refer to **[TEST_CASES.md](TEST_CASES.md)**.
+
+The 30 automated test cases validate:
 - Time-decay dynamic pricing calculations, boundary clamping (50%–70%), and rounding.
 - Deterministic BPOM food safety rejection of spoiled food (> 4 hours room temperature santan/dairy).
 - Semantic vector store integrity (3072-dimensional cosine similarity matching against 70 dishes).
