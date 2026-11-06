@@ -121,7 +121,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
         className: "custom-store-marker",
         html: `
           <div style="background-color: #059669; color: white; padding: 4px 8px; border-radius: 12px; font-weight: bold; font-size: 11px; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.25); border: 2px solid white; cursor: pointer;">
-            <span>🏪</span>
+            <span>Gerai:</span>
             <span>${storeData.items.length} Surplus</span>
           </div>
         `,
@@ -199,10 +199,12 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
           <div className="absolute top-3 left-3 right-3 z-[400] pointer-events-none space-y-1">
             <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-xl shadow-md border border-stone-200 text-center space-y-0.5">
               <div className="text-[10px] font-bold text-stone-800 flex items-center justify-center gap-1.5">
-                <span>🔵 Lingkaran Biru: Radius Jalan Kaki 500m (± 5 Menit)</span>
+                <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                <span>Radius Jalan Kaki 500m (± 5 Menit)</span>
               </div>
-              <div className="text-[10px] text-stone-600">
-                🏪 Pin Hijau: Gerai Surplus (Klik pin untuk detail & navigasi)
+              <div className="text-[10px] text-stone-600 flex items-center justify-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
+                <span>Pin Hijau: Gerai Surplus (Klik pin untuk detail & navigasi)</span>
               </div>
             </div>
           </div>
@@ -235,7 +237,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
               rel="noreferrer"
               className="flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition shadow-sm"
             >
-              <span>🗺️ Buka Petunjuk Arah di Google Maps</span>
+              <span>Buka Petunjuk Arah di Google Maps</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
 

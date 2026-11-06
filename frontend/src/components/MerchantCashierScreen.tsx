@@ -334,7 +334,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
               <div className="p-3 bg-red-50 border-2 border-red-500 rounded-2xl text-xs text-red-950 space-y-1.5 animate-pulse">
                 <div className="flex items-center gap-1.5 text-red-700 font-extrabold text-xs">
                   <ShieldAlert className="w-4 h-4 text-red-600" />
-                  <span>🚨 PERINGATAN FRAUD / SALAH GERAI</span>
+                  <span>PERINGATAN FRAUD / SALAH GERAI</span>
                 </div>
                 <p className="text-[11px] font-semibold leading-relaxed">{errorMessage}</p>
                 <p className="text-[10px] text-red-800 italic">
@@ -402,7 +402,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                 <div className="flex justify-between items-center pt-1 border-t border-stone-200">
                   <span className="text-[#6B655B]">Metode Pembayaran:</span>
                   <span className="font-bold text-emerald-700">
-                    {successTicket.payment_method === "SIMULATED_QRIS" ? "📱 QRIS Instan (Lunas)" : "💵 Bayar Tunai di Kasir"}
+                    {successTicket.payment_method === "SIMULATED_QRIS" ? "QRIS Instan (Lunas)" : "Bayar Tunai di Kasir"}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -509,12 +509,12 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                         {isPaid ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg">
                             <CreditCard className="w-3 h-3 text-emerald-600" />
-                            ✅ SUDAH LUNAS VIA QRIS (Jangan Tagih Tunai)
+                            SUDAH LUNAS VIA QRIS (Jangan Tagih Tunai)
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-lg">
                             <Banknote className="w-3 h-3 text-amber-700" />
-                            💵 TAGIHKAN TUNAI: Rp {ord.total_price.toLocaleString("id-ID")}
+                            TAGIHKAN TUNAI: Rp {ord.total_price.toLocaleString("id-ID")}
                           </span>
                         )}
                       </div>
@@ -587,12 +587,12 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                         {ord.payment_method === "SIMULATED_QRIS" ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
                             <CreditCard className="w-3 h-3 text-emerald-600" />
-                            <span>📱 Lunas QRIS</span>
+                            <span>Lunas QRIS</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md">
                             <Banknote className="w-3 h-3 text-amber-700" />
-                            <span>💵 Tunai Diterima</span>
+                            <span>Tunai Diterima</span>
                           </span>
                         )}
                       </div>

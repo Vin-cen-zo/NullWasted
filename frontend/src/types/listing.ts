@@ -167,3 +167,51 @@ export interface AuthResponse {
   latitude?: number;
   longitude?: number;
 }
+
+export function getFriendlyCategory(category?: string, isBundle?: boolean): { label: string } {
+  if (isBundle || category === "BUNDLE") {
+    return { label: "Mystery Bag" };
+  }
+  switch (category) {
+    case "HIGH_PERISHABILITY":
+      return { label: "Olahan Santan & Bahan Segar" };
+    case "MEDIUM_PERISHABILITY":
+      return { label: "Makanan Siap Saji" };
+    case "LOW_PERISHABILITY":
+      return { label: "Roti & Pastry" };
+    default:
+      return { label: "Menu Siap Santap" };
+  }
+}
+
+export function humanizeBpomText(text?: string): string {
+  if (!text) return "";
+  return text
+    .replace(/kategori MEDIUM_PERISHABILITY/gi, "kategori Makanan Matang Siap Saji")
+    .replace(/kategori HIGH_PERISHABILITY/gi, "kategori Olahan Santan & Cepat Basi")
+    .replace(/kategori LOW_PERISHABILITY/gi, "kategori Roti & Olahan Kering")
+    .replace(/MEDIUM_PERISHABILITY/g, "Makanan Siap Saji")
+    .replace(/HIGH_PERISHABILITY/g, "Olahan Santan & Bahan Segar")
+    .replace(/LOW_PERISHABILITY/g, "Roti & Pastry");
+}
+
+
+export function getFoodImage(item: { food_name: string; is_bundle?: boolean }): string {
+  if (item.is_bundle) {
+    return "/assets/foods/mystery_bag.jpg";
+  }
+  const name = item.food_name.toLowerCase();
+  if (name.includes("croissant")) return "/assets/foods/croissant.jpg";
+  if (name.includes("ayam") || name.includes("bakar")) return "/assets/foods/ayam_bakar.jpg";
+  if (name.includes("rendang")) return "/assets/foods/rendang.jpg";
+  if (name.includes("pisang")) return "/assets/foods/pisang_bakar.jpg";
+  if (name.includes("donat")) return "/assets/foods/donat_klasik.jpg";
+  if (name.includes("tahu") || name.includes("bacem") || name.includes("tempe")) return "/assets/foods/tahu_tempe.jpg";
+  if (name.includes("kopi") || name.includes("susu")) return "/assets/foods/kopi_susu.jpg";
+  if (name.includes("mie") || name.includes("indomie")) return "/assets/foods/indomie.jpg";
+  if (name.includes("roti") || name.includes("unyil") || name.includes("pastry") || name.includes("bolu")) return "/assets/foods/roti_unyil.jpg";
+  if (name.includes("lontong") || name.includes("sayur")) return "/assets/foods/ayam_bakar.jpg";
+  return "/assets/foods/default_food.jpg";
+}
+
+

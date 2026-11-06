@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ItemListing } from "../types/listing";
+import { ItemListing, getFriendlyCategory } from "../types/listing";
 import { Trash2, PlusCircle, ShieldCheck, Store, Sparkles, Package } from "lucide-react";
 import { ClosingCountdownBadge } from "./ClosingCountdownBadge";
 
@@ -82,7 +82,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
           }`}
         >
           <Package className="w-3.5 h-3.5" />
-          <span>{isBundling ? "Menggabungkan..." : "⚡ Buat Mystery Bag"}</span>
+          <span>{isBundling ? "Menggabungkan..." : "Buat Mystery Bag"}</span>
         </button>
       </div>
 
@@ -147,7 +147,9 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                       />
                     </div>
                     <h3 className="text-xs font-bold text-[#1F1D1A] leading-snug">{item.food_name}</h3>
-                    <p className="text-[10px] text-[#6B655B]">{item.category}</p>
+                    <p className="text-[10px] text-[#6B655B]">
+                      {getFriendlyCategory(item.category, item.is_bundle).label}
+                    </p>
 
                     {/* Rincian item mystery bag jika ada */}
                     {item.is_bundle && bundledList.length > 0 && (

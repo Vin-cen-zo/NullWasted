@@ -137,9 +137,15 @@ def evaluate_food_safety(
     else:
         safety_status = "SAFE"
         can_publish = True
+        category_human_names = {
+            "HIGH_PERISHABILITY": "Olahan Santan & Cepat Basi (Maks 4 Jam)",
+            "MEDIUM_PERISHABILITY": "Makanan Matang Siap Saji (Maks 8 Jam)",
+            "LOW_PERISHABILITY": "Roti & Kudapan Kering (Maks 24 Jam)",
+        }
+        human_cat = category_human_names.get(category, "Makanan Siap Santap")
         safety_reason = (
             f"AMAN: Waktu simpan ({hours_since_cooked:.1f} jam) berada di bawah ambang batas maksimal BPOM "
-            f"({bpom_max_hours:.1f} jam) untuk kategori {category}."
+            f"({bpom_max_hours:.1f} jam) untuk kategori {human_cat}."
         )
 
     return {
