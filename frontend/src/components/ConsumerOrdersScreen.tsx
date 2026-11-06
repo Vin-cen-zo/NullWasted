@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { OrderTicket } from "../types/listing";
+import { OrderTicket, resolveImageUrl } from "../types/listing";
 import {
   CheckCircle2,
   Clock,
@@ -230,11 +230,23 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
                         Rp {ticket.total_price.toLocaleString("id-ID")}
                       </span>
                     </div>
-                    <div className="flex justify-between text-[#6B655B]">
-                      <span>Menu Makanan:</span>
-                      <span className="font-medium text-[#1F1D1A]">
-                        {ticket.food_name} ({ticket.quantity} porsi)
-                      </span>
+                    <div className="flex items-center justify-between text-[#6B655B] gap-3">
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[11px] text-stone-500 block">Menu Makanan:</span>
+                        <span className="font-medium text-[#1F1D1A] break-words">
+                          {ticket.food_name} ({ticket.quantity} porsi)
+                        </span>
+                      </div>
+                      {resolveImageUrl(ticket.image_url) && (
+                        <img
+                          src={resolveImageUrl(ticket.image_url)!}
+                          alt={ticket.food_name}
+                          className="w-16 h-16 rounded-xl object-cover shrink-0 border border-stone-200 bg-white shadow-2xs"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = "none";
+                          }}
+                        />
+                      )}
                     </div>
                     <div className="flex justify-between text-[#6B655B]">
                       <span>Lokasi Gerai:</span>

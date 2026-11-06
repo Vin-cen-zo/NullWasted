@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ItemListing, getFriendlyCategory, getFoodImage, humanizeBpomText } from "../types/listing";
+import { ItemListing, getFriendlyCategory, humanizeBpomText, resolveImageUrl } from "../types/listing";
 import {
   X,
   ShieldCheck,
@@ -96,6 +96,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
   const [modalStep, setModalStep] = useState<"DETAIL" | "QRIS">("DETAIL");
   const [qrisSecondsLeft, setQrisSecondsLeft] = useState(900); // 15 minutes
   const [isConfirmingQris, setIsConfirmingQris] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     setQty(1);
@@ -103,6 +104,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
     setModalStep("DETAIL");
     setIsConfirmingQris(false);
     setQrisSecondsLeft(900);
+    setImageError(false);
   }, [item?.id]);
 
   // Lock background scroll when modal is active
@@ -232,21 +234,28 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
               </button>
             </div>
 
-            {/* Food Image Banner (Fixed shrink bug and removed emoji) */}
-            <div className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden bg-stone-100 shadow-xs shrink-0">
-              <img
-                src={getFoodImage(item)}
-                alt={item.food_name}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
-              <div className="absolute bottom-2.5 left-3 text-white flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20 flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-emerald-400" />
-                  {item.store_name}
-                </span>
-              </div>
-            </div>
+            {/* Food Image Banner (Adaptive presentation: hidden if no image or error) */}
+            {(() => {
+              const resolvedImg = resolveImageUrl(item.image_url, item.is_bundle);
+              if (!resolvedImg || imageError) return null;
+              return (
+                <div className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden bg-stone-100 shadow-xs shrink-0">
+                  <img
+                    src={resolvedImg}
+                    alt={item.food_name}
+                    onError={() => setImageError(true)}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
+                  <div className="absolute bottom-2.5 left-3 text-white flex items-center gap-1.5">
+                    <span className="text-[11px] font-semibold bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-emerald-400" />
+                      {item.store_name}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Food Info & Pricing */}
             <div>
