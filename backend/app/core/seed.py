@@ -76,6 +76,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Rendang Daging Sapi Padang",
                 category="HIGH_PERISHABILITY",
                 bpom_max_hours=4.0,
+                image_url="/assets/foods/rendang.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -88,6 +89,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Ayam Bakar Bumbu Madu",
                 category="MEDIUM_PERISHABILITY",
                 bpom_max_hours=8.0,
+                image_url="/assets/foods/ayam_bakar.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -100,6 +102,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Lontong Sayur Padang Santan",
                 category="HIGH_PERISHABILITY",
                 bpom_max_hours=4.0,
+                image_url="/assets/foods/ayam_bakar.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -112,6 +115,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Tahu Tempe Bacem Manis",
                 category="MEDIUM_PERISHABILITY",
                 bpom_max_hours=8.0,
+                image_url="/assets/foods/tahu_tempe.jpg",
                 is_active=True,
             ),
             # MARGONDA-042 (Roti Unyil & Pastry Margonda)
@@ -125,6 +129,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Croissant Pastry Cokelat",
                 category="LOW_PERISHABILITY",
                 bpom_max_hours=24.0,
+                image_url="/assets/foods/croissant.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -137,6 +142,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Roti Sobek Manis",
                 category="LOW_PERISHABILITY",
                 bpom_max_hours=24.0,
+                image_url="/assets/foods/roti_unyil.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -149,6 +155,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Donat Kentang Gula Halus",
                 category="LOW_PERISHABILITY",
                 bpom_max_hours=24.0,
+                image_url="/assets/foods/donat_klasik.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -161,6 +168,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Danish Pastry Buah",
                 category="LOW_PERISHABILITY",
                 bpom_max_hours=24.0,
+                image_url="/assets/foods/roti_unyil.jpg",
                 is_active=True,
             ),
             # KUTEK-007 (Warkop & Snack Kutek)
@@ -174,6 +182,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Mie Goreng Telur Spesial",
                 category="MEDIUM_PERISHABILITY",
                 bpom_max_hours=8.0,
+                image_url="/assets/foods/indomie.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -186,6 +195,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Pisang Bakar Cokelat Keju",
                 category="MEDIUM_PERISHABILITY",
                 bpom_max_hours=8.0,
+                image_url="/assets/foods/pisang_bakar.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -198,6 +208,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Kopi Susu Gula Aren Botolan",
                 category="HIGH_PERISHABILITY",
                 bpom_max_hours=4.0,
+                image_url="/assets/foods/kopi_susu.jpg",
                 is_active=True,
             ),
         ]
@@ -237,6 +248,7 @@ def seed_initial_data(session: Session) -> None:
                 hazard_description="Olahan unggas matang aman pada suhu ruang dalam batas toleransi.",
                 regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 08.0",
                 similarity_score=0.96,
+                image_url="/assets/foods/ayam_bakar.jpg",
                 is_bundle=False,
                 is_active=True,
             ),
@@ -264,6 +276,7 @@ def seed_initial_data(session: Session) -> None:
                 hazard_description="Olahan kedelai manis memiliki stabilitas mikrobiologis baik.",
                 regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 06.0",
                 similarity_score=0.95,
+                image_url="/assets/foods/tahu_tempe.jpg",
                 is_bundle=False,
                 is_active=True,
             ),
@@ -292,6 +305,7 @@ def seed_initial_data(session: Session) -> None:
                 hazard_description="Produk bakery aman pada suhu ruang.",
                 regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 07.0",
                 similarity_score=0.97,
+                image_url="/assets/foods/croissant.jpg",
                 is_bundle=False,
                 is_active=True,
             ),
@@ -319,6 +333,7 @@ def seed_initial_data(session: Session) -> None:
                 hazard_description="Produk bakery berkadar air rendah aman.",
                 regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 07.0",
                 similarity_score=0.96,
+                image_url="/assets/foods/donat_klasik.jpg",
                 is_bundle=False,
                 is_active=True,
             ),
@@ -347,6 +362,7 @@ def seed_initial_data(session: Session) -> None:
                 hazard_description="Cemilan matang stabil pada suhu ruang.",
                 regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 04.0",
                 similarity_score=0.95,
+                image_url="/assets/foods/pisang_bakar.jpg",
                 is_bundle=False,
                 is_active=True,
             ),

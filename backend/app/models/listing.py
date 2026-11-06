@@ -49,6 +49,7 @@ class StoreMenuItem(SQLModel, table=True):
     category: str = Field(default="MEDIUM_PERISHABILITY")
     bpom_max_hours: float = Field(default=8.0)
     portion_size: str = Field(default="Reguler")
+    image_url: Optional[str] = Field(default=None)
     is_active: bool = Field(default=True)
     created_at: str = Field(default_factory=utc_now_iso)
 
@@ -84,6 +85,7 @@ class ItemListing(SQLModel, table=True):
     regulation_ref: str
     similarity_score: float = Field(default=0.95)
     portion_size: str = Field(default="Reguler")
+    image_url: Optional[str] = Field(default=None)
     is_active: bool = Field(default=True, index=True)
     created_at: str = Field(default_factory=utc_now_iso)
 
@@ -100,6 +102,7 @@ class OrderTicket(SQLModel, table=True):
     food_name: str
     store_name: str
     location_badge: str
+    image_url: Optional[str] = Field(default=None)
     quantity: int = Field(ge=1)
     unit_price: int = Field(gt=0)
     total_price: int = Field(gt=0)
