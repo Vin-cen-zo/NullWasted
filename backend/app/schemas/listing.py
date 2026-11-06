@@ -37,6 +37,7 @@ class DraftResponse(BaseModel):
     needs_manual_price: bool = False
     can_save_to_catalog: bool = True
     closing_time: str = "20:30"
+    image_url: Optional[str] = None
 
 
 class PublishRequest(BaseModel):
@@ -66,6 +67,7 @@ class PublishRequest(BaseModel):
     longitude: float = 106.8246
     is_bundle: bool = False
     bundled_items_json: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class ReserveOrderRequest(BaseModel):
@@ -92,6 +94,7 @@ class MenuItemCreateRequest(BaseModel):
     default_hours_cooked: float = Field(default=2.0, ge=0.0)
     ingredients: str = Field(default="")
     portion_size: str = Field(default="Reguler")
+    image_url: Optional[str] = Field(default=None)
 
     @field_validator("typical_cooking_time")
     @classmethod
@@ -108,6 +111,7 @@ class MenuItemUpdateRequest(BaseModel):
     default_hours_cooked: Optional[float] = None
     ingredients: Optional[str] = None
     portion_size: Optional[str] = None
+    image_url: Optional[str] = None
     is_active: Optional[bool] = None
 
     @field_validator("typical_cooking_time")
@@ -130,6 +134,7 @@ class MenuItemResponse(BaseModel):
     category: str
     bpom_max_hours: float
     portion_size: str = "Reguler"
+    image_url: Optional[str] = None
     is_active: bool
     created_at: str
 

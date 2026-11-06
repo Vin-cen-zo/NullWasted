@@ -44,12 +44,16 @@ def init_db() -> None:
                         conn.execute(text("ALTER TABLE item_listings ADD COLUMN bundled_items_json TEXT DEFAULT NULL"))
                     if "portion_size" not in item_cols:
                         conn.execute(text("ALTER TABLE item_listings ADD COLUMN portion_size TEXT DEFAULT 'Reguler'"))
+                    if "image_url" not in item_cols:
+                        conn.execute(text("ALTER TABLE item_listings ADD COLUMN image_url TEXT DEFAULT NULL"))
 
                 # 2. store_menu_items migrations
                 menu_cols = [c[1] for c in conn.execute(text("PRAGMA table_info(store_menu_items)")).fetchall()]
                 if menu_cols:
                     if "portion_size" not in menu_cols:
                         conn.execute(text("ALTER TABLE store_menu_items ADD COLUMN portion_size TEXT DEFAULT 'Reguler'"))
+                    if "image_url" not in menu_cols:
+                        conn.execute(text("ALTER TABLE store_menu_items ADD COLUMN image_url TEXT DEFAULT NULL"))
 
                 # 3. order_tickets migrations
                 order_cols = [c[1] for c in conn.execute(text("PRAGMA table_info(order_tickets)")).fetchall()]
@@ -68,6 +72,8 @@ def init_db() -> None:
                         conn.execute(text("ALTER TABLE order_tickets ADD COLUMN completed_at TEXT DEFAULT NULL"))
                     if "cancelled_at" not in order_cols:
                         conn.execute(text("ALTER TABLE order_tickets ADD COLUMN cancelled_at TEXT DEFAULT NULL"))
+                    if "image_url" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN image_url TEXT DEFAULT NULL"))
 
                 # 4. Synchronize 3-zone store & listing coordinates for responsive radius filtering
                 conn.execute(text("UPDATE stores SET latitude = -6.3621, longitude = 106.8246, location_name = 'Kantin FTUI · 110m (🚶 2 mnt)' WHERE store_id = 'FTUI-001'"))
@@ -76,6 +82,24 @@ def init_db() -> None:
                 conn.execute(text("UPDATE item_listings SET latitude = -6.3621, longitude = 106.8246, location_badge = 'Kantin FTUI · 110m (🚶 2 mnt)' WHERE store_id = 'FTUI-001'"))
                 conn.execute(text("UPDATE item_listings SET latitude = -6.3575, longitude = 106.8195, location_badge = 'Kukusan Teknik (Kutek) · 780m (🚶 9 mnt)' WHERE store_id = 'KUTEK-007'"))
                 conn.execute(text("UPDATE item_listings SET latitude = -6.3685, longitude = 106.8375, location_badge = 'Jl. Margonda Raya · 1.8km (🛵 5 mnt)' WHERE store_id = 'MARGONDA-042'"))
+
+                # 5. Backfill demo image_url if null
+                conn.execute(text("UPDATE store_menu_items SET image_url = '/assets/foods/rendang.jpg' WHERE food_name LIKE '%Rendang%' AND image_url IS NULL"))
+                conn.execute(text("UPDATE store_menu_items SET image_url = '/assets/foods/ayam_bakar.jpg' WHERE food_name LIKE '%Ayam%' AND image_url IS NULL"))
+                conn.execute(text("UPDATE store_menu_items SET image_url = '/assets/foods/tahu_tempe.jpg' WHERE food_name LIKE '%Tahu%' AND image_url IS NULL"))
+                conn.execute(text("UPDATE store_menu_items SET image_url = '/assets/foods/croissant.jpg' WHERE food_name LIKE '%Croissant%' AND image_url IS NULL"))
+                conn.execute(text("UPDATE store_menu_items SET image_url = '/assets/foods/roti_unyil.jpg' WHERE (food_name LIKE '%Sobek%' OR food_name LIKE '%Danish%') AND image_url IS NULL"))
+                conn.execute(text("UPDATE store_menu_items SET image_url = '/assets/foods/donat_klasik.jpg' WHERE food_name LIKE '%Donat%' AND image_url IS NULL"))
+                conn.execute(text("UPDATE store_menu_items SET image_url = '/assets/foods/indomie.jpg' WHERE food_name LIKE '%Mie%' AND image_url IS NULL"))
+                conn.execute(text("UPDATE store_menu_items SET image_url = '/assets/foods/pisang_bakar.jpg' WHERE food_name LIKE '%Pisang%' AND image_url IS NULL"))
+                conn.execute(text("UPDATE store_menu_items SET image_url = '/assets/foods/kopi_susu.jpg' WHERE food_name LIKE '%Kopi%' AND image_url IS NULL"))
+
+                conn.execute(text("UPDATE item_listings SET image_url = '/assets/foods/ayam_bakar.jpg' WHERE food_name LIKE '%Ayam%' AND image_url IS NULL"))
+                conn.execute(text("UPDATE item_listings SET image_url = '/assets/foods/tahu_tempe.jpg' WHERE food_name LIKE '%Tahu%' AND image_url IS NULL"))
+                conn.execute(text("UPDATE item_listings SET image_url = '/assets/foods/croissant.jpg' WHERE food_name LIKE '%Croissant%' AND image_url IS NULL"))
+                conn.execute(text("UPDATE item_listings SET image_url = '/assets/foods/donat_klasik.jpg' WHERE food_name LIKE '%Donat%' AND image_url IS NULL"))
+                conn.execute(text("UPDATE item_listings SET image_url = '/assets/foods/pisang_bakar.jpg' WHERE food_name LIKE '%Pisang%' AND image_url IS NULL"))
+                conn.execute(text("UPDATE item_listings SET image_url = '/assets/foods/mystery_bag.jpg' WHERE is_bundle = 1 AND image_url IS NULL"))
 
                 conn.commit()
             except Exception:
