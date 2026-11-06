@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { DraftResponse, PublishRequest, getFriendlyCategory, humanizeBpomText } from "../types/listing";
+import { DraftResponse, PublishRequest, getFriendlyCategory, humanizeBpomText, resolveImageUrl } from "../types/listing";
 import {
   ShieldCheck,
   ShieldAlert,
@@ -93,6 +93,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       location_badge: "Kantin FTUI · 250m (3 mnt)",
       closing_time: draft.closing_time || "20:30",
       portion_size: draft.portion_size || "Reguler",
+      image_url: draft.image_url ?? null,
     };
 
     await onPublish(payload);
@@ -251,6 +252,24 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
             </div>
 
             <div className="space-y-3 text-xs">
+              {/* Inherited Image Preview */}
+              {resolveImageUrl(draft.image_url) && (
+                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-stone-50 border border-stone-200">
+                  <img
+                    src={resolveImageUrl(draft.image_url)!}
+                    alt={foodName}
+                    className="w-12 h-12 rounded-lg object-cover border border-stone-200 shrink-0 bg-stone-100 shadow-xs"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                  <div className="text-[11px] min-w-0">
+                    <span className="font-bold text-stone-800 block truncate">Foto Menu Katalog Terhubung</span>
+                    <span className="text-stone-500 text-[10px]">Mewarisi foto resmi dari buku menu</span>
+                  </div>
+                </div>
+              )}
+
               {/* Editable Food Name */}
               <div>
                 <label className="block text-[11px] font-semibold text-stone-600 mb-1">

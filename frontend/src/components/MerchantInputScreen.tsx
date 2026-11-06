@@ -19,7 +19,7 @@ import {
 import { startIndonesianSpeechRecognition } from "../services/speech";
 import { fetchStoreMenu, publishListing } from "../services/api";
 import { MerchantCatalogModal } from "./MerchantCatalogModal";
-import { PublishRequest, StoreMenuItem, getFriendlyCategory } from "../types/listing";
+import { PublishRequest, StoreMenuItem, getFriendlyCategory, resolveImageUrl } from "../types/listing";
 
 interface MerchantInputScreenProps {
   onAnalyze: (text: string) => Promise<void>;
@@ -215,6 +215,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
         latitude: latitude,
         longitude: longitude,
         portion_size: batchPortionSize,
+        image_url: selectedMenuItem.image_url ?? null,
       };
 
       if (onDirectPublish) {
@@ -318,34 +319,51 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {menuItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleOpenBatchModal(item)}
-                  className="p-3 text-left bg-white hover:bg-emerald-50/50 rounded-2xl border border-stone-200 hover:border-emerald-400 shadow-sm transition-all flex flex-col justify-between h-full space-y-2 group cursor-pointer"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-bold text-xs text-stone-900 group-hover:text-emerald-900 leading-snug">
-                      {item.food_name}
-                    </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0 flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                      <span>Maks {item.bpom_max_hours} jam</span>
-                    </span>
-                  </div>
+              {menuItems.map((item) => {
+                const itemImg = resolveImageUrl(item.image_url);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleOpenBatchModal(item)}
+                    className="p-3 text-left bg-white hover:bg-emerald-50/50 rounded-2xl border border-stone-200 hover:border-emerald-400 shadow-sm transition-all flex flex-col justify-between h-full space-y-2 group cursor-pointer"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      {itemImg && (
+                        <img
+                          src={itemImg}
+                          alt={item.food_name}
+                          className="w-10 h-10 rounded-lg object-cover border border-stone-200 shrink-0 bg-stone-100"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = "none";
+                          }}
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1.5">
+                          <span className="font-bold text-xs text-stone-900 group-hover:text-emerald-900 leading-snug line-clamp-2">
+                            {item.food_name}
+                          </span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0 flex items-center gap-0.5">
+                            <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" />
+                            <span>{item.bpom_max_hours}j</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-stone-100">
-                    <span className="font-extrabold text-stone-800">
-                      Rp {item.original_price.toLocaleString("id-ID")}
-                    </span>
-                    <span className="text-[11px] text-stone-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-stone-400" />
-                      <span>Masak: {item.typical_cooking_time}</span>
-                    </span>
-                  </div>
-                </button>
-              ))}
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-stone-100">
+                      <span className="font-extrabold text-stone-800">
+                        Rp {item.original_price.toLocaleString("id-ID")}
+                      </span>
+                      <span className="text-[11px] text-stone-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-stone-400" />
+                        <span>Masak: {item.typical_cooking_time}</span>
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -456,16 +474,28 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
           <div className="w-full max-w-md sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-stone-200 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-start justify-between">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                  Penerbitan Batch Cepat
-                </span>
-                <h3 className="text-base font-bold text-stone-900 mt-1">
-                  {selectedMenuItem.food_name}
-                </h3>
-                <p className="text-xs text-stone-500">
-                  Kategori: <strong className="text-stone-700">{getFriendlyCategory(selectedMenuItem.category).label}</strong> · Batas Maks: <strong className="text-emerald-700">{selectedMenuItem.bpom_max_hours} jam</strong>
-                </p>
+              <div className="flex items-start gap-3">
+                {resolveImageUrl(selectedMenuItem.image_url) && (
+                  <img
+                    src={resolveImageUrl(selectedMenuItem.image_url)!}
+                    alt={selectedMenuItem.food_name}
+                    className="w-12 h-12 rounded-xl object-cover border border-stone-200 shrink-0 bg-stone-100 shadow-xs"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                )}
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    Penerbitan Batch Cepat
+                  </span>
+                  <h3 className="text-base font-bold text-stone-900 mt-0.5">
+                    {selectedMenuItem.food_name}
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    Kategori: <strong className="text-stone-700">{getFriendlyCategory(selectedMenuItem.category).label}</strong> · Batas Maks: <strong className="text-emerald-700">{selectedMenuItem.bpom_max_hours} jam</strong>
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
