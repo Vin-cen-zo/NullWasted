@@ -16,6 +16,40 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./nullwasted_local.db")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
 
+STATIC_DIR = BASE_DIR / "static"
+STATIC_UPLOADS_DIR = STATIC_DIR / "uploads"
+STATIC_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_cloudinary_config() -> dict[str, str] | None:
+    """Parses Cloudinary credentials from CLOUDINARY_URL or individual env vars. Returns None if unconfigured."""
+    cloudinary_url = os.getenv("CLOUDINARY_URL", "").strip()
+    if cloudinary_url and cloudinary_url.startswith("cloudinary://"):
+        try:
+            # Format: cloudinary://<api_key>:<api_secret>@<cloud_name>
+            without_scheme = cloudinary_url[len("cloudinary://"):]
+            creds, cloud_name = without_scheme.split("@", 1)
+            api_key, api_secret = creds.split(":", 1)
+            if cloud_name and api_key and api_secret:
+                return {
+                    "cloud_name": cloud_name.strip(),
+                    "api_key": api_key.strip(),
+                    "api_secret": api_secret.strip(),
+                }
+        except Exception:
+            pass
+
+    cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
+    api_key = os.getenv("CLOUDINARY_API_KEY", "").strip()
+    api_secret = os.getenv("CLOUDINARY_API_SECRET", "").strip()
+    if cloud_name and api_key and api_secret:
+        return {
+            "cloud_name": cloud_name,
+            "api_key": api_key,
+            "api_secret": api_secret,
+        }
+    return None
+
 def get_active_api_keys() -> list[str]:
     """Retrieve non-empty, non-placeholder Gemini API keys (supports single GEMINI_API_KEY or dynamic pool GEMINI_API_KEY_1..N)."""
     keys: list[str] = []
