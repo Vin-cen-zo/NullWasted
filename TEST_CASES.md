@@ -58,7 +58,8 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 | **Suite 6** | Consumer Discovery | Geospatial Haversine radius, interactive maps, and feed filtering | 5 |
 | **Suite 7** | Order Lifecycle | Atomic inventory transactions, QRIS single-modal, and QR pass generation | 5 |
 | **Suite 8** | Cashier POS | Optical webcam decoding, POS shift summaries, and anti-fraud checks | 6 |
-| **Total** | | **Comprehensive System Scope** | **43 Cases** |
+| **Suite 9** | Image System | Dual-mode upload, canvas compression, inheritance, and adaptive UI | 5 |
+| **Total** | | **Comprehensive System Scope** | **48 Cases** |
 
 ---
 
@@ -75,9 +76,9 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     py -m pytest tests/test_unit_core.py -v
     ```
   - **Expected Result:**
-    - All 30 test cases pass (`30 passed`).
+    - All 33 test cases pass (`33 passed`).
     - Exit code: `0`.
-    - Verification includes Guardrail RAG, Dynamic Pricing clamping, Mystery Bag clustering, and ticket status machines.
+    - Verification includes Guardrail RAG, Dynamic Pricing clamping, Mystery Bag clustering, ticket status machines, dual-mode image uploads, and image URL lifecycle inheritance.
 
 - [ ] **TC-AUTO-02: Frontend Production Build Compilation**
   - **Command:**
@@ -481,6 +482,58 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 ---
 
+### SUITE 9: Dynamic Menu Image System & Adaptive Presentation
+
+- [ ] **TC-IMG-01: Merchant Catalog Photo Upload & Client-Side Canvas Compression**
+  - **Procedure:**
+    1. In Merchant view, click `"Kelola Buku Menu"`.
+    2. In the "Tambah Hidangan Rutin ke Katalog" form, enter dish name, normal price, and raw food photo (>2 MB).
+    3. Observe client-side compression indicator and photo preview thumbnail ($64 \times 64\text{ px}$).
+    4. Click `"Simpan ke Buku Menu"`.
+  - **Expected Result:**
+    - HTML5 Canvas automatically resizes image to maximum $800 \times 800\text{ px}$ in WebP format ($0.8$ quality) with file size reduced to $\approx 50\text{--}150\text{ KB}$.
+    - `POST /api/v1/upload-image` responds with HTTP 200 and image URL.
+    - Dish is registered with `image_url` and appears in the menu catalog list displaying a $48 \times 48\text{ px}$ thumbnail.
+
+- [ ] **TC-IMG-02: Dual-Mode Upload Engine & Graceful Local Static Fallback**
+  - **Procedure:**
+    1. Send a `POST /api/v1/upload-image` request without active Cloudinary credentials (or simulate network timeout).
+    2. Inspect response payload and storage location.
+    3. Send a request with an invalid file format (e.g. `.txt` disguised as `.png` with invalid magic bytes).
+  - **Expected Result:**
+    - Valid image is stored in `backend/static/uploads/<uuid>.<ext>` and served via FastAPI StaticFiles with response `{"storage_mode": "local", "image_url": "/static/uploads/..."}`.
+    - Invalid file or corrupted magic bytes is rejected with HTTP 400 Bad Request (`Header biner file tidak cocok`).
+
+- [ ] **TC-IMG-03: Listing Publication Image Inheritance vs. Ad-Hoc Null Fallback**
+  - **Procedure:**
+    1. Publish a surplus listing from a catalog menu item that has an official `image_url` (via batch modal or voice AI matching catalog).
+    2. Publish an ad-hoc uncataloged dish via voice/text AI (`ADHOC_COMPLETE`).
+    3. Inspect both items in `GET /api/v1/listings/active`.
+  - **Expected Result:**
+    - Catalog listing inherits `image_url` from `StoreMenuItem` without merchant manual re-entry.
+    - Ad-hoc listing has `image_url: null` without synthetic/generic stock photo guessing.
+    - Mystery Bag bundle retains `/assets/foods/mystery_bag.jpg`.
+
+- [ ] **TC-IMG-04: Consumer Discovery Feed Adaptive Card Presentation**
+  - **Procedure:**
+    1. Open consumer feed (`ConsumerFeedScreen.tsx`) containing both catalog items with images and ad-hoc items without images.
+    2. Inspect visual rendering of each card layout.
+  - **Expected Result:**
+    - Items with valid `image_url`: Render full photo banner (`h-44`) with stock pill and discount badge overlay.
+    - Items with `image_url: null` (or broken image triggering `onError`): Render sleek compact card layout without image banner; stock pill and discount badge adapt seamlessly under store header without broken layout or empty gap.
+
+- [ ] **TC-IMG-05: Order Ticket Snapshot & Cashier POS Thumbnail Verification**
+  - **Procedure:**
+    1. Reserve an item that has an `image_url`.
+    2. Open `"Pesanan Saya"` tab on consumer view.
+    3. Open `"Kasir QR"` on merchant view and complete cashier verification for the ticket.
+  - **Expected Result:**
+    - `OrderTicket` snapshots `image_url` at reservation time and preserves it even if catalog photo changes later.
+    - Consumer order ticket renders a clean $64 \times 64\text{ px}$ rounded thumbnail beside the dish name.
+    - Cashier success verification dialog and cashier queue render the image thumbnail beside item details.
+
+---
+
 ## 4. Acceptance Sign-Off Matrix
 
 | Suite | Functional Domain | Tester | Date | Verdict |
@@ -493,6 +546,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 | **Suite 6** | Consumer Discovery & Maps | | | [ ] PASS / [ ] FAIL |
 | **Suite 7** | Order Lifecycle & Transactions | | | [ ] PASS / [ ] FAIL |
 | **Suite 8** | Cashier POS & Anti-Fraud Security | | | [ ] PASS / [ ] FAIL |
+| **Suite 9** | Dynamic Menu Image & Adaptive UI | | | [ ] PASS / [ ] FAIL |
 
 ---
 
