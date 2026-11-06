@@ -152,6 +152,7 @@ export async function createStoreMenuItem(
     default_hours_cooked?: number;
     ingredients?: string;
     portion_size?: string;
+    image_url?: string | null;
   }
 ): Promise<StoreMenuItem> {
   const res = await fetch(`${API_BASE_URL}/menu/${storeId}`, {
@@ -177,6 +178,36 @@ export async function deleteStoreMenuItem(
   if (!res.ok) {
     throw new Error("Gagal menghapus item dari buku menu.");
   }
+  return res.json();
+}
+
+// ============================================================================
+// IMAGE UPLOAD SERVICE
+// ============================================================================
+
+export async function uploadMenuImage(
+  file: File
+): Promise<{ image_url: string; storage_mode: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const token = localStorage.getItem("nw_session_token");
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_BASE_URL}/upload-image`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal mengunggah foto makanan."));
+  }
+
   return res.json();
 }
 
