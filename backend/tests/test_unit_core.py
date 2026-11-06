@@ -947,3 +947,154 @@ def test_sprint3_smart_bundle_includes_ingredients_and_allergens(client: TestCli
         assert isinstance(item["allergen_tags"], list)
 
 
+# ============================================================================
+# 8. DYNAMIC MENU IMAGE UPLOAD & INHERITANCE TESTS
+# ============================================================================
+
+def test_image_upload_success_and_static_serving(client: TestClient):
+    """Verifies that valid WebP/PNG images can be uploaded and retrieved via the mounted /static endpoint."""
+    from pathlib import Path
+    from app.core.config import STATIC_UPLOADS_DIR
+
+    # Valid 1x1 WebP binary payload
+    valid_webp = (
+        b"RIFF\x1a\x00\x00\x00WEBPVP8 "
+        b"\x0e\x00\x00\x00\x01\x00\x01\x00\x00\x00\x00\x00\x00\x00"
+    )
+
+    res = client.post(
+        "/api/v1/upload-image",
+        files={"file": ("test_sample.webp", valid_webp, "image/webp")},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert "image_url" in data
+    assert data["storage_mode"] in ("local", "cloudinary")
+
+    # If saved to local static storage, verify it's fetchable via GET /static/uploads/...
+    if data["storage_mode"] == "local":
+        assert data["image_url"].startswith("/static/uploads/")
+        file_res = client.get(data["image_url"])
+        assert file_res.status_code == 200
+        assert len(file_res.content) == len(valid_webp)
+
+        # Clean up test file to keep workspace pristine
+        filename = data["image_url"].replace("/static/uploads/", "")
+        created_file = STATIC_UPLOADS_DIR / filename
+        if created_file.exists():
+            created_file.unlink()
+
+
+def test_image_upload_invalid_mime_and_magic_bytes_rejection(client: TestClient):
+    """Verifies HTTP 400 rejection for unsupported MIME types, fake magic bytes, and empty files."""
+    # 1. Non-image mime type
+    res_txt = client.post(
+        "/api/v1/upload-image",
+        files={"file": ("danger.txt", b"hello world malicious script", "text/plain")},
+    )
+    assert res_txt.status_code == 400
+    assert "tidak didukung" in res_txt.json()["detail"].lower()
+
+    # 2. Fake magic bytes (Declared as image/png but content is plain text)
+    res_fake = client.post(
+        "/api/v1/upload-image",
+        files={"file": ("fake.png", b"fake binary data disguised as png", "image/png")},
+    )
+    assert res_fake.status_code == 400
+    assert "tidak cocok" in res_fake.json()["detail"].lower()
+
+    # 3. Empty file
+    res_empty = client.post(
+        "/api/v1/upload-image",
+        files={"file": ("empty.jpg", b"", "image/jpeg")},
+    )
+    assert res_empty.status_code == 400
+    assert "tidak boleh kosong" in res_empty.json()["detail"].lower()
+
+
+def test_image_url_lifecycle_inheritance_and_adhoc_none(client: TestClient):
+    """Verifies end-to-end image_url lifecycle:
+    StoreMenuItem -> DraftResponse match -> ItemListing publish -> OrderTicket snapshot.
+    Also verifies that purely ad-hoc items have image_url = None without fake image guessing.
+    """
+    # 1. Create a routine catalog item with an official image_url
+    create_cat_res = client.post(
+        "/api/v1/menu/FTUI-001",
+        json={
+            "food_name": "Sate Ayam Bumbu Madura",
+            "original_price": 25000,
+            "typical_cooking_time": "16:00",
+            "default_hours_cooked": 1.5,
+            "ingredients": "Daging ayam, kecap manis, bumbu kacang gurih",
+            "portion_size": "10 Tusuk",
+            "image_url": "/assets/foods/ayam_bakar.jpg",
+        },
+    )
+    assert create_cat_res.status_code == 200
+    cat_item = create_cat_res.json()
+    assert cat_item["image_url"] == "/assets/foods/ayam_bakar.jpg"
+
+    # 2. Merchant speaks/types matching prompt -> Draft inherits catalog image_url
+    draft_res = client.post(
+        "/api/v1/listings/draft",
+        json={
+            "text": "Ada sate ayam bumbu madura sisa 3 porsi harga 25000",
+            "store_id": "FTUI-001",
+        },
+    )
+    assert draft_res.status_code == 200
+    draft_data = draft_res.json()
+    assert draft_data["image_url"] == "/assets/foods/ayam_bakar.jpg"
+
+    # 3. Publish listing passing the inherited image_url
+    pub_res = client.post(
+        "/api/v1/listings/publish",
+        json={
+            "store_id": "FTUI-001",
+            "food_name": draft_data["food_name"],
+            "matched_canonical_dish": draft_data["matched_canonical_dish"],
+            "category": draft_data["category"],
+            "quantity": draft_data["quantity"],
+            "original_price": draft_data["original_price"],
+            "discount_percent": 55,
+            "hours_since_cooked": draft_data["hours_since_cooked"],
+            "bpom_max_hours": draft_data["bpom_max_hours"],
+            "minutes_until_closing": 90,
+            "safety_status": "SAFE",
+            "safety_reason": "Waktu simpan aman",
+            "hazard_description": "Aman",
+            "image_url": draft_data["image_url"],
+        },
+    )
+    assert pub_res.status_code == 200
+    pub_item = pub_res.json()
+    assert pub_item["image_url"] == "/assets/foods/ayam_bakar.jpg"
+
+    # 4. Reserve order -> OrderTicket snapshots listing image_url
+    res_order = client.post(
+        "/api/v1/orders/reserve",
+        json={
+            "listing_id": pub_item["id"],
+            "quantity": 1,
+            "customer_name": "Tester Image Snapshot",
+        },
+    )
+    assert res_order.status_code == 200
+    ticket = res_order.json()
+    assert ticket["image_url"] == "/assets/foods/ayam_bakar.jpg"
+
+    # 5. Ad-hoc menu draft without catalog match MUST result in image_url = None
+    adhoc_res = client.post(
+        "/api/v1/listings/draft",
+        json={
+            "text": "Ada Nasi Rawon sisa 2, harga 30 ribu, baru matang 1 jam lalu",
+            "store_id": "FTUI-001",
+        },
+    )
+    assert adhoc_res.status_code == 200
+    adhoc_data = adhoc_res.json()
+    assert adhoc_data["catalog_match_status"] == "ADHOC_COMPLETE"
+    assert adhoc_data["image_url"] is None
+
+
+
