@@ -149,6 +149,14 @@ class MerchantLoginRequest(BaseModel):
     store_id: str = Field(..., min_length=2)
     pin: str = Field(..., min_length=4)
 
+    @field_validator("pin")
+    @classmethod
+    def validate_pin(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not re.match(r"^\d{4,6}$", cleaned):
+            raise ValueError("PIN harus berupa 4 hingga 6 digit angka.")
+        return cleaned
+
 
 class MerchantRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2)
@@ -159,16 +167,50 @@ class MerchantRegisterRequest(BaseModel):
     latitude: float = Field(default=-6.3621)
     longitude: float = Field(default=106.8246)
 
+    @field_validator("pin")
+    @classmethod
+    def validate_pin(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not re.match(r"^\d{4,6}$", cleaned):
+            raise ValueError("PIN harus berupa 4 hingga 6 digit angka.")
+        return cleaned
+
+    @field_validator("closing_time")
+    @classmethod
+    def validate_closing_time(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not re.match(r"^(?:[01]\d|2[0-3]):[0-5]\d$", cleaned):
+            raise ValueError("Format jam tutup harus HH:MM (00:00 - 23:59).")
+        return cleaned
+
 
 class ConsumerLoginRequest(BaseModel):
     phone: str = Field(..., min_length=8)
     name: Optional[str] = Field(default=None)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        stripped = v.strip()
+        digits_norm = re.sub(r"[\s\-]+", "", stripped)
+        if not re.match(r"^(?:\+62|62|0)8[1-9][0-9]{7,11}$", digits_norm):
+            raise ValueError("Format nomor WhatsApp Indonesia tidak valid (contoh: 081234567890 atau +6281234567890).")
+        return stripped
 
 
 class ConsumerRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2)
     phone: str = Field(..., min_length=8)
     address: Optional[str] = Field(default="Kawasan UI Depok")
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        stripped = v.strip()
+        digits_norm = re.sub(r"[\s\-]+", "", stripped)
+        if not re.match(r"^(?:\+62|62|0)8[1-9][0-9]{7,11}$", digits_norm):
+            raise ValueError("Format nomor WhatsApp Indonesia tidak valid (contoh: 081234567890 atau +6281234567890).")
+        return stripped
 
 
 class AuthResponse(BaseModel):
