@@ -23,7 +23,56 @@ CULINARY_ANCHOR_WORDS = {
     "gulai", "opor", "kari", "rawon", "gudeg", "pecel", "gado", "ketoprak", "tongseng",
     "semur", "rica", "geprek", "penyet", "bakar", "goreng", "rebus", "kukus", "panggang",
     "tumis", "santan", "keju", "cokelat",
+    "roasted", "beef", "chicken", "fish", "salmon", "cheesecake", "curry", "pie", "tart",
+    "tiramisu", "bagel", "quesadilla", "churros", "stroganoff",
 }
+
+BILINGUAL_TOKEN_MAP: dict[str, str] = {
+    "roasted": "panggang",
+    "roast": "panggang",
+    "grilled": "bakar",
+    "fried": "goreng",
+    "baked": "panggang",
+    "steamed": "kukus",
+    "boiled": "rebus",
+    "beef": "sapi",
+    "chicken": "ayam",
+    "fish": "ikan",
+    "salmon": "salmon",
+    "shrimp": "udang",
+    "prawn": "udang",
+    "egg": "telur",
+    "eggs": "telur",
+    "cheese": "keju",
+    "milk": "susu",
+    "bread": "roti",
+    "cake": "kue",
+    "soup": "sop",
+    "salad": "sayur",
+    "noodles": "mie",
+    "noodle": "mie",
+    "rice": "nasi",
+    "tea": "teh",
+    "coffee": "kopi",
+    "water": "air",
+    "cheesecake": "cheesecake",
+    "lasagna": "lasagna",
+    "croissant": "croissant",
+    "curry": "kari",
+    "tart": "tart",
+    "pie": "pie",
+    "tiramisu": "tiramisu",
+    "bagel": "bagel",
+    "quesadilla": "quesadilla",
+    "burger": "burger",
+}
+
+
+def translate_bilingual_tokens(text: str) -> str:
+    """Translates common English culinary tokens to standard Indonesian equivalents."""
+    tokens = re.findall(r"\b\w+\b", text.lower())
+    translated = [BILINGUAL_TOKEN_MAP.get(t, t) for t in tokens]
+    return " ".join(translated)
 
 
 def _normalize_vector(vec: np.ndarray) -> np.ndarray:
@@ -50,28 +99,29 @@ def clean_culinary_query(text: str) -> str:
 
 
 def compute_deterministic_embedding(text: str, dim: int = 768) -> np.ndarray:
-    """Computes a deterministic normalized 768-dim (or configurable dim) embedding using character/word n-gram hashing.
-    Used as an instant (<1ms) offline fallback when Gemini Embedding API is unreachable.
-    """
-    cleaned = text.lower().strip()
+    """Computes a deterministic normalized embedding using bilingual token expansion and stable token hashing."""
+    translated_text = translate_bilingual_tokens(text)
+    cleaned = translated_text.lower().strip()
     vec = np.zeros(dim, dtype=np.float32)
 
     words = cleaned.split()
     for word in words:
-        h = 0
+        # 32-bit FNV-1a prime hash for token distribution
+        h = 2166136261
         for char in word:
-            h = (h * 31 + ord(char)) & 0xFFFFFFFF
+            h = ((h ^ ord(char)) * 16777619) & 0xFFFFFFFF
         idx = h % dim
-        vec[idx] += 1.0
+        vec[idx] += 2.0
 
-    for n in (3, 4):
-        for i in range(len(cleaned) - n + 1):
-            ngram = cleaned[i : i + n]
-            h = 0
-            for char in ngram:
-                h = (h * 37 + ord(char)) & 0xFFFFFFFF
-            idx = h % dim
-            vec[idx] += 0.5
+        for n in (3, 4):
+            if len(word) >= n:
+                for i in range(len(word) - n + 1):
+                    ngram = word[i : i + n]
+                    hn = 2166136261
+                    for c in ngram:
+                        hn = ((hn ^ ord(c)) * 16777619) & 0xFFFFFFFF
+                    idx_n = hn % dim
+                    vec[idx_n] += 0.5
 
     return _normalize_vector(vec)
 
@@ -267,9 +317,23 @@ class LocalVectorStore:
 
                 return best_sem_item, norm_score
 
-        # 4. Graceful Fallback when API is offline: Lexical match + 768-dim deterministic n-gram hash
+        # 4. Graceful Fallback when API is offline: Lexical match + deterministic token hash
         if best_lexical_item and best_match_len >= 4:
             return best_lexical_item, 0.96
+
+        if not has_culinary_anchor and best_lexical_item is None:
+            default_item = {
+                "id": "bpom-fallback",
+                "canonical_name": query_text.title(),
+                "aliases": [query_text.lower()],
+                "category": "MEDIUM_PERISHABILITY",
+                "risk_level": "MEDIUM",
+                "bpom_max_hours": 8.0,
+                "regulation_ref": "PerBPOM No. 16/2019 Kategori Pangan Siap Saji (Fallback)",
+                "hazard_description": "Pangan siap saji suhu ruang memiliki batas simpan aman 8 jam (standar konservatif).",
+                "match_confidence": "low_fallback",
+            }
+            return default_item, 0.50
 
         q_fallback = compute_deterministic_embedding(culinary_focus)
         best_item = self.items[0]
