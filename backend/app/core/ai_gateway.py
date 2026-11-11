@@ -5,13 +5,28 @@ from app.core.config import GEMINI_EMBEDDING_MODEL, GEMINI_MODEL, get_active_api
 
 logger = logging.getLogger("ai_gateway")
 
-DEFAULT_TIMEOUT = httpx.Timeout(15.0, connect=5.0)
+DEFAULT_TIMEOUT = httpx.Timeout(25.0, connect=10.0, read=25.0)
+DEFAULT_LIMITS = httpx.Limits(max_keepalive_connections=20, max_connections=50, keepalive_expiry=30.0)
 
 
 class AIGateway:
     def __init__(self) -> None:
         self.api_keys = get_active_api_keys()
         self._key_index = 0
+        self._async_client: Optional[httpx.AsyncClient] = None
+
+    def get_async_client(self) -> httpx.AsyncClient:
+        if self._async_client is None or self._async_client.is_closed:
+            self._async_client = httpx.AsyncClient(
+                timeout=DEFAULT_TIMEOUT,
+                limits=DEFAULT_LIMITS,
+            )
+        return self._async_client
+
+    async def close(self) -> None:
+        if self._async_client is not None and not self._async_client.is_closed:
+            await self._async_client.aclose()
+            self._async_client = None
 
     def _get_next_key(self) -> Optional[str]:
         self.api_keys = get_active_api_keys()
@@ -61,20 +76,25 @@ class AIGateway:
                 }
 
                 try:
-                    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
-                        resp = await client.post(url, json=payload)
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            candidates = data.get("candidates", [])
-                            if candidates:
-                                content_parts = candidates[0].get("content", {}).get("parts", [])
-                                if content_parts:
-                                    return content_parts[0].get("text", "")
-                        elif resp.status_code in (404, 429, 403, 503):
-                            logger.warning(
-                                f"Gemini model {target_model} returned HTTP {resp.status_code}. Rotating key/model."
-                            )
-                            continue
+                    client = self.get_async_client()
+                    resp = await client.post(url, json=payload)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            content_parts = candidates[0].get("content", {}).get("parts", [])
+                            if content_parts:
+                                return content_parts[0].get("text", "")
+                    elif resp.status_code == 404:
+                        logger.warning(
+                            f"Gemini model {target_model} returned HTTP 404 (model not found). Skipping model."
+                        )
+                        break
+                    elif resp.status_code in (429, 403, 503):
+                        logger.warning(
+                            f"Gemini model {target_model} returned HTTP {resp.status_code}. Rotating key/model."
+                        )
+                        continue
                 except Exception as e:
                     logger.warning(f"Error calling Gemini ({target_model}): {repr(e)}. Rotating key.")
                     continue

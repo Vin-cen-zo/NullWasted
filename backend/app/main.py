@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import api_v1_router
+from app.core.ai_gateway import ai_gateway
 from app.core.config import APP_NAME, BASE_DIR, STATIC_DIR, STATIC_UPLOADS_DIR
 from app.core.database import init_db
 
@@ -15,6 +16,8 @@ async def lifespan(app: FastAPI):
     # Initialize database tables and seed demo data on startup
     init_db()
     yield
+    # Graceful shutdown of persistent connections
+    await ai_gateway.close()
 
 
 app = FastAPI(
