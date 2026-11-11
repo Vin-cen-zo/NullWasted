@@ -462,13 +462,19 @@ def publish_listing(
     closing_dt = closing_local.astimezone(timezone.utc)
     expires_at = min(food_expiry_dt, closing_dt)
 
+    store_row = session.exec(select(Store).where(Store.store_id == payload.store_id)).first()
+    resolved_store_name = payload.store_name or (store_row.name if store_row else "Dapur Barokah")
+    resolved_location = payload.location_badge or (store_row.location_name if store_row else "Depok Area")
+    resolved_lat = payload.latitude if payload.latitude is not None else (store_row.latitude if store_row else -6.3621)
+    resolved_lng = payload.longitude if payload.longitude is not None else (store_row.longitude if store_row else 106.8246)
+
     listing = ItemListing(
         store_id=payload.store_id,
-        store_name=payload.store_name,
-        location_badge=payload.location_badge,
-        maps_url=f"https://maps.google.com/?q={payload.latitude},{payload.longitude}",
-        latitude=payload.latitude,
-        longitude=payload.longitude,
+        store_name=resolved_store_name,
+        location_badge=resolved_location,
+        maps_url=f"https://maps.google.com/?q={resolved_lat},{resolved_lng}",
+        latitude=resolved_lat,
+        longitude=resolved_lng,
         closing_time=payload.closing_time,
         is_bundle=payload.is_bundle,
         bundled_items_json=payload.bundled_items_json,

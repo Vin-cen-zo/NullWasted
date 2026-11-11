@@ -23,6 +23,10 @@ interface MerchantPreviewScreenProps {
   isPublishing: boolean;
   storeName: string;
   storeId?: string;
+  closingTime?: string;
+  locationName?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
@@ -32,6 +36,10 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   isPublishing,
   storeName,
   storeId = "FTUI-001",
+  closingTime = "20:30",
+  locationName,
+  latitude,
+  longitude,
 }) => {
   // Interactive editable fields (Human-in-the-Loop)
   const [foodName, setFoodName] = useState(draft.food_name);
@@ -169,8 +177,10 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       regulation_ref: draft.regulation_ref,
       similarity_score: draft.similarity_score,
       store_name: storeName,
-      location_badge: "Kantin FTUI · 250m (3 mnt)",
-      closing_time: draft.closing_time || "20:30",
+      location_badge: locationName,
+      closing_time: draft.closing_time || closingTime || "20:30",
+      latitude,
+      longitude,
       portion_size: draft.portion_size || "Reguler",
       image_url: imageUrl ?? null,
     };

@@ -391,6 +391,10 @@ export const App: React.FC = () => {
                   isPublishing={isPublishing}
                   storeName={session.storeName || "Dapur Barokah"}
                   storeId={session.storeId || "FTUI-001"}
+                  closingTime={session.closingTime || "20:30"}
+                  locationName={session.locationName}
+                  latitude={session.latitude}
+                  longitude={session.longitude}
                 />
               ) : (
                 <MerchantInputScreen

@@ -57,14 +57,14 @@ class PublishRequest(BaseModel):
     regulation_ref: str = "PerBPOM No. 16/2019"
     similarity_score: float = 0.95
     store_name: str = "Dapur Barokah"
-    location_badge: str = "Kantin FTUI · 110m (🚶 2 mnt)"
+    location_badge: Optional[str] = None
     portion_size: str = Field(default="Reguler")
 
     # Multi-tenant & Bundling extensions
     store_id: str = "FTUI-001"
     closing_time: str = "20:30"
-    latitude: float = -6.3621
-    longitude: float = 106.8246
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     is_bundle: bool = False
     bundled_items_json: Optional[str] = None
     image_url: Optional[str] = None
