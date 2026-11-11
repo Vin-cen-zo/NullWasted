@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { DraftResponse, PublishRequest, getFriendlyCategory, humanizeBpomText, resolveImageUrl } from "../types/listing";
 import {
   ShieldCheck,
@@ -12,7 +12,9 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
-import { createStoreMenuItem } from "../services/api";
+import { createStoreMenuItem, uploadMenuImage } from "../services/api";
+import { compressImageFile } from "../utils/imageCompressor";
+import { Camera, Loader2, Trash2 } from "lucide-react";
 
 interface MerchantPreviewScreenProps {
   draft: DraftResponse;
@@ -86,6 +88,39 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   // Catalog saving state
   const [isSavingToCatalog, setIsSavingToCatalog] = useState(false);
   const [savedToCatalog, setSavedToCatalog] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(draft.image_url ?? null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleReplaceImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingImage(true);
+      setImageUploadError(null);
+      const compressed = await compressImageFile(file, 800, 0.8);
+      const res = await uploadMenuImage(compressed);
+      setImageUrl(res.image_url);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal mengunggah foto makanan.";
+      setImageUploadError(msg);
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageUrl(null);
+    setImageUploadError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const calculatedDiscountedPrice = Math.floor(
     (originalPrice * (1 - discountPercent / 100)) / 100
@@ -137,7 +172,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       location_badge: "Kantin FTUI · 250m (3 mnt)",
       closing_time: draft.closing_time || "20:30",
       portion_size: draft.portion_size || "Reguler",
-      image_url: draft.image_url ?? null,
+      image_url: imageUrl ?? null,
     };
 
     await onPublish(payload);
@@ -296,23 +331,76 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
             </div>
 
             <div className="space-y-3 text-xs">
-              {/* Inherited Image Preview */}
-              {resolveImageUrl(draft.image_url) && (
-                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-stone-50 border border-stone-200">
-                  <img
-                    src={resolveImageUrl(draft.image_url)!}
-                    alt={foodName}
-                    className="w-12 h-12 rounded-lg object-cover border border-stone-200 shrink-0 bg-stone-100 shadow-xs"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
-                  />
-                  <div className="text-[11px] min-w-0">
-                    <span className="font-bold text-stone-800 block truncate">Foto Menu Katalog Terhubung</span>
-                    <span className="text-stone-500 text-[10px]">Mewarisi foto resmi dari buku menu</span>
+              {/* Photo Control & Preview Card (Replace / Delete) */}
+              <div className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleReplaceImage}
+                  className="hidden"
+                />
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {resolveImageUrl(imageUrl) ? (
+                      <img
+                        src={resolveImageUrl(imageUrl)!}
+                        alt={foodName}
+                        className="w-12 h-12 rounded-lg object-cover border border-stone-200 shrink-0 bg-stone-100 shadow-xs"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg border border-dashed border-stone-300 bg-white flex items-center justify-center shrink-0 text-stone-400">
+                        <Camera className="w-5 h-5" />
+                      </div>
+                    )}
+                    <div className="text-[11px] min-w-0">
+                      <span className="font-bold text-stone-800 block truncate">
+                        {resolveImageUrl(imageUrl) ? "Foto Hidangan Aktif" : "Tanpa Foto Khusus"}
+                      </span>
+                      <span className="text-stone-500 text-[10px] block truncate">
+                        {resolveImageUrl(imageUrl)
+                          ? imageUrl === draft.image_url
+                            ? "Diwarisi dari buku menu / siap diganti"
+                            : "Foto baru berhasil diunggah"
+                          : "Menampilkan ikon kategori default"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      disabled={isUploadingImage}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-emerald-50 border border-stone-300 hover:border-emerald-300 text-[10px] font-bold text-stone-700 hover:text-emerald-800 transition cursor-pointer disabled:opacity-50"
+                    >
+                      {isUploadingImage ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Camera className="w-3 h-3" />
+                      )}
+                      <span>{isUploadingImage ? "Mengunggah..." : "Ganti Foto"}</span>
+                    </button>
+                    {resolveImageUrl(imageUrl) && (
+                      <button
+                        type="button"
+                        disabled={isUploadingImage}
+                        onClick={handleRemoveImage}
+                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white hover:bg-red-50 border border-stone-300 hover:border-red-300 text-[10px] font-bold text-stone-600 hover:text-red-700 transition cursor-pointer disabled:opacity-50"
+                        title="Hapus foto dan gunakan ilustrasi kategori"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Hapus Foto</span>
+                      </button>
+                    )}
                   </div>
                 </div>
-              )}
+                {imageUploadError && (
+                  <p className="text-[10px] font-semibold text-red-600">{imageUploadError}</p>
+                )}
+              </div>
 
               {/* Editable Food Name */}
               <div>
