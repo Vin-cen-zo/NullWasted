@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any, Optional
 import httpx
@@ -14,19 +15,43 @@ class AIGateway:
         self.api_keys = get_active_api_keys()
         self._key_index = 0
         self._async_client: Optional[httpx.AsyncClient] = None
+        self._client_loop: Optional[asyncio.AbstractEventLoop] = None
 
     def get_async_client(self) -> httpx.AsyncClient:
-        if self._async_client is None or self._async_client.is_closed:
+        try:
+            running_loop: Optional[asyncio.AbstractEventLoop] = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
+        if (
+            self._async_client is None
+            or self._async_client.is_closed
+            or self._client_loop is not running_loop
+            or (self._client_loop is not None and self._client_loop.is_closed())
+        ):
             self._async_client = httpx.AsyncClient(
                 timeout=DEFAULT_TIMEOUT,
                 limits=DEFAULT_LIMITS,
             )
+            self._client_loop = running_loop
         return self._async_client
 
     async def close(self) -> None:
         if self._async_client is not None and not self._async_client.is_closed:
-            await self._async_client.aclose()
+            try:
+                running_loop: Optional[asyncio.AbstractEventLoop] = asyncio.get_running_loop()
+            except RuntimeError:
+                running_loop = None
+
+            if self._client_loop is None or (
+                not self._client_loop.is_closed() and self._client_loop is running_loop
+            ):
+                try:
+                    await self._async_client.aclose()
+                except RuntimeError:
+                    pass
             self._async_client = None
+            self._client_loop = None
 
     def _get_next_key(self) -> Optional[str]:
         self.api_keys = get_active_api_keys()
