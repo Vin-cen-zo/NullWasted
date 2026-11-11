@@ -192,38 +192,108 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
             closing_minutes = int(close_mins.group(1))
             explicit_closing_mentioned = True
 
-    # 5. Food Name extraction
+    # 5. Food Name extraction with bidirectional phrase stripping
     food_name = ""
-    rev_name = re.search(r"([a-zA-Z0-9\s\-]+?)\s+sisa\s+\d+", text, re.IGNORECASE)
+    stop_boundary = (
+        r"(?:,|\.|\bharga\b|\brp\.?\s*\d|\b\d[\d\.,]*\s*(?:rb|ribu|k)\b|"
+        r"\bbaru\b|\bsudah\b|\bmatang\b|\bmasak\b|\bselesai\b|\bdibuat\b|\bdibikin\b|"
+        r"\btoko\b|\btutup\b|\bkemarin\b|\bsemalam\b|$)"
+    )
+    bad_tokens = {"gila", "sih", "ini", "itu", "lagi", "aja", "dong", "deh", "ya"}
+
+    def _is_valid_dish_candidate(cand: str) -> bool:
+        if not cand or len(cand) < 3 or cand.lower() in bad_tokens:
+            return False
+        if re.fullmatch(r"(?:rp\.?\s*)?[\d\.,]+\s*(?:rb|ribu|k|rupiah|idr|jam|menit)?", cand, re.IGNORECASE):
+            return False
+        return bool(re.search(r"[a-zA-Z]{3,}", cand))
+
+    rev_name = re.search(r"([a-zA-Z0-9\s\-]+?)\s+(?:sisa|tinggal)\s+\d+", text, re.IGNORECASE)
     cand_rev = _clean_extracted_food_name(rev_name.group(1)) if rev_name else ""
 
     name_match = re.search(
-        r"(?:\d+\s*(?:porsi|pcs|pack|packs|box|botol|gelas|slice|kotak|bungkus|buah|potong|cup|paket|loyang|piring|mangkok)\s+)([a-zA-Z0-9\s\-]+?)(?:,|\.|\bharga\b|\bbaru\b|\bsudah\b|\bmatang\b|\bmasak\b|\bselesai\b|\bdibuat\b|\bdibikin\b|\btoko\b|\btutup\b|$)",
+        r"(?:\d+\s*(?:porsi|pcs|pack|packs|box|botol|gelas|slice|kotak|bungkus|buah|potong|cup|paket|loyang|piring|mangkok)\s+)([a-zA-Z0-9\s\-]+?)"
+        + stop_boundary,
         text,
         re.IGNORECASE,
     )
     if name_match:
         cand_name = _clean_extracted_food_name(name_match.group(1))
-        if cand_name and len(cand_name) >= 3 and cand_name.lower() not in ("gila", "sih", "ini", "itu"):
+        if _is_valid_dish_candidate(cand_name):
             food_name = cand_name
-        elif cand_rev and len(cand_rev) >= 3:
+        elif _is_valid_dish_candidate(cand_rev):
             food_name = cand_rev
     else:
         sisa_name = re.search(
-            r"(?:sisa\s+\d+\s+)([a-zA-Z0-9\s\-]+?)(?:,|\.|\bharga\b|\bbaru\b|\bsudah\b|\bmatang\b|\bmasak\b|\bselesai\b|\bdibuat\b|\btoko\b|\btutup\b|$)",
+            r"(?:(?:sisa|ada|stok)\s+\d+\s+)([a-zA-Z0-9\s\-]+?)" + stop_boundary,
             text,
             re.IGNORECASE,
         )
         if sisa_name:
             cand_sisa = _clean_extracted_food_name(sisa_name.group(1))
-            if cand_sisa and len(cand_sisa) >= 3:
+            if _is_valid_dish_candidate(cand_sisa):
                 food_name = cand_sisa
-            elif cand_rev and len(cand_rev) >= 3:
+            elif _is_valid_dish_candidate(cand_rev):
                 food_name = cand_rev
-        elif cand_rev and len(cand_rev) >= 3:
+        elif _is_valid_dish_candidate(cand_rev):
             food_name = cand_rev
 
-    if not food_name:
+    # Bidirectional residual phrase stripping fallback when structured patterns miss
+    if not food_name or len(food_name) < 3:
+        residual = text
+        residual = re.sub(
+            r"\b(?:harga\s*(?:normal|asli|awal|jual|diskon)?\s*)?(?:rp\.?\s*[\d\.,]+\s*(?:ribu|rb|k)?|[\d\.,]+\s*(?:ribu|rb|k))\b",
+            " ",
+            residual,
+            flags=re.IGNORECASE,
+        )
+        residual = re.sub(
+            r"\b(?:toko\s+)?tutup\s*(?:jam\s*)?[\d\.,:\s]*(?:jam|menit|pagi|siang|sore|malam)?(?:\s+lagi)?\b",
+            " ",
+            residual,
+            flags=re.IGNORECASE,
+        )
+        residual = re.sub(
+            r"\b(?:baru\s+matang|selesai\s+masak|matang|masak|dibuat|dibikin|olahan|sudah)\s*(?:\d+(?:[\.,]\d+)?\s*(?:jam|menit)(?:\s*(?:yang\s+)?lalu|\s+suhu\s+ruang)?)?\b",
+            " ",
+            residual,
+            flags=re.IGNORECASE,
+        )
+        residual = re.sub(
+            r"\b\d+(?:[\.,]\d+)?\s*(?:jam|menit)\s*(?:yang\s+lalu|lalu|suhu\s+ruang|lagi)\b",
+            " ",
+            residual,
+            flags=re.IGNORECASE,
+        )
+        residual = re.sub(
+            r"\bjam\s*\d{1,2}(?:[\.:]\d{2})?\s*(?:pagi|siang|sore|malam)?\b",
+            " ",
+            residual,
+            flags=re.IGNORECASE,
+        )
+        residual = re.sub(
+            r"\b(?:ada|sisa|stok|tinggal|cuma|hanya)?\s*\d+\s*(?:porsi|pcs|pack|packs|box|botol|gelas|slice|kotak|bungkus|buah|potong|cup|paket|loyang|piring|mangkok|x)\b",
+            " ",
+            residual,
+            flags=re.IGNORECASE,
+        )
+        residual = re.sub(
+            r"\b(?:ada|sisa|stok|tinggal)\s+\d+\b",
+            " ",
+            residual,
+            flags=re.IGNORECASE,
+        )
+        residual = re.sub(
+            r"\b(?:eh|kak|min|admin|tolong|masukin|bantu|dong|deh|sih|nih|tuh|ya|yg|yang|mau|jual|cepat|harga|normal|asli|ada|sisa|stok|tinggal|suhu|ruang|kemarin|semalam|tadi|malam|lagi|rp|ini|itu)\b",
+            " ",
+            residual,
+            flags=re.IGNORECASE,
+        )
+        cand_res = _clean_extracted_food_name(re.sub(r"[,\.\(\):;/]+", " ", residual))
+        if cand_res and len(cand_res) >= 3 and not cand_res.isdigit():
+            food_name = cand_res
+
+    if not food_name or len(food_name) < 3:
         matched_item, score = vector_store.search_similar_dish(text)
         if score >= 0.85:
             c_name = matched_item["canonical_name"].lower()
@@ -234,13 +304,14 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
                     if alias.lower() in raw_lower:
                         food_name = alias.title()
                         break
-        if not food_name:
-            food_name = matched_item.get("canonical_name", "Surplus Food Item")
+                if not food_name:
+                    food_name = matched_item.get("canonical_name", "")
 
-    food_name = re.sub(r"\b(harga|normal|asli|sisa|ada)\b.*", "", food_name, flags=re.IGNORECASE).strip()
-    if not food_name or len(food_name) < 3:
-        matched_item, _ = vector_store.search_similar_dish(text)
-        food_name = matched_item.get("canonical_name", "Menu Makanan Surplus")
+    food_name = _clean_extracted_food_name(
+        re.sub(r"\b(harga|normal|asli|sisa|ada)\b.*", "", food_name, flags=re.IGNORECASE).strip()
+    )
+    if not food_name or len(food_name) < 3 or food_name.lower() in bad_tokens:
+        food_name = "Menu Surplus Harian"
 
     return {
         "food_name": food_name.title(),
