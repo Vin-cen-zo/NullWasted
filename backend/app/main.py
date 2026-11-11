@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import api_v1_router
 from app.core.ai_gateway import ai_gateway
-from app.core.config import APP_NAME, BASE_DIR, STATIC_DIR, STATIC_UPLOADS_DIR
+from app.core.config import APP_NAME, BASE_DIR, CORS_ORIGIN_REGEX, STATIC_DIR, STATIC_UPLOADS_DIR
 from app.core.database import init_db
 
 
@@ -30,7 +30,7 @@ app = FastAPI(
 # Cross-Origin Resource Sharing (CORS) Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -15,6 +15,10 @@ APP_NAME = os.getenv("APP_NAME", "NullWasted API")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./nullwasted_local.db")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
+CORS_ORIGIN_REGEX = os.getenv(
+    "CORS_ORIGIN_REGEX",
+    r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|.*\.vercel\.app)(:\d+)?$",
+)
 
 STATIC_DIR = BASE_DIR / "static"
 STATIC_UPLOADS_DIR = STATIC_DIR / "uploads"
