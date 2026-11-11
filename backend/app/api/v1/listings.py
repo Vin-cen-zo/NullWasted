@@ -4,6 +4,7 @@ import json
 import random
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlmodel import Session, select
 
 from app.core.database import get_session
@@ -612,18 +613,27 @@ def reserve_order(
 ) -> OrderTicket:
     """Reserves surplus food items atomically and issues a digital pickup pass with QR payload."""
     listing = session.get(ItemListing, payload.listing_id)
-    if not listing or not listing.is_active or listing.quantity < payload.quantity:
+    if not listing:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Stok porsi tidak mencukupi atau listing sudah habis.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Listing tidak ditemukan.",
         )
 
-    # Atomic stock decrement
-    listing.quantity -= payload.quantity
-    if listing.quantity <= 0:
-        listing.is_active = False
+    # Atomic conditional SQL decrement preventing race conditions and overselling
+    stmt = text(
+        "UPDATE item_listings "
+        "SET quantity = quantity - :qty, "
+        "    is_active = CASE WHEN quantity - :qty <= 0 THEN 0 ELSE 1 END "
+        "WHERE id = :id AND quantity >= :qty AND is_active = 1"
+    )
+    result = session.execute(stmt, {"qty": payload.quantity, "id": payload.listing_id})
+    if result.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Stok porsi tidak mencukupi atau sedang dipesan.",
+        )
 
-    session.add(listing)
+    session.refresh(listing)
 
     order_code = f"#NW-{random.randint(1000, 9999)}"
     total_price = listing.discounted_price * payload.quantity
