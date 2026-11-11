@@ -245,25 +245,61 @@ async def create_draft_listing(
     )
     catalog_items = session.exec(catalog_stmt).all()
 
-    # Search for catalog match
+    # Search for catalog match using multi-token overlap & similarity scoring
+    from difflib import SequenceMatcher
+
     matched_menu: Optional[StoreMenuItem] = None
+    best_match_score = 0.0
+    best_similarity = 0.0
     raw_lower = request.text.lower()
-    extracted_name_lower = extracted["food_name"].lower()
+    extracted_name_lower = extracted["food_name"].lower().strip()
+    stop_tokens = {
+        "dan", "dengan", "yang", "di", "ke", "dari", "ada", "sisa",
+        "porsi", "pcs", "pack", "box", "paket", "botol", "gelas",
+    }
+    raw_tokens = {t for t in re.findall(r"[a-z]{2,}", raw_lower) if t not in stop_tokens}
+    extracted_tokens = [
+        t for t in re.findall(r"[a-z]{2,}", extracted_name_lower) if t not in stop_tokens
+    ]
+    extracted_token_set = set(extracted_tokens)
 
     for item in catalog_items:
-        item_lower = item.food_name.lower()
-        if (
-            item_lower in raw_lower
-            or item_lower in extracted_name_lower
-            or extracted_name_lower in item_lower
-            or any(word in raw_lower for word in item_lower.split() if len(word) >= 4)
-        ):
-            matched_menu = item
-            break
+        item_lower = item.food_name.lower().strip()
+        item_tokens = [t for t in re.findall(r"[a-z]{2,}", item_lower) if t not in stop_tokens]
+        if not item_tokens:
+            continue
+        item_token_set = set(item_tokens)
+        primary_noun = item_tokens[0]
+        similarity = SequenceMatcher(None, extracted_name_lower, item_lower).ratio()
+
+        has_primary_noun = (
+            primary_noun in extracted_token_set or primary_noun in raw_tokens
+        )
+        overlap = item_token_set & (extracted_token_set or raw_tokens)
+        is_exact_or_high_sim = item_lower == extracted_name_lower or similarity >= 0.80
+        is_full_noun_subset = (
+            has_primary_noun
+            and bool(extracted_token_set)
+            and extracted_token_set.issubset(item_token_set)
+        )
+        is_multi_token_confident = (
+            has_primary_noun
+            and len(overlap) >= 2
+            and (len(overlap) / len(item_token_set)) >= 0.5
+        )
+        is_full_catalog_phrase = item_lower in raw_lower or item_lower in extracted_name_lower
+
+        if is_exact_or_high_sim or is_full_noun_subset or is_multi_token_confident or is_full_catalog_phrase:
+            candidate_score = similarity + (1.0 if is_exact_or_high_sim else 0.25 * len(overlap))
+            if candidate_score > best_match_score:
+                best_match_score = candidate_score
+                best_similarity = similarity
+                matched_menu = item
 
     # Context-Aware Slot Resolution
     if matched_menu:
-        food_name = matched_menu.food_name
+        # Preserve merchant's custom food_name if similarity < 0.80 so distinct variants aren't overwritten
+        food_name = matched_menu.food_name if best_similarity >= 0.80 else extracted["food_name"]
         image_url = matched_menu.image_url
         # Price resolution
         if not extracted.get("price_mentioned", False):
