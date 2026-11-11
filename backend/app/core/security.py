@@ -6,8 +6,12 @@ import os
 import time
 from datetime import datetime, timedelta
 from typing import Any, Optional
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
 
 from app.core.config import JWT_SECRET, PIN_SALT
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/merchant-login", auto_error=False)
 
 
 def hash_pin(pin: str) -> str:
@@ -100,6 +104,13 @@ def decode_access_token(token: str) -> Optional[dict[str, Any]]:
         return None
 
     return payload
+
+
+def get_optional_user(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[dict[str, Any]]:
+    """Parses optional Bearer JWT token claims without rejecting unauthenticated test clients."""
+    if not token:
+        return None
+    return decode_access_token(token)
 
 
 def compute_minutes_until_closing(

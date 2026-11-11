@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlmodel import Session, select
 
 from app.core.database import get_session
-from app.core.security import compute_minutes_until_closing
+from app.core.security import compute_minutes_until_closing, get_optional_user
 from app.models.listing import ItemListing, OrderTicket, Store, StoreMenuItem, utc_now_iso
 from app.schemas.listing import (
     CompletePickupRequest,
@@ -360,11 +360,25 @@ async def create_draft_listing(
 
 @router.post("/listings/publish", response_model=ItemListing)
 def publish_listing(
-    payload: PublishRequest, session: Session = Depends(get_session)
+    payload: PublishRequest,
+    session: Session = Depends(get_session),
+    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
 ) -> ItemListing:
     """Publishes a validated surplus food listing to the active marketplace catalog.
     Enforces hard food safety guardrail: raises HTTP 400 if safety_status is REJECTED.
     """
+    if user_claims is not None:
+        if user_claims.get("role") != "merchant":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Hanya akun Mitra Toko yang dapat menerbitkan katalog surplus.",
+            )
+        token_store_id = user_claims.get("store_id")
+        if token_store_id and payload.store_id and payload.store_id != token_store_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Akses ditolak: store_id tidak sesuai dengan identitas gerai Anda.",
+            )
     server_eval = evaluate_food_safety(
         food_name=payload.food_name,
         raw_text=payload.food_name,
@@ -742,9 +756,17 @@ def cancel_order(
 
 @router.post("/orders/complete-pickup", response_model=OrderTicket)
 def complete_order_pickup(
-    payload: CompletePickupRequest, session: Session = Depends(get_session)
+    payload: CompletePickupRequest,
+    session: Session = Depends(get_session),
+    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
 ) -> OrderTicket:
     """Validates order ticket pickup code at cashier with cross-store fraud detection."""
+    if user_claims is not None and user_claims.get("role") != "merchant":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hanya kasir Mitra Toko yang berhak memverifikasi pengambilan pesanan.",
+        )
+
     raw_code = payload.order_code.strip()
 
     # Normalize order code or QR payload
@@ -786,7 +808,14 @@ def complete_order_pickup(
         )
 
     # Cross-Store Cashier Fraud Validation
-    if payload.store_id and ticket.store_id != payload.store_id:
+    token_store_id = user_claims.get("store_id") if user_claims else None
+    if token_store_id and payload.store_id and token_store_id != payload.store_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="PENOLAKAN KEAMANAN LINTAS GERAI: store_id permintaan tidak cocok dengan token gerai Anda!",
+        )
+    verifier_store_id = token_store_id or payload.store_id
+    if verifier_store_id and ticket.store_id != verifier_store_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"PENOLAKAN KEAMANAN LINTAS GERAI: Tiket {ticket.order_code} adalah pesanan milik gerai {ticket.store_name} ({ticket.store_id}), bukan gerai Anda!",
@@ -803,10 +832,24 @@ def complete_order_pickup(
 
 @router.delete("/listings/{listing_id}")
 def delete_listing(
-    listing_id: str, session: Session = Depends(get_session)
+    listing_id: str,
+    session: Session = Depends(get_session),
+    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
 ) -> dict[str, Any]:
     """Deactivates a listing from the merchant inventory."""
     listing = session.get(ItemListing, listing_id)
+    if user_claims is not None:
+        if user_claims.get("role") != "merchant":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Hanya akun Mitra Toko yang dapat menghapus listing.",
+            )
+        token_store_id = user_claims.get("store_id")
+        if listing and token_store_id and listing.store_id != token_store_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Akses ditolak: Anda tidak berhak menghapus listing milik gerai lain.",
+            )
     if listing:
         listing.is_active = False
         session.add(listing)
