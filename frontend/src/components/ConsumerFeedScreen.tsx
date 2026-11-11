@@ -81,9 +81,10 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
     }
   });
 
-  // Dynamic Geolocation with FTUI fallback
+  // Dynamic Geolocation toggle (Live Device GPS vs Campus Demo Anchor)
   const [userCoords, setUserCoords] = useState<[number, number]>(DEFAULT_FTUI_COORDS);
   const [gpsStatus, setGpsStatus] = useState<"FTUI_ANCHOR" | "LIVE_GPS">("FTUI_ANCHOR");
+  const [gpsNotice, setGpsNotice] = useState<string | null>(null);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
 
@@ -100,6 +101,12 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
     });
   };
 
+  const switchToFtuiDemo = () => {
+    setUserCoords(DEFAULT_FTUI_COORDS);
+    setGpsStatus("FTUI_ANCHOR");
+    setGpsNotice(null);
+  };
+
   const requestLiveGps = () => {
     if (!navigator.geolocation) {
       alert("Browser Anda tidak mendukung Geolocation API.");
@@ -107,42 +114,50 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
     }
 
     setIsGpsLoading(true);
+    setGpsNotice(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setIsGpsLoading(false);
         const deviceLat = pos.coords.latitude;
         const deviceLng = pos.coords.longitude;
-        const distFromFtui = calculateDistanceMeters(deviceLat, deviceLng, DEFAULT_FTUI_COORDS[0], DEFAULT_FTUI_COORDS[1]);
+        const distFromFtui = calculateDistanceMeters(
+          deviceLat,
+          deviceLng,
+          DEFAULT_FTUI_COORDS[0],
+          DEFAULT_FTUI_COORDS[1]
+        );
 
-        if (distFromFtui <= 3000) {
-          setUserCoords([deviceLat, deviceLng]);
-          setGpsStatus("LIVE_GPS");
-        } else {
-          // Beyond UI Depok perimeter: maintain FTUI anchor so demo filters remain responsive
-          setUserCoords(DEFAULT_FTUI_COORDS);
-          setGpsStatus("FTUI_ANCHOR");
+        setUserCoords([deviceLat, deviceLng]);
+        setGpsStatus("LIVE_GPS");
+        if (distFromFtui > 3000) {
+          setGpsNotice("Lokasi GPS Anda > 3km dari kampus UI Depok. Gunakan Mode Demo FTUI untuk simulasi sekitar kampus.");
         }
       },
       () => {
         setIsGpsLoading(false);
         setUserCoords(DEFAULT_FTUI_COORDS);
         setGpsStatus("FTUI_ANCHOR");
+        setGpsNotice("Izin GPS ditolak atau gagal — menggunakan Mode Demo FTUI.");
       },
       { timeout: 6000 }
     );
   };
 
   const filteredListings = listings.filter((item) => {
-    // 1. Category Filter
+    // 1. Category Filter (isolate bundles strictly from regular food tabs)
     if (selectedCategory === "BUNDLE") {
       if (!item.is_bundle) return false;
     } else if (selectedCategory === "BAKERY") {
-      if (item.category !== "LOW_PERISHABILITY") return false;
+      if (item.category !== "LOW_PERISHABILITY" || item.is_bundle) return false;
     } else if (selectedCategory === "HEAVY") {
-      if (item.category === "LOW_PERISHABILITY" || item.is_bundle) return false;
+      if (item.category === "LOW_PERISHABILITY" || item.category === "BEVERAGES" || item.is_bundle) return false;
     } else if (selectedCategory === "BEVERAGE") {
-      const name = item.food_name.toLowerCase();
-      if (!name.includes("kopi") && !name.includes("susu") && !name.includes("teh") && !name.includes("botol") && !name.includes("jus")) return false;
+      if (item.is_bundle) return false;
+      const isBeverageCategory = item.category === "BEVERAGES";
+      const isBeverageName = /\b(kopi|susu|teh|jus|cendol|dawet|wedang|sirup|boba|latte|matcha|milk|botol)\b/i.test(
+        item.food_name
+      );
+      if (!isBeverageCategory && !isBeverageName) return false;
     }
 
     // 2. Distance Radius Filter (Dynamic Haversine from userCoords)
@@ -178,25 +193,40 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   return (
     <div className="flex-1 flex flex-col space-y-4">
       {/* Header Greeting, GPS Anchor Toggle & Open Map CTA */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
           <h2 className="text-sm font-bold text-[#1F1D1A]">Selamat Datang, {customerName}</h2>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <button
-              type="button"
-              onClick={requestLiveGps}
-              disabled={isGpsLoading}
-              className={`text-[11px] font-semibold flex items-center gap-1 px-2 py-0.5 rounded-full border transition cursor-pointer ${
-                gpsStatus === "LIVE_GPS"
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                  : "bg-stone-100 text-stone-700 border-stone-300 hover:bg-stone-200"
-              }`}
-              title="Ketuk untuk perbarui lokasi GPS perangkat Anda"
-            >
-              <Crosshair className={`w-3 h-3 ${isGpsLoading ? "animate-spin text-emerald-600" : "text-emerald-700"}`} />
-              <span>{gpsStatus === "LIVE_GPS" ? "GPS Akurat Aktif" : "Anchor Kantin FTUI"}</span>
-            </button>
-            <span className="text-[10px] text-stone-400">· Depok Area</span>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+            <div className="inline-flex items-center p-0.5 rounded-full bg-stone-100 border border-stone-200">
+              <button
+                type="button"
+                onClick={switchToFtuiDemo}
+                className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full transition cursor-pointer ${
+                  gpsStatus === "FTUI_ANCHOR"
+                    ? "bg-white text-emerald-800 shadow-xs border border-emerald-200"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+              >
+                Mode Demo FTUI
+              </button>
+              <button
+                type="button"
+                onClick={requestLiveGps}
+                disabled={isGpsLoading}
+                className={`text-[10px] font-semibold flex items-center gap-1 px-2.5 py-0.5 rounded-full transition cursor-pointer ${
+                  gpsStatus === "LIVE_GPS"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+                title="Gunakan koordinat GPS asli perangkat Anda"
+              >
+                <Crosshair className={`w-3 h-3 ${isGpsLoading ? "animate-spin" : ""}`} />
+                <span>{isGpsLoading ? "Mencari GPS..." : "Gunakan Lokasi Saya"}</span>
+              </button>
+            </div>
+            {gpsNotice && (
+              <span className="text-[10px] font-medium text-amber-700">{gpsNotice}</span>
+            )}
           </div>
         </div>
         <button
