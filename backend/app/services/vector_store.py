@@ -140,6 +140,10 @@ class LocalVectorStore:
         self._query_cache: dict[str, np.ndarray] = {}
         self._load_knowledge_base()
 
+    def embed_text(self, text: str) -> Optional[list[float]]:
+        """Synchronously computes a 3072-dim embedding vector using gemini-embedding-001."""
+        return ai_gateway.embed_text(text, model=GEMINI_EMBEDDING_MODEL)
+
     def _build_item_corpus_text(self, item: dict[str, Any]) -> str:
         aliases_str = ", ".join(item.get("aliases", []))
         ingredients_str = ", ".join(item.get("ingredients", []))

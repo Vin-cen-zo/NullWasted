@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import re
@@ -257,7 +258,7 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
 
 async def extract_listing_entities(text: str, audio_base64: Optional[str] = None) -> dict[str, Any]:
     """Extracts food listing entities using live Gemini API (gemini-3.5-flash-lite) with deterministic fallback."""
-    local_info = local_rule_based_extract(text)
+    local_info = await asyncio.to_thread(local_rule_based_extract, text)
 
     prompt = f"""Anda adalah sistem AI ekstraksi entitas katalog surplus food NullWasted di Indonesia.
 Tugas Anda adalah mengekstrak informasi dari kalimat staf toko kuliner berikut ke dalam objek JSON murni:

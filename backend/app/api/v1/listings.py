@@ -1,3 +1,4 @@
+import asyncio
 import json
 import random
 from typing import Any, List, Optional
@@ -309,7 +310,8 @@ async def create_draft_listing(
         minutes_until_closing = compute_minutes_until_closing(store_closing)
 
     # Food safety guardrail evaluation
-    safety = evaluate_food_safety(
+    safety = await asyncio.to_thread(
+        evaluate_food_safety,
         food_name=food_name,
         raw_text=request.text,
         hours_since_cooked=hours_since_cooked,
