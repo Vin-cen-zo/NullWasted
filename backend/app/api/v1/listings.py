@@ -362,7 +362,11 @@ def publish_listing(
     """Publishes a validated surplus food listing to the active marketplace catalog.
     Enforces hard food safety guardrail: raises HTTP 400 if safety_status is REJECTED.
     """
-    server_eval = evaluate_food_safety(payload.food_name, payload.hours_since_cooked)
+    server_eval = evaluate_food_safety(
+        food_name=payload.food_name,
+        raw_text=payload.food_name,
+        hours_since_cooked=payload.hours_since_cooked,
+    )
     if (
         payload.safety_status == "REJECTED"
         or payload.hours_since_cooked > payload.bpom_max_hours
