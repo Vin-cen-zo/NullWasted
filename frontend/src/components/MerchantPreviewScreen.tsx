@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { DraftResponse, PublishRequest, getFriendlyCategory, humanizeBpomText, resolveImageUrl } from "../types/listing";
 import {
   ShieldCheck,
@@ -38,6 +38,50 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   const [discountPercent, setDiscountPercent] = useState<number>(
     draft.recommended_discount_percent || 50
   );
+  const [hasCustomDiscount, setHasCustomDiscount] = useState<boolean>(false);
+
+  // Live countdown ticker state (in seconds)
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(
+    Math.max(0, (draft.minutes_until_closing || 0) * 60)
+  );
+
+  useEffect(() => {
+    setRemainingSeconds(Math.max(0, (draft.minutes_until_closing || 0) * 60));
+  }, [draft.minutes_until_closing]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRemainingSeconds((prev) => (prev <= 0 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const remainingMinutes = Math.ceil(remainingSeconds / 60);
+
+  const computeDynamicDiscount = (minutesLeft: number) => {
+    if (minutesLeft <= 30) return 70;
+    if (minutesLeft >= 160) return 50;
+    const raw = 0.5 + 0.2 * (1 - minutesLeft / 160);
+    return Math.max(50, Math.min(70, Math.round(raw * 100)));
+  };
+
+  const liveRecommendedDiscount = computeDynamicDiscount(remainingMinutes);
+
+  useEffect(() => {
+    if (!hasCustomDiscount) {
+      setDiscountPercent(liveRecommendedDiscount);
+    }
+  }, [liveRecommendedDiscount, hasCustomDiscount]);
+
+  const formatCountdown = (totalSecs: number) => {
+    if (totalSecs <= 0) return "CLOSED (Toko Tutup)";
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    if (hrs > 0) return `${hrs}j ${pad(mins)}m ${pad(secs)}d (${Math.ceil(totalSecs / 60)} menit)`;
+    return `${mins} menit ${pad(secs)} detik`;
+  };
 
   // Catalog saving state
   const [isSavingToCatalog, setIsSavingToCatalog] = useState(false);
@@ -83,7 +127,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       discounted_price: calculatedDiscountedPrice,
       hours_since_cooked: draft.hours_since_cooked,
       bpom_max_hours: draft.bpom_max_hours,
-      minutes_until_closing: draft.minutes_until_closing,
+      minutes_until_closing: remainingMinutes,
       safety_status: draft.safety_status,
       safety_reason: draft.safety_reason,
       hazard_description: draft.hazard_description,
@@ -342,7 +386,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
           <div className="flex items-center gap-2 text-[11px] text-[#6B655B] pt-2 border-t border-stone-100 mt-2">
             <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span>
-              Sisa waktu tutup toko: <strong>{draft.minutes_until_closing} menit</strong>
+              Sisa waktu tutup toko: <strong>{formatCountdown(remainingSeconds)}</strong>
             </span>
           </div>
         </div>
@@ -367,12 +411,15 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                 max={70}
                 step={1}
                 value={discountPercent}
-                onChange={(e) => setDiscountPercent(Number(e.target.value))}
+                onChange={(e) => {
+                  setDiscountPercent(Number(e.target.value));
+                  setHasCustomDiscount(true);
+                }}
                 className="w-full accent-emerald-600 cursor-pointer"
               />
               <div className="flex justify-between text-[10px] text-[#6B655B]">
                 <span>50% (Awal Window)</span>
-                <span>Rekomendasi AI: {draft.recommended_discount_percent}%</span>
+                <span>Rekomendasi AI: {liveRecommendedDiscount}%</span>
                 <span>70% (Menjelang Tutup)</span>
               </div>
             </div>
