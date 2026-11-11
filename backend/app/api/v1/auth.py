@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from app.core.database import get_session
-from app.core.security import create_access_token, hash_pin, verify_pin
+from app.core.security import create_access_token, hash_pin_pbkdf2, verify_pin
 from app.models.listing import Store, User
 from app.schemas.listing import (
     AuthResponse,
@@ -67,7 +67,7 @@ def merchant_register(
     new_store = Store(
         store_id=candidate_id,
         name=name,
-        pin_hash=hash_pin(pin),
+        pin_hash=hash_pin_pbkdf2(pin),
         location_name=location_name,
         closing_time=closing_time,
         latitude=payload.latitude,

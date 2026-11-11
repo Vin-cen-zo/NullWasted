@@ -19,6 +19,8 @@ CORS_ORIGIN_REGEX = os.getenv(
     "CORS_ORIGIN_REGEX",
     r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|.*\.vercel\.app)(:\d+)?$",
 )
+PIN_SALT = os.getenv("PIN_SALT", "nullwasted-v1-salt")
+JWT_SECRET = os.getenv("JWT_SECRET", "nullwasted-jwt-secret-key-2026")
 
 STATIC_DIR = BASE_DIR / "static"
 STATIC_UPLOADS_DIR = STATIC_DIR / "uploads"

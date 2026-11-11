@@ -2,22 +2,39 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 import time
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
-PIN_SALT = "nullwasted-v1-salt"
-JWT_SECRET = "nullwasted-jwt-secret-key-2026"
+from app.core.config import JWT_SECRET, PIN_SALT
 
 
 def hash_pin(pin: str) -> str:
-    """Hashes a plaintext PIN using SHA-256 with a fixed salt."""
+    """Legacy fixed-salt SHA-256 PIN hashing preserved for backward compatibility."""
     salted = f"{pin}:{PIN_SALT}".encode("utf-8")
     return hashlib.sha256(salted).hexdigest()
 
 
+def hash_pin_pbkdf2(pin: str) -> str:
+    """Hashes a plaintext PIN using salted PBKDF2-HMAC-SHA256 (100,000 iterations)."""
+    salt = os.urandom(16)
+    dk = hashlib.pbkdf2_hmac("sha256", pin.encode("utf-8"), salt, 100_000)
+    return f"pbkdf2_sha256${salt.hex()}${dk.hex()}"
+
+
 def verify_pin(plain_pin: str, pin_hash: str) -> bool:
-    """Verifies a plaintext PIN against a SHA-256 hash securely."""
+    """Verifies a plaintext PIN against PBKDF2-HMAC-SHA256 first, with fallback to legacy SHA-256."""
+    if pin_hash.startswith("pbkdf2_sha256$"):
+        try:
+            _, salt_hex, hash_hex = pin_hash.split("$", 2)
+            salt = bytes.fromhex(salt_hex)
+            expected = bytes.fromhex(hash_hex)
+            computed = hashlib.pbkdf2_hmac("sha256", plain_pin.encode("utf-8"), salt, 100_000)
+            return hmac.compare_digest(computed, expected)
+        except Exception:
+            return False
+
     computed = hash_pin(plain_pin)
     return hmac.compare_digest(computed, pin_hash)
 
