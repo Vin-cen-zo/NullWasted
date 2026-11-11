@@ -3,7 +3,7 @@ import hashlib
 import hmac
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 PIN_SALT = "nullwasted-v1-salt"
@@ -85,10 +85,15 @@ def decode_access_token(token: str) -> Optional[dict[str, Any]]:
     return payload
 
 
-def compute_minutes_until_closing(closing_time_str: str, fallback_minutes: int = 90) -> int:
+def compute_minutes_until_closing(
+    closing_time_str: str,
+    open_time_str: Optional[str] = None,
+    fallback_minutes: int = 90,
+) -> int:
     """Computes real minutes remaining until store closing time ('HH:MM').
-    If outside operational hours (delta <= 5 or delta > 300), returns a deterministic active
-    simulation value (between 45 and 120 minutes) based on closing time to ensure tests and UI work 24/7.
+    Accurately calculates true wall-clock delta without artificial simulation branches.
+    Handles midnight-crossing rollover: if closing time is past midnight (e.g. close 01:00 vs open 17:00),
+    advances closing date by 1 calendar day. If closing time has passed (delta <= 0), returns 0.
     """
     try:
         parts = closing_time_str.strip().split(":")
@@ -97,14 +102,21 @@ def compute_minutes_until_closing(closing_time_str: str, fallback_minutes: int =
 
         now = datetime.now()
         closing_dt = now.replace(hour=close_h, minute=close_m, second=0, microsecond=0)
+
+        if open_time_str:
+            open_parts = open_time_str.strip().split(":")
+            open_h = int(open_parts[0])
+            if close_h < open_h and now.hour >= open_h:
+                closing_dt += timedelta(days=1)
+        elif closing_dt < now and now.hour >= 18 and close_h < 6:
+            # Late-night crossing past midnight without explicit open_time
+            closing_dt += timedelta(days=1)
+
         delta = (closing_dt - now).total_seconds() / 60.0
+        if delta <= 0:
+            return 0
 
-        if 5 < delta <= 300:
-            return int(delta)
-
-        # Deterministic simulation fallback for off-hours demo & tests (45 to 120 minutes)
-        simulated = 45 + ((close_h * 60 + close_m) % 76)
-        return max(45, min(120, simulated))
+        return int(delta)
     except Exception:
-        return max(30, fallback_minutes)
+        return max(0, fallback_minutes)
 

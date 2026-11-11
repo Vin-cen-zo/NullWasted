@@ -50,7 +50,7 @@ class PublishRequest(BaseModel):
     discounted_price: Optional[int] = None
     hours_since_cooked: float = Field(ge=0.0)
     bpom_max_hours: float = Field(gt=0.0)
-    minutes_until_closing: int = Field(gt=0)
+    minutes_until_closing: int = Field(ge=0)
     safety_status: str
     safety_reason: str
     hazard_description: str
