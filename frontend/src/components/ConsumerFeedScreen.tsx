@@ -71,7 +71,15 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   const [selectedRadius, setSelectedRadius] = useState<"ALL" | "500" | "1500">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [isMapOpen, setIsMapOpen] = useState(false);
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem("nullwasted_favorite_listings");
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Dynamic Geolocation with FTUI fallback
   const [userCoords, setUserCoords] = useState<[number, number]>(DEFAULT_FTUI_COORDS);
@@ -81,9 +89,15 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
 
   const toggleBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setBookmarkedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setBookmarkedIds((prev) => {
+      const updated = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      try {
+        localStorage.setItem("nullwasted_favorite_listings", JSON.stringify(updated));
+      } catch {
+        // ignore storage failure
+      }
+      return updated;
+    });
   };
 
   const requestLiveGps = () => {
@@ -147,6 +161,18 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
     }
 
     return true;
+  });
+
+  const sortedListings = [...filteredListings].sort((a, b) => {
+    const aFav = bookmarkedIds.includes(a.id) ? 1 : 0;
+    const bFav = bookmarkedIds.includes(b.id) ? 1 : 0;
+    if (aFav !== bFav) return bFav - aFav;
+
+    const [aLat, aLng] = resolveItemCoords(a);
+    const [bLat, bLng] = resolveItemCoords(b);
+    const distA = calculateDistanceMeters(aLat, aLng, userCoords[0], userCoords[1]);
+    const distB = calculateDistanceMeters(bLat, bLng, userCoords[0], userCoords[1]);
+    return distA - distB;
   });
 
   return (
@@ -340,7 +366,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
-          {filteredListings.map((item) => {
+          {sortedListings.map((item) => {
             const [itemLat, itemLng] = resolveItemCoords(item);
             const distM = calculateDistanceMeters(itemLat, itemLng, userCoords[0], userCoords[1]);
             const distLabel = distM < 1000 ? `${distM}m away` : `${(distM / 1000).toFixed(1)}km away`;
@@ -390,7 +416,9 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
                     type="button"
                     onClick={(e) => toggleBookmark(item.id, e)}
                     aria-label="Bookmark store"
-                    className="p-1 rounded-lg active:scale-95 transition-colors shrink-0"
+                    aria-pressed={isBookmarked}
+                    title={isBookmarked ? "Hapus dari favorit" : "Simpan ke favorit"}
+                    className="p-1 rounded-lg active:scale-95 transition-colors shrink-0 cursor-pointer"
                   >
                     <Heart
                       className={`w-4 h-4 transition-colors ${
