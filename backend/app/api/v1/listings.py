@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta, timezone
 import json
 import random
 from typing import Any, List, Optional
@@ -389,6 +390,26 @@ def publish_listing(
     if payload.is_bundle and not image_url:
         image_url = "/assets/foods/mystery_bag.jpg"
 
+    # Dual-condition expiry: min(cooked_time + bpom_max_hours, closing_datetime)
+    now_utc = datetime.now(timezone.utc)
+    now_local = datetime.now().astimezone()
+    remaining_hours = max(0.0, float(payload.bpom_max_hours) - float(payload.hours_since_cooked))
+    food_expiry_dt = now_utc + timedelta(hours=remaining_hours)
+
+    parts = payload.closing_time.strip().split(":")
+    close_h = int(parts[0])
+    close_m = int(parts[1]) if len(parts) > 1 else 0
+    closing_local = now_local.replace(hour=close_h, minute=close_m, second=0, microsecond=0)
+    if closing_local < now_local and now_local.hour >= 18 and close_h < 6:
+        closing_local += timedelta(days=1)
+    elif closing_local < now_local and (now_local - closing_local).total_seconds() > 12 * 3600:
+        closing_local += timedelta(days=1)
+    elif closing_local < now_local and payload.minutes_until_closing > 0:
+        closing_local = now_local + timedelta(minutes=payload.minutes_until_closing)
+
+    closing_dt = closing_local.astimezone(timezone.utc)
+    expires_at = min(food_expiry_dt, closing_dt)
+
     listing = ItemListing(
         store_id=payload.store_id,
         store_name=payload.store_name,
@@ -417,6 +438,7 @@ def publish_listing(
         similarity_score=payload.similarity_score,
         portion_size=payload.portion_size or "Reguler",
         image_url=image_url,
+        expires_at=expires_at,
         is_active=True,
     )
 
@@ -514,6 +536,13 @@ def create_smart_bundle(
         session.add(item)
 
     base = eligible_items[0]
+    now = datetime.now(timezone.utc)
+    remaining_bundle_hours = max(0.0, float(bundle_bpom_max) - float(bundle_hours_cooked))
+    bundle_expiry_dt = now + timedelta(hours=remaining_bundle_hours)
+    bundle_closing_minutes = min(item.minutes_until_closing for item in eligible_items)
+    bundle_closing_dt = now + timedelta(minutes=max(1, bundle_closing_minutes))
+    bundle_expires_at = min(bundle_expiry_dt, bundle_closing_dt)
+
     bundle_listing = ItemListing(
         store_id=target_store_id,
         store_name=base.store_name,
@@ -534,13 +563,14 @@ def create_smart_bundle(
         discount_percent=clamped_discount,
         hours_since_cooked=bundle_hours_cooked,
         bpom_max_hours=bundle_bpom_max,
-        minutes_until_closing=min(item.minutes_until_closing for item in eligible_items),
+        minutes_until_closing=bundle_closing_minutes,
         safety_status="SAFE",
         safety_reason=f"Mystery bag menggabungkan {len(eligible_items)} menu dengan batas konsumsi terketat {bundle_bpom_max} jam.",
         hazard_description="Paket makanan kombinasi tersertifikasi aman mikrobiologis PerBPOM No. 16/2019.",
         regulation_ref="PerBPOM No. 16/2019 Rekomendasi Bundling",
         similarity_score=0.95,
         image_url="/assets/foods/mystery_bag.jpg",
+        expires_at=bundle_expires_at,
         is_active=True,
     )
 
@@ -558,10 +588,15 @@ def create_smart_bundle(
 def get_active_listings(
     store_id: Optional[str] = None, session: Session = Depends(get_session)
 ) -> List[ItemListing]:
-    """Retrieves all active surplus food listings with quantity > 0 sorted by latest first."""
+    """Retrieves all active surplus food listings with quantity > 0 and unexpired."""
+    now = datetime.now(timezone.utc)
     statement = (
         select(ItemListing)
-        .where(ItemListing.is_active == True, ItemListing.quantity > 0)
+        .where(
+            ItemListing.is_active == True,
+            ItemListing.quantity > 0,
+            (ItemListing.expires_at == None) | (ItemListing.expires_at > now),
+        )
     )
     if store_id:
         statement = statement.where(ItemListing.store_id == store_id)
@@ -680,7 +715,13 @@ def cancel_order(
     listing = session.get(ItemListing, ticket.listing_id)
     if listing:
         listing.quantity += ticket.quantity
-        listing.is_active = True
+        now = datetime.now(timezone.utc)
+        if listing.expires_at is None:
+            listing.is_active = True
+        else:
+            exp_dt = listing.expires_at if listing.expires_at.tzinfo else listing.expires_at.replace(tzinfo=timezone.utc)
+            if now < exp_dt:
+                listing.is_active = True
         session.add(listing)
 
     session.commit()
