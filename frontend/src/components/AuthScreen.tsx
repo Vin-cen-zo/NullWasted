@@ -32,6 +32,12 @@ export interface SavedMerchantAccount {
   lastLoginAt: string;
 }
 
+export interface SavedConsumerAccount {
+  customerName: string;
+  customerPhone: string;
+  lastLoginAt: string;
+}
+
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [role, setRole] = useState<"merchant" | "consumer">("merchant");
   const [merchantTab, setMerchantTab] = useState<"login" | "register">("login");
@@ -71,6 +77,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     locationName: string;
     session: UserSession;
   } | null>(null);
+
+  // Saved Consumer Accounts in localStorage
+  const [savedConsumers, setSavedConsumers] = useState<SavedConsumerAccount[]>(() => {
+    try {
+      const raw = localStorage.getItem("nullwasted_saved_consumer");
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+      return parsed?.customerPhone ? [parsed] : [];
+    } catch {
+      return [];
+    }
+  });
+  const [rememberConsumer, setRememberConsumer] = useState<boolean>(true);
 
   // Consumer Login State
   const [customerPhone, setCustomerPhone] = useState("");
@@ -243,6 +263,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     }
   };
 
+  const saveConsumerToStorage = (account: SavedConsumerAccount) => {
+    try {
+      const filtered = savedConsumers.filter((c) => c.customerPhone !== account.customerPhone);
+      const updated = [account, ...filtered].slice(0, 5);
+      setSavedConsumers(updated);
+      localStorage.setItem("nullwasted_saved_consumer", JSON.stringify(updated));
+    } catch {
+      // ignore storage failure
+    }
+  };
+
+  const handleSelectQuickConsumer = (item: SavedConsumerAccount) => {
+    setCustomerPhone(item.customerPhone);
+    setConsumerError("");
+  };
+
   // Consumer Handlers
   const handleConsumerLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -255,12 +291,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       setIsSubmittingConsumer(true);
       setConsumerError("");
       const auth = await loginConsumer(customerPhone.trim());
+      const resolvedName = auth.customer_name || "Konsumen NullWasted";
+      const resolvedPhone = auth.customer_phone || customerPhone.trim();
+
+      if (rememberConsumer) {
+        saveConsumerToStorage({
+          customerName: resolvedName,
+          customerPhone: resolvedPhone,
+          lastLoginAt: new Date().toISOString(),
+        });
+      }
+
       onLogin({
         token: auth.token,
         role: "consumer",
         userId: auth.user_id,
-        customerName: auth.customer_name || "Konsumen NullWasted",
-        customerPhone: auth.customer_phone || customerPhone.trim(),
+        customerName: resolvedName,
+        customerPhone: resolvedPhone,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal masuk sebagai konsumen.";
@@ -289,12 +336,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         phone: regCustomerPhone.trim(),
         address: regCustomerAddress.trim() || "Kawasan Kampus UI Depok",
       });
+      const resolvedName = auth.customer_name || regCustomerName.trim();
+      const resolvedPhone = auth.customer_phone || regCustomerPhone.trim();
+
+      saveConsumerToStorage({
+        customerName: resolvedName,
+        customerPhone: resolvedPhone,
+        lastLoginAt: new Date().toISOString(),
+      });
+
       onLogin({
         token: auth.token,
         role: "consumer",
         userId: auth.user_id,
-        customerName: auth.customer_name || regCustomerName.trim(),
-        customerPhone: auth.customer_phone || regCustomerPhone.trim(),
+        customerName: resolvedName,
+        customerPhone: resolvedPhone,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal mendaftarkan akun konsumen.";
@@ -684,6 +740,31 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             {consumerTab === "login" ? (
               /* Consumer Login Form */
               <form onSubmit={handleConsumerLogin} className="space-y-3">
+                {/* Quick Consumer Account Selector if available */}
+                {savedConsumers.length > 0 && (
+                  <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1.5">
+                      <Sparkles className="w-3 h-3 text-emerald-600" />
+                      <span>Pilih Cepat Akun Anda</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {savedConsumers.map((item) => (
+                        <button
+                          key={item.customerPhone}
+                          type="button"
+                          onClick={() => handleSelectQuickConsumer(item)}
+                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-100 border border-emerald-300 text-[11px] font-medium text-stone-800 transition-colors flex items-center gap-1 shadow-sm cursor-pointer"
+                        >
+                          <span className="font-bold text-emerald-700 truncate max-w-[110px]">
+                            {item.customerName}
+                          </span>
+                          <span className="font-mono text-stone-600">· {item.customerPhone}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Nomor WhatsApp Terdaftar</label>
                   <div className="relative">
@@ -698,6 +779,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                       className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                     />
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="rememberConsumer"
+                    checked={rememberConsumer}
+                    onChange={(e) => setRememberConsumer(e.target.checked)}
+                    className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="rememberConsumer" className="text-xs text-stone-600 select-none cursor-pointer">
+                    Ingat Nomor di Perangkat Ini
+                  </label>
                 </div>
 
                 {consumerError && (
