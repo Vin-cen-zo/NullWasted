@@ -46,6 +46,8 @@ def init_db() -> None:
                         conn.execute(text("ALTER TABLE item_listings ADD COLUMN portion_size TEXT DEFAULT 'Reguler'"))
                     if "image_url" not in item_cols:
                         conn.execute(text("ALTER TABLE item_listings ADD COLUMN image_url TEXT DEFAULT NULL"))
+                    if "expires_at" not in item_cols:
+                        conn.execute(text("ALTER TABLE item_listings ADD COLUMN expires_at DATETIME DEFAULT NULL"))
 
                 # 2. store_menu_items migrations
                 menu_cols = [c[1] for c in conn.execute(text("PRAGMA table_info(store_menu_items)")).fetchall()]

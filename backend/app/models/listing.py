@@ -78,7 +78,7 @@ class ItemListing(SQLModel, table=True):
     discount_percent: int = Field(ge=50, le=70)
     hours_since_cooked: float = Field(ge=0.0)
     bpom_max_hours: float = Field(gt=0.0)
-    minutes_until_closing: int = Field(gt=0)
+    minutes_until_closing: int = Field(ge=0)
     safety_status: str  # SAFE | REJECTED
     safety_reason: str
     hazard_description: str
@@ -87,6 +87,7 @@ class ItemListing(SQLModel, table=True):
     portion_size: str = Field(default="Reguler")
     image_url: Optional[str] = Field(default=None)
     is_active: bool = Field(default=True, index=True)
+    expires_at: Optional[datetime] = Field(default=None, index=True)
     created_at: str = Field(default_factory=utc_now_iso)
 
 
