@@ -12,6 +12,7 @@ import {
   MapPin,
   Utensils,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import {
   loginMerchant,
@@ -24,10 +25,28 @@ interface AuthScreenProps {
   onLogin: (session: UserSession) => void;
 }
 
+export interface SavedMerchantAccount {
+  storeId: string;
+  storeName: string;
+  pin?: string;
+  lastLoginAt: string;
+}
+
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [role, setRole] = useState<"merchant" | "consumer">("merchant");
   const [merchantTab, setMerchantTab] = useState<"login" | "register">("login");
   const [consumerTab, setConsumerTab] = useState<"login" | "register">("login");
+
+  // Saved Merchant Accounts in localStorage
+  const [savedMerchants, setSavedMerchants] = useState<SavedMerchantAccount[]>(() => {
+    try {
+      const raw = localStorage.getItem("nullwasted_saved_merchant");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [rememberMerchant, setRememberMerchant] = useState<boolean>(true);
 
   // Merchant Login State
   const [storeId, setStoreId] = useState("");
@@ -38,8 +57,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   // Merchant Register State
   const [regStoreName, setRegStoreName] = useState("");
   const [regCategory, setRegCategory] = useState("Lauk & Makanan Berat");
+  const [customCategory, setCustomCategory] = useState("");
   const [regClosingTime, setRegClosingTime] = useState("20:30");
-  const [regLocation, setRegLocation] = useState("");
+  const [regAddress, setRegAddress] = useState("");
+  const [regLandmark, setRegLandmark] = useState("");
   const [regPin, setRegPin] = useState("");
   const [regError, setRegError] = useState("");
   const [isSubmittingRegStore, setIsSubmittingRegStore] = useState(false);
@@ -63,6 +84,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [regConsumerError, setRegConsumerError] = useState("");
   const [isSubmittingRegConsumer, setIsSubmittingRegConsumer] = useState(false);
 
+  const saveMerchantToStorage = (account: SavedMerchantAccount) => {
+    try {
+      const filtered = savedMerchants.filter((m) => m.storeId !== account.storeId);
+      const updated = [account, ...filtered].slice(0, 5);
+      setSavedMerchants(updated);
+      localStorage.setItem("nullwasted_saved_merchant", JSON.stringify(updated));
+    } catch {
+      // ignore storage failure
+    }
+  };
+
   // Merchant Handlers
   const handleMerchantLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,11 +111,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       setIsSubmittingMerchant(true);
       setMerchantError("");
       const auth = await loginMerchant(storeId.trim(), storePin.trim());
+      const effectiveStoreName = auth.store_name || "Gerai Mitra NullWasted";
+
+      if (rememberMerchant) {
+        saveMerchantToStorage({
+          storeId: auth.store_id || storeId.trim(),
+          storeName: effectiveStoreName,
+          pin: storePin.trim(),
+          lastLoginAt: new Date().toISOString(),
+        });
+      }
+
       onLogin({
         token: auth.token,
         role: "merchant",
         storeId: auth.store_id || storeId.trim(),
-        storeName: auth.store_name || "Gerai Mitra NullWasted",
+        storeName: effectiveStoreName,
         closingTime: auth.closing_time,
         locationName: auth.location_name,
         latitude: auth.latitude,
@@ -97,16 +140,57 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     }
   };
 
+  const handleSelectQuickMerchant = (item: SavedMerchantAccount) => {
+    setStoreId(item.storeId);
+    if (item.pin) {
+      setStorePin(item.pin);
+    }
+    setMerchantError("");
+  };
+
   const handleMerchantRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!regStoreName.trim()) {
       setRegError("Nama usaha / gerai wajib diisi.");
       return;
     }
-    if (!regLocation.trim()) {
-      setRegError("Alamat / patokan lokasi wajib diisi.");
+
+    // Category validation
+    let resolvedCategory = regCategory;
+    if (regCategory === "CUSTOM") {
+      if (customCategory.trim().length < 3) {
+        setRegError("Kategori kuliner kustom minimal 3 karakter.");
+        return;
+      }
+      resolvedCategory = customCategory.trim();
+    }
+
+    // 24h Closing time validation
+    const time24Regex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!time24Regex.test(regClosingTime.trim())) {
+      setRegError("Format jam tutup harus 24 jam (HH:MM), contoh: 20:30.");
       return;
     }
+
+    // Physical Address validation (Min 10 chars, alphabetic check, no single character repetition)
+    const cleanAddress = regAddress.trim();
+    if (cleanAddress.length < 10) {
+      setRegError("Alamat lengkap gerai minimal 10 karakter.");
+      return;
+    }
+    if (!/[a-zA-Z]{3,}/.test(cleanAddress)) {
+      setRegError("Alamat gerai harus memuat nama jalan atau gedung yang jelas.");
+      return;
+    }
+    if (/^(.)\1+$/.test(cleanAddress)) {
+      setRegError("Alamat gerai tidak boleh berupa pengulangan satu karakter.");
+      return;
+    }
+
+    const fullLocation = regLandmark.trim()
+      ? `${cleanAddress} (${regLandmark.trim()})`
+      : cleanAddress;
+
     if (regPin.trim().length < 4) {
       setRegError("PIN Kasir baru minimal 4 digit.");
       return;
@@ -118,27 +202,37 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       const auth = await registerMerchant({
         name: regStoreName.trim(),
         pin: regPin.trim(),
-        location_name: regLocation.trim(),
+        location_name: fullLocation,
         closing_time: regClosingTime.trim() || "20:30",
-        category: regCategory,
+        category: resolvedCategory,
+      });
+
+      const effectiveStoreId = auth.store_id || "FTUI-001";
+      const effectiveStoreName = auth.store_name || regStoreName.trim();
+
+      saveMerchantToStorage({
+        storeId: effectiveStoreId,
+        storeName: effectiveStoreName,
+        pin: regPin.trim(),
+        lastLoginAt: new Date().toISOString(),
       });
 
       const newSession: UserSession = {
         token: auth.token,
         role: "merchant",
-        storeId: auth.store_id || "FTUI-001",
-        storeName: auth.store_name || regStoreName.trim(),
+        storeId: effectiveStoreId,
+        storeName: effectiveStoreName,
         closingTime: auth.closing_time || regClosingTime.trim(),
-        locationName: auth.location_name || regLocation.trim(),
+        locationName: auth.location_name || fullLocation,
         latitude: auth.latitude,
         longitude: auth.longitude,
       };
 
       setRegisteredStoreData({
-        storeId: auth.store_id || "ID-BARU",
-        storeName: auth.store_name || regStoreName.trim(),
+        storeId: effectiveStoreId,
+        storeName: effectiveStoreName,
         closingTime: auth.closing_time || regClosingTime.trim(),
-        locationName: auth.location_name || regLocation.trim(),
+        locationName: auth.location_name || fullLocation,
         session: newSession,
       });
     } catch (err: unknown) {
@@ -211,86 +305,110 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-between p-6 bg-[#F8F6F0] overflow-y-auto">
-      {/* Brand & Compliance Header */}
-      <div className="text-center pt-2">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#10B981]/15 text-[#10B981] mb-2 shadow-sm">
-          <ShieldCheck className="w-7 h-7" />
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-[#1F1D1A]">NullWasted</h1>
-        <p className="text-xs text-[#6B655B] mt-0.5">Autonomous AI Surplus Food Marketplace</p>
-        <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-medium text-emerald-800">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          Standar Kepatuhan PerBPOM No. 16/2019
-        </div>
-      </div>
-
-      {/* Role Switcher */}
-      <div className="my-4">
-        <div className="grid grid-cols-2 gap-1 p-1 bg-[#E8E3D9]/60 rounded-xl border border-[#D8D2C5]">
-          <button
-            type="button"
-            onClick={() => setRole("merchant")}
-            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
-              role === "merchant"
-                ? "bg-white text-[#1F1D1A] shadow-sm border border-black/5"
-                : "text-[#6B655B] hover:text-[#1F1D1A]"
-            }`}
-          >
-            <Store className="w-4 h-4 text-emerald-600" />
-            Mitra Toko
-          </button>
-          <button
-            type="button"
-            onClick={() => setRole("consumer")}
-            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
-              role === "consumer"
-                ? "bg-white text-[#1F1D1A] shadow-sm border border-black/5"
-                : "text-[#6B655B] hover:text-[#1F1D1A]"
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4 text-emerald-600" />
-            Konsumen
-          </button>
+    <div className="flex-1 flex flex-col items-center justify-center py-2 sm:py-8">
+      <div className="w-full max-w-md mx-auto p-5 sm:p-8 bg-white rounded-3xl border border-[#E2DDD3] shadow-lg flex flex-col justify-between space-y-5">
+        {/* Brand & Compliance Header */}
+        <div className="text-center pt-2">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#10B981]/15 text-[#10B981] mb-2 shadow-sm">
+            <ShieldCheck className="w-7 h-7" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#1F1D1A]">NullWasted</h1>
+          <p className="text-xs text-[#6B655B] mt-0.5">Autonomous AI Surplus Food Marketplace</p>
+          <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-medium text-emerald-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Standar Kepatuhan PerBPOM No. 16/2019
+          </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* MERCHANT FLOW                                                             */}
-        {/* ========================================================================= */}
-        {role === "merchant" ? (
-          <div className="mt-4">
-            {/* Merchant Sub-Tabs */}
-            <div className="flex border-b border-[#D8D2C5] mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setMerchantTab("login");
-                  setRegisteredStoreData(null);
-                }}
-                className={`flex-1 py-2 text-xs font-bold transition-all border-b-2 ${
-                  merchantTab === "login"
-                    ? "border-emerald-600 text-emerald-800"
-                    : "border-transparent text-stone-500 hover:text-stone-700"
-                }`}
-              >
-                Masuk ke Dapur
-              </button>
-              <button
-                type="button"
-                onClick={() => setMerchantTab("register")}
-                className={`flex-1 py-2 text-xs font-bold transition-all border-b-2 ${
-                  merchantTab === "register"
-                    ? "border-emerald-600 text-emerald-800"
-                    : "border-transparent text-stone-500 hover:text-stone-700"
-                }`}
-              >
-                Daftarkan Gerai Baru
-              </button>
-            </div>
+        {/* Role Switcher */}
+        <div className="my-2">
+          <div className="grid grid-cols-2 gap-1 p-1 bg-[#E8E3D9]/60 rounded-xl border border-[#D8D2C5]">
+            <button
+              type="button"
+              onClick={() => setRole("merchant")}
+              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
+                role === "merchant"
+                  ? "bg-white text-[#1F1D1A] shadow-sm border border-black/5"
+                  : "text-[#6B655B] hover:text-[#1F1D1A]"
+              }`}
+            >
+              <Store className="w-4 h-4 text-emerald-600" />
+              Mitra Toko
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole("consumer")}
+              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
+                role === "consumer"
+                  ? "bg-white text-[#1F1D1A] shadow-sm border border-black/5"
+                  : "text-[#6B655B] hover:text-[#1F1D1A]"
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4 text-emerald-600" />
+              Konsumen
+            </button>
+          </div>
 
-            {merchantTab === "login" ? (
-              /* Merchant Login Form */
-              <form onSubmit={handleMerchantLogin} className="space-y-3">
+          {/* ========================================================================= */}
+          {/* MERCHANT FLOW                                                             */}
+          {/* ========================================================================= */}
+          {role === "merchant" ? (
+            <div className="mt-4">
+              {/* Merchant Sub-Tabs */}
+              <div className="flex border-b border-[#D8D2C5] mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMerchantTab("login");
+                    setRegisteredStoreData(null);
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold transition-all border-b-2 ${
+                    merchantTab === "login"
+                      ? "border-emerald-600 text-emerald-800"
+                      : "border-transparent text-stone-500 hover:text-stone-700"
+                  }`}
+                >
+                  Masuk ke Dapur
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMerchantTab("register")}
+                  className={`flex-1 py-2 text-xs font-bold transition-all border-b-2 ${
+                    merchantTab === "register"
+                      ? "border-emerald-600 text-emerald-800"
+                      : "border-transparent text-stone-500 hover:text-stone-700"
+                  }`}
+                >
+                  Daftarkan Gerai Baru
+                </button>
+              </div>
+
+              {merchantTab === "login" ? (
+                /* Merchant Login Form */
+                <form onSubmit={handleMerchantLogin} className="space-y-3">
+                  {/* Quick Account Selector if available */}
+                  {savedMerchants.length > 0 && (
+                    <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1.5">
+                        <Sparkles className="w-3 h-3 text-emerald-600" />
+                        <span>Pilih Cepat Gerai Anda</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {savedMerchants.map((item) => (
+                          <button
+                            key={item.storeId}
+                            type="button"
+                            onClick={() => handleSelectQuickMerchant(item)}
+                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-100 border border-emerald-300 text-[11px] font-medium text-stone-800 transition-colors flex items-center gap-1 shadow-sm"
+                          >
+                            <span className="font-mono font-bold text-emerald-700">{item.storeId}</span>
+                            <span className="text-stone-600 truncate max-w-[120px]">· {item.storeName}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                 <div>
                   <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Store ID</label>
                   <div className="relative">
@@ -322,6 +440,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                       className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                     />
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="rememberMerchant"
+                    checked={rememberMerchant}
+                    onChange={(e) => setRememberMerchant(e.target.checked)}
+                    className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="rememberMerchant" className="text-xs text-stone-600 select-none cursor-pointer">
+                    Ingat Kredensial di Perangkat Ini
+                  </label>
                 </div>
 
                 {merchantError && (
@@ -405,18 +536,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                             <option value="Bakery & Pastry">Bakery & Roti</option>
                             <option value="Kopi & Kudapan">Kopi & Minuman</option>
                             <option value="Kuliner Umum">Kuliner Umum</option>
+                            <option value="CUSTOM">Lainnya (Tulis Sendiri)...</option>
                           </select>
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Jam Tutup (HH:MM)</label>
+                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Jam Tutup (24 Jam)</label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                             <Clock className="w-4 h-4" />
                           </div>
                           <input
                             type="time"
+                            step={60}
                             value={regClosingTime}
                             onChange={(e) => setRegClosingTime(e.target.value)}
                             className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
@@ -425,20 +558,60 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Alamat / Patokan Lokasi</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                          <MapPin className="w-4 h-4" />
-                        </div>
+                    {/* Custom Category Input if selected */}
+                    {regCategory === "CUSTOM" && (
+                      <div>
+                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                          Nama Kategori Kuliner Kustom <span className="text-red-500">*</span>
+                        </label>
                         <input
                           type="text"
-                          value={regLocation}
-                          onChange={(e) => setRegLocation(e.target.value)}
-                          placeholder="Contoh: Jl. Margonda Raya No. 12 · 400m"
-                          className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                          value={customCategory}
+                          onChange={(e) => setCustomCategory(e.target.value)}
+                          placeholder="Contoh: Dimsum & Chinese Food, Bento Jepang"
+                          className="w-full px-3 py-2 text-xs rounded-xl border border-emerald-400 bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                         />
                       </div>
+                    )}
+
+                    <div>
+                      <p className="text-[10px] text-stone-500 mb-1">Format jam tutup 24 jam (00:00 - 23:59), contoh: 20:30</p>
+                    </div>
+
+                    {/* Column 1: Physical Full Address (Mandatory) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                        Alamat Lengkap Gerai <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute top-2.5 left-3 flex items-start pointer-events-none text-gray-400">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={regAddress}
+                          onChange={(e) => setRegAddress(e.target.value)}
+                          minLength={10}
+                          maxLength={150}
+                          placeholder="Contoh: Kantin Utama FTUI Gedung Dekanat Lantai 1, Kampus UI Depok"
+                          className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 resize-none"
+                        />
+                      </div>
+                      <span className="text-[10px] text-stone-400 block mt-0.5">Minimal 10 karakter jalan / nama gedung fisik.</span>
+                    </div>
+
+                    {/* Column 2: Landmark / Pickup Detail (Optional) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                        Patokan / Detail Lokasi Penjemputan <span className="text-stone-400 font-normal">(Opsional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={regLandmark}
+                        onChange={(e) => setRegLandmark(e.target.value)}
+                        placeholder="Contoh: Depan lift barang, sebelah ATM center, stan no. 4"
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                      />
                     </div>
 
                     <div>
@@ -623,5 +796,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         </p>
       </div>
     </div>
+  </div>
   );
 };

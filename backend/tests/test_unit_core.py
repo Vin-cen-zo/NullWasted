@@ -724,3 +724,377 @@ def test_autonomous_merchant_and_consumer_registration(client: TestClient):
     assert res_unknown.status_code == 404
     assert "belum terdaftar" in res_unknown.json()["detail"]
 
+
+# ============================================================================
+# 8. SPRINT 3 SYSTEM HARDENING & ADVERSARIAL TEST SUITE
+# ============================================================================
+
+def test_sprint3_non_food_poison_and_battery_rejection(client: TestClient):
+    """Verifies that non-food poison and battery queries are strictly rejected,
+    while valid dishes containing 'oli' (e.g. Aglio Olio, Tumis Brokoli) remain SAFE."""
+    # 1. Poison item rejected
+    eval_poison = evaluate_food_safety("Racun tikus arsenik", hours_since_cooked=1.0)
+    assert eval_poison["safety_status"] == "REJECTED"
+    assert eval_poison["can_publish"] is False
+    assert "racun" in eval_poison["safety_reason"].lower() or "bahaya" in eval_poison["safety_reason"].lower()
+
+    # 2. Battery item rejected
+    eval_battery = evaluate_food_safety("Baterai Panasonic bekas", hours_since_cooked=1.0)
+    assert eval_battery["safety_status"] == "REJECTED"
+    assert eval_battery["can_publish"] is False
+
+    # 3. Direct publish rejected with HTTP 400
+    res_pub = client.post(
+        "/api/v1/listings/publish",
+        json={
+            "store_id": "FTUI-001",
+            "food_name": "Racun tikus arsenik",
+            "matched_canonical_dish": "Racun tikus arsenik",
+            "quantity": 2,
+            "original_price": 20000,
+            "discount_percent": 50,
+            "discounted_price": 10000,
+            "hours_since_cooked": 1.0,
+            "bpom_max_hours": 4.0,
+            "minutes_until_closing": 60,
+            "safety_status": "SAFE",
+            "safety_reason": "Bahan aman",
+            "hazard_description": "Tidak ada bahaya",
+            "category": "HIGH_PERISHABILITY",
+        },
+    )
+    assert res_pub.status_code == 400
+    assert "bahaya" in res_pub.json()["detail"].lower() or "ditolak" in res_pub.json()["detail"].lower() or "racun" in res_pub.json()["detail"].lower()
+
+    # 4. Legitimate dishes with substring 'oli' are NOT rejected by oil/oli keyword
+    eval_olio = evaluate_food_safety("Spaghetti Aglio Olio", hours_since_cooked=1.5)
+    assert eval_olio["safety_status"] == "SAFE"
+    assert eval_olio["can_publish"] is True
+
+    eval_brokoli = evaluate_food_safety("Tumis Brokoli Bawang Putih", hours_since_cooked=2.0)
+    assert eval_brokoli["safety_status"] == "SAFE"
+    assert eval_brokoli["can_publish"] is True
+
+
+def test_sprint3_wildlife_meat_rejection(client: TestClient):
+    """Verifies that protected wildlife and non-food meat listings are rejected."""
+    eval_dog = evaluate_food_safety("Sate daging anjing bumbu kacang", hours_since_cooked=1.0)
+    assert eval_dog["safety_status"] == "REJECTED"
+    assert eval_dog["can_publish"] is False
+    assert "satwa" in eval_dog["safety_reason"].lower() or "terlarang" in eval_dog["safety_reason"].lower() or "hewani" in eval_dog["safety_reason"].lower()
+
+    eval_bat = evaluate_food_safety("Rica-rica kelelawar pedas", hours_since_cooked=1.0)
+    assert eval_bat["safety_status"] == "REJECTED"
+    assert eval_bat["can_publish"] is False
+
+
+def test_sprint3_menu_catalog_bypass_blocked(client: TestClient):
+    """Verifies that spoiled or hazardous dishes cannot bypass safety checks when saving to menu catalog."""
+    # 1. High perishability dish exceeding BPOM limit (7h > 4h) rejected from store menu
+    res_spoiled = client.post(
+        "/api/v1/menu/FTUI-001",
+        json={
+            "food_name": "Gulai Ayam Santan",
+            "category": "HIGH_PERISHABILITY",
+            "default_hours_cooked": 7.0,
+            "typical_cooking_time": "08:00",
+            "original_price": 25000,
+        },
+    )
+    assert res_spoiled.status_code == 400
+    assert "ditolak bpom" in res_spoiled.json()["detail"].lower()
+
+    # 2. Poisonous non-food item rejected from store menu
+    res_poison = client.post(
+        "/api/v1/menu/FTUI-001",
+        json={
+            "food_name": "Racun Tikus",
+            "category": "HIGH_PERISHABILITY",
+            "default_hours_cooked": 1.0,
+            "typical_cooking_time": "08:00",
+            "original_price": 25000,
+        },
+    )
+    assert res_poison.status_code == 400
+
+    # 3. Draft endpoint sets can_save_to_catalog to False for rejected items
+    res_draft = client.post(
+        "/api/v1/listings/draft",
+        json={
+            "store_id": "FTUI-001",
+            "text": "Ada racun tikus sisa 2 bungkus harga 10000",
+        },
+    )
+    assert res_draft.status_code == 200
+    draft_data = res_draft.json()
+    assert draft_data["can_save_to_catalog"] is False
+    assert draft_data["safety_status"] == "REJECTED"
+
+
+def test_sprint3_overnight_and_future_time_rejection(client: TestClient):
+    """Verifies that overnight ('kemarin') dishes receive >=24h cooked time and are rejected,
+    and future cooking times ('besok') are rejected immediately."""
+    # 1. Overnight cooked time parsed to >= 24h
+    extracted_overnight = local_rule_based_extract("Sisa 3 porsi Ayam Bakar masak jam 10 malam kemarin")
+    assert extracted_overnight["hours_since_cooked"] >= 24.0
+    eval_overnight = evaluate_food_safety(
+        extracted_overnight["food_name"],
+        hours_since_cooked=extracted_overnight["hours_since_cooked"],
+    )
+    assert eval_overnight["safety_status"] == "REJECTED"
+
+    # 2. Future cooking time rejected
+    eval_future = evaluate_food_safety(
+        "Rendang",
+        hours_since_cooked=1.0,
+        raw_text="Ada 4 porsi Rendang masak besok pagi",
+    )
+    assert eval_future["safety_status"] == "REJECTED"
+    assert "masa depan" in eval_future["safety_reason"].lower()
+
+
+def test_sprint3_decimal_currency_and_jaksel_slang_extraction():
+    """Verifies that decimal IDR like '17.5k' is accurately parsed to 17500 and slang is cleaned."""
+    extracted = local_rule_based_extract("Ada roasted chicken sisa 3 packs gila sih ini harga 17.5k")
+    assert extracted["food_name"].lower() == "roasted chicken"
+    assert extracted["quantity"] == 3
+    assert extracted["original_price"] == 17500
+
+
+def test_sprint3_klappertaart_high_perishability_4h_limit():
+    """Verifies that canonical Klappertaart matches HIGH_PERISHABILITY with a 4.0h BPOM limit."""
+    # 1. Cooked 5.0h (> 4.0h) -> REJECTED
+    eval_late = evaluate_food_safety("Klappertaart Panggang Fla Susu", hours_since_cooked=5.0)
+    assert eval_late["category"] == "HIGH_PERISHABILITY"
+    assert eval_late["bpom_max_hours"] == 4.0
+    assert eval_late["safety_status"] == "REJECTED"
+
+    # 2. Cooked 2.0h (<= 4.0h) -> SAFE
+    eval_fresh = evaluate_food_safety("Klappertaart Panggang Fla Susu", hours_since_cooked=2.0)
+    assert eval_fresh["safety_status"] == "SAFE"
+    assert eval_fresh["can_publish"] is True
+
+
+def test_sprint3_pydantic_upper_bounds_and_time_validator(client: TestClient):
+    """Verifies that Pydantic bounds reject absurd quantities, prices, or invalid 24h cooking times."""
+    # 1. Absurd quantity rejected (HTTP 422)
+    res_qty = client.post(
+        "/api/v1/listings/publish",
+        json={
+            "store_id": "FTUI-001",
+            "food_name": "Nasi Goreng",
+            "quantity": 50000,
+            "original_price": 20000,
+            "discounted_price": 10000,
+            "hours_since_cooked": 1.0,
+            "category": "MEDIUM_PERISHABILITY",
+            "pickup_closing_time": "21:00",
+        },
+    )
+    assert res_qty.status_code == 422
+
+    # 2. Absurd price rejected (HTTP 422)
+    res_price = client.post(
+        "/api/v1/listings/publish",
+        json={
+            "store_id": "FTUI-001",
+            "food_name": "Nasi Goreng",
+            "quantity": 5,
+            "original_price": 1000000000,
+            "discounted_price": 10000,
+            "hours_since_cooked": 1.0,
+            "category": "MEDIUM_PERISHABILITY",
+            "pickup_closing_time": "21:00",
+        },
+    )
+    assert res_price.status_code == 422
+
+    # 3. Invalid cooking time format rejected (HTTP 422)
+    res_time = client.post(
+        "/api/v1/menu/FTUI-001",
+        json={
+            "food_name": "Nasi Uduk Gurih",
+            "category": "HIGH_PERISHABILITY",
+            "default_hours_cooked": 2.0,
+            "typical_cooking_time": "gibberish",
+            "original_price": 15000,
+        },
+    )
+    assert res_time.status_code == 422
+
+
+def test_sprint3_smart_bundle_includes_ingredients_and_allergens(client: TestClient):
+    """Verifies that generated smart bundle items include ingredients and allergen tags."""
+    import json
+
+    res_bundle = client.post(
+        "/api/v1/listings/smart-bundle",
+        json={
+            "store_id": "FTUI-001",
+            "bundle_type": "MYSTERY_BAG_HEAVY",
+        },
+    )
+    assert res_bundle.status_code == 200
+    bundle_data = res_bundle.json()
+    assert "bundled_items_json" in bundle_data
+
+    items = json.loads(bundle_data["bundled_items_json"])
+    assert len(items) > 0
+    for item in items:
+        assert "ingredients" in item
+        assert "allergen_tags" in item
+        assert isinstance(item["ingredients"], list)
+        assert isinstance(item["allergen_tags"], list)
+
+
+# ============================================================================
+# 8. DYNAMIC MENU IMAGE UPLOAD & INHERITANCE TESTS
+# ============================================================================
+
+def test_image_upload_success_and_static_serving(client: TestClient):
+    """Verifies that valid WebP/PNG images can be uploaded and retrieved via the mounted /static endpoint."""
+    from pathlib import Path
+    from app.core.config import STATIC_UPLOADS_DIR
+
+    # Valid 1x1 WebP binary payload
+    valid_webp = (
+        b"RIFF\x1a\x00\x00\x00WEBPVP8 "
+        b"\x0e\x00\x00\x00\x01\x00\x01\x00\x00\x00\x00\x00\x00\x00"
+    )
+
+    res = client.post(
+        "/api/v1/upload-image",
+        files={"file": ("test_sample.webp", valid_webp, "image/webp")},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert "image_url" in data
+    assert data["storage_mode"] in ("local", "cloudinary")
+
+    # If saved to local static storage, verify it's fetchable via GET /static/uploads/...
+    if data["storage_mode"] == "local":
+        assert data["image_url"].startswith("/static/uploads/")
+        file_res = client.get(data["image_url"])
+        assert file_res.status_code == 200
+        assert len(file_res.content) == len(valid_webp)
+
+        # Clean up test file to keep workspace pristine
+        filename = data["image_url"].replace("/static/uploads/", "")
+        created_file = STATIC_UPLOADS_DIR / filename
+        if created_file.exists():
+            created_file.unlink()
+
+
+def test_image_upload_invalid_mime_and_magic_bytes_rejection(client: TestClient):
+    """Verifies HTTP 400 rejection for unsupported MIME types, fake magic bytes, and empty files."""
+    # 1. Non-image mime type
+    res_txt = client.post(
+        "/api/v1/upload-image",
+        files={"file": ("danger.txt", b"hello world malicious script", "text/plain")},
+    )
+    assert res_txt.status_code == 400
+    assert "tidak didukung" in res_txt.json()["detail"].lower()
+
+    # 2. Fake magic bytes (Declared as image/png but content is plain text)
+    res_fake = client.post(
+        "/api/v1/upload-image",
+        files={"file": ("fake.png", b"fake binary data disguised as png", "image/png")},
+    )
+    assert res_fake.status_code == 400
+    assert "tidak cocok" in res_fake.json()["detail"].lower()
+
+    # 3. Empty file
+    res_empty = client.post(
+        "/api/v1/upload-image",
+        files={"file": ("empty.jpg", b"", "image/jpeg")},
+    )
+    assert res_empty.status_code == 400
+    assert "tidak boleh kosong" in res_empty.json()["detail"].lower()
+
+
+def test_image_url_lifecycle_inheritance_and_adhoc_none(client: TestClient):
+    """Verifies end-to-end image_url lifecycle:
+    StoreMenuItem -> DraftResponse match -> ItemListing publish -> OrderTicket snapshot.
+    Also verifies that purely ad-hoc items have image_url = None without fake image guessing.
+    """
+    # 1. Create a routine catalog item with an official image_url
+    create_cat_res = client.post(
+        "/api/v1/menu/FTUI-001",
+        json={
+            "food_name": "Sate Ayam Bumbu Madura",
+            "original_price": 25000,
+            "typical_cooking_time": "16:00",
+            "default_hours_cooked": 1.5,
+            "ingredients": "Daging ayam, kecap manis, bumbu kacang gurih",
+            "portion_size": "10 Tusuk",
+            "image_url": "/assets/foods/ayam_bakar.jpg",
+        },
+    )
+    assert create_cat_res.status_code == 200
+    cat_item = create_cat_res.json()
+    assert cat_item["image_url"] == "/assets/foods/ayam_bakar.jpg"
+
+    # 2. Merchant speaks/types matching prompt -> Draft inherits catalog image_url
+    draft_res = client.post(
+        "/api/v1/listings/draft",
+        json={
+            "text": "Ada sate ayam bumbu madura sisa 3 porsi harga 25000",
+            "store_id": "FTUI-001",
+        },
+    )
+    assert draft_res.status_code == 200
+    draft_data = draft_res.json()
+    assert draft_data["image_url"] == "/assets/foods/ayam_bakar.jpg"
+
+    # 3. Publish listing passing the inherited image_url
+    pub_res = client.post(
+        "/api/v1/listings/publish",
+        json={
+            "store_id": "FTUI-001",
+            "food_name": draft_data["food_name"],
+            "matched_canonical_dish": draft_data["matched_canonical_dish"],
+            "category": draft_data["category"],
+            "quantity": draft_data["quantity"],
+            "original_price": draft_data["original_price"],
+            "discount_percent": 55,
+            "hours_since_cooked": draft_data["hours_since_cooked"],
+            "bpom_max_hours": draft_data["bpom_max_hours"],
+            "minutes_until_closing": 90,
+            "safety_status": "SAFE",
+            "safety_reason": "Waktu simpan aman",
+            "hazard_description": "Aman",
+            "image_url": draft_data["image_url"],
+        },
+    )
+    assert pub_res.status_code == 200
+    pub_item = pub_res.json()
+    assert pub_item["image_url"] == "/assets/foods/ayam_bakar.jpg"
+
+    # 4. Reserve order -> OrderTicket snapshots listing image_url
+    res_order = client.post(
+        "/api/v1/orders/reserve",
+        json={
+            "listing_id": pub_item["id"],
+            "quantity": 1,
+            "customer_name": "Tester Image Snapshot",
+        },
+    )
+    assert res_order.status_code == 200
+    ticket = res_order.json()
+    assert ticket["image_url"] == "/assets/foods/ayam_bakar.jpg"
+
+    # 5. Ad-hoc menu draft without catalog match MUST result in image_url = None
+    adhoc_res = client.post(
+        "/api/v1/listings/draft",
+        json={
+            "text": "Ada Nasi Rawon sisa 2, harga 30 ribu, baru matang 1 jam lalu",
+            "store_id": "FTUI-001",
+        },
+    )
+    assert adhoc_res.status_code == 200
+    adhoc_data = adhoc_res.json()
+    assert adhoc_data["catalog_match_status"] == "ADHOC_COMPLETE"
+    assert adhoc_data["image_url"] is None
+
+
+

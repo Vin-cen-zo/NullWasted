@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { ItemListing } from "../types/listing";
-import { X, MapPin, Store, ShoppingBag, ArrowRight } from "lucide-react";
+import { X, MapPin, Store, ShoppingBag, ArrowRight, ExternalLink } from "lucide-react";
 
 interface ConsumerMapModalProps {
   isOpen: boolean;
@@ -42,13 +42,16 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
     let lat = item.latitude || -6.3621;
     let lng = item.longitude || 106.8246;
 
-    // Hard fallback coordinates for known demo stores if missing
-    if (sId === "MARGONDA-042" && (!item.latitude || item.latitude === -6.3626)) {
-      lat = -6.3645;
-      lng = 106.8325;
-    } else if (sId === "KUTEK-007" && (!item.latitude || item.latitude === -6.3626)) {
-      lat = -6.3598;
-      lng = 106.8215;
+    // Hard fallback coordinates for known demo stores aligning with 3 radius zones
+    if (sId === "FTUI-001") {
+      lat = -6.3621;
+      lng = 106.8246;
+    } else if (sId === "KUTEK-007") {
+      lat = -6.3575;
+      lng = 106.8195;
+    } else if (sId === "MARGONDA-042") {
+      lat = -6.3685;
+      lng = 106.8375;
     }
 
     if (!storeMap.has(sId)) {
@@ -85,7 +88,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
       attribution: "© OpenStreetMap",
     }).addTo(map);
 
-    // 1. User Location Marker (Blue Dot & Pulse Radius)
+    // 1. User Location Marker (Blue Dot & 500m Walking Perimeter Circle with Tooltip)
     L.circle(userCoords, {
       radius: 500,
       color: "#3B82F6",
@@ -93,7 +96,12 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
       fillOpacity: 0.15,
       weight: 1.5,
       dashArray: "4, 6",
-    }).addTo(map);
+    })
+      .addTo(map)
+      .bindTooltip("Area Jangkauan Jalan Kaki 500 Meter (± 5 Menit)", {
+        sticky: true,
+        direction: "top",
+      });
 
     const userIcon = L.divIcon({
       className: "custom-user-marker",
@@ -105,7 +113,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
     });
     L.marker(userCoords, { icon: userIcon })
       .addTo(map)
-      .bindPopup("<b>Posisi Anda</b><br>Kampus FTUI Depok");
+      .bindPopup("<b>Posisi Anda</b><br>Kampus UI Depok Area");
 
     // 2. Partner Stores Markers (Emerald Pin with Item Count)
     storeMap.forEach((storeData, sId) => {
@@ -113,7 +121,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
         className: "custom-store-marker",
         html: `
           <div style="background-color: #059669; color: white; padding: 4px 8px; border-radius: 12px; font-weight: bold; font-size: 11px; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.25); border: 2px solid white; cursor: pointer;">
-            <span>🏪</span>
+            <span>Gerai:</span>
             <span>${storeData.items.length} Surplus</span>
           </div>
         `,
@@ -139,7 +147,25 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [isOpen, listings.length]);
+  }, [isOpen, listings.length, userCoords]);
+
+  // Leaflet map invalidation on store panel toggle and responsive window resize
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
+      mapInstanceRef.current?.invalidateSize();
+    }, 150);
+
+    const handleResize = () => {
+      mapInstanceRef.current?.invalidateSize();
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [isOpen, selectedStoreId]);
 
   if (!isOpen) return null;
 
@@ -147,7 +173,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3">
-      <div className="w-full max-w-md bg-stone-50 rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col h-[85vh]">
+      <div className="w-full max-w-4xl bg-stone-50 rounded-2xl sm:rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col h-[85vh] sm:h-[82vh]">
         {/* Header */}
         <div className="bg-emerald-700 text-white px-5 py-3.5 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2">
@@ -159,7 +185,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-emerald-600 transition text-emerald-100 hover:text-white"
+            className="p-1 rounded-lg hover:bg-emerald-600 transition text-emerald-100 hover:text-white cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -169,19 +195,24 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
         <div className="flex-1 relative">
           <div ref={mapContainerRef} className="w-full h-full" />
 
-          {/* Quick instructions floating badge */}
-          <div className="absolute top-3 left-3 right-3 z-[400] pointer-events-none">
-            <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-md border border-stone-200 text-center">
-              <span className="text-[10px] font-semibold text-stone-700">
-                💡 Klik penanda gerai hijau untuk melihat hidangan surplus
-              </span>
+          {/* Quick instructions & floating legend */}
+          <div className="absolute top-3 left-3 right-3 z-[400] pointer-events-none space-y-1">
+            <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-xl shadow-md border border-stone-200 text-center space-y-0.5">
+              <div className="text-[10px] font-bold text-stone-800 flex items-center justify-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                <span>Radius Jalan Kaki 500m (± 5 Menit)</span>
+              </div>
+              <div className="text-[10px] text-stone-600 flex items-center justify-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
+                <span>Pin Hijau: Gerai Surplus (Klik pin untuk detail & navigasi)</span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Selected Store Bottom Sheet Details */}
         {activeStoreData ? (
-          <div className="p-4 bg-white border-t border-stone-200 shadow-lg space-y-3 shrink-0 max-h-56 overflow-y-auto">
+          <div className="p-4 bg-white border-t border-stone-200 shadow-lg space-y-3 shrink-0 max-h-64 overflow-y-auto">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-xs text-stone-900 flex items-center gap-1.5">
@@ -193,13 +224,24 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedStoreId(null)}
-                className="text-[10px] text-stone-400 hover:text-stone-600 underline"
+                className="text-[10px] text-stone-400 hover:text-stone-600 underline cursor-pointer"
               >
-                Tutup
+                Tutup Detail
               </button>
             </div>
 
-            <div className="space-y-1.5">
+            {/* Google Maps Directions Button */}
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${activeStoreData.lat},${activeStoreData.lng}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition shadow-sm"
+            >
+              <span>Buka Petunjuk Arah di Google Maps</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {activeStoreData.items.map((item) => (
                 <div
                   key={item.id}
@@ -221,7 +263,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
                       onClose();
                       onSelectItem(item);
                     }}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition shadow-xs"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition shadow-sm cursor-pointer"
                   >
                     <ShoppingBag className="w-3 h-3" />
                     <span>Pilih & Pesan</span>
@@ -237,7 +279,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
             </span>
             <button
               onClick={onClose}
-              className="font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+              className="font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
             >
               <span>Lihat Daftar Feed</span>
               <ArrowRight className="w-3.5 h-3.5" />

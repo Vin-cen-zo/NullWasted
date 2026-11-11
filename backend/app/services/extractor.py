@@ -9,16 +9,72 @@ from app.services.vector_store import vector_store
 logger = logging.getLogger("extractor")
 
 
+def _parse_idr_amount(digits_str: str, suffix: Optional[str] = None) -> int:
+    """Parses IDR amount handling decimal notation (e.g. 17.5k -> 17500) and thousands separators."""
+    s = digits_str.strip(".,")
+    if re.match(r"^\d+[\.,]\d{1,2}$", s):
+        return int(round(float(s.replace(",", ".")) * 1000))
+    clean_str = s.replace(".", "").replace(",", "")
+    if not clean_str:
+        return 20000
+    val = int(clean_str)
+    if suffix in ("ribu", "rb", "k") and val < 1000:
+        val *= 1000
+    elif val < 500:
+        val *= 1000
+    return val
+
+
+def _clean_extracted_food_name(raw_name: str) -> str:
+    """Cleans transactional prefixes, quantity units, and Indonesian conversational slang."""
+    cleaned = raw_name.strip()
+    cleaned = re.sub(
+        r"^(?:ada\s+|sisa\s+|menu\s+|hari\s+ini\s+)+",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    ).strip()
+    cleaned = re.sub(
+        r"^(?:\d+\s*(?:porsi|pcs|pack|packs|box|botol|gelas|slice|bungkus|kotak|buah|potong|cup|paket|loyang|piring|mangkok)\s+)",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    ).strip()
+    cleaned = re.sub(
+        r"(?:\s*(?:porsi|pcs|pack|packs|box|botol|gelas|slice|bungkus|kotak|buah|potong|cup|paket|loyang|piring|mangkok)\b.*)$",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    ).strip()
+    cleaned = re.sub(
+        r"\b(gila\s+sih\s+ini|gila\s+sih|parah\s+sih|gitu\s+loh|jujurly|literally|gitu|kayak|please|plis|tolong|diup|dong|nih|ya|deh|banget|bgt|cuy|guys|gaes|ini|itu)\b",
+        " ",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"[\-\(\)]+", " ", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
 def local_rule_based_extract(text: str) -> dict[str, Any]:
     """Instant (<1ms), deterministic regex fallback parser for Indonesian surplus food listing commands.
     Acts as a resilient safety net if Gemini API is offline or rate-limited.
     """
     raw_lower = text.lower().strip()
 
+    # 0. Negative value validation
+    has_negative = bool(
+        re.search(
+            r"(?:sisa|ada|harga|rp\.?)\s*-\s*\d+|-\s*\d+\s*(?:porsi|pcs|pack|packs|box|bungkus|kotak|ribu|rb|k)\b",
+            raw_lower,
+        )
+    )
+
     # 1. Quantity extraction
     qty = 1
     qty_unit_match = re.search(
-        r"(?:sisa\s*)?(\d+)\s*(?:porsi|pcs|bungkus|kotak|buah|potong|cup|paket|loyang|piring|mangkok)",
+        r"(?:sisa\s*)?(\d+)\s*(?:porsi|pcs|pack|packs|box|botol|gelas|slice|bungkus|kotak|buah|potong|cup|paket|loyang|piring|mangkok)",
         raw_lower,
     )
     if qty_unit_match:
@@ -41,13 +97,8 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
         raw_lower,
     )
     if price_match:
-        digits_str = price_match.group(1).replace(".", "").replace(",", "")
         try:
-            val = int(digits_str)
-            if price_match.group(2) in ("ribu", "rb", "k") and val < 1000:
-                val *= 1000
-            elif val < 500:
-                val *= 1000
+            val = _parse_idr_amount(price_match.group(1), price_match.group(2))
             if val > 0:
                 original_price = val
                 price_mentioned = True
@@ -56,23 +107,18 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
     else:
         price_match_standard = re.search(r"(?:rp\.?\s*)([\d\.,]+)\s*(ribu|rb|k)?", raw_lower)
         if price_match_standard:
-            digits_str = price_match_standard.group(1).replace(".", "").replace(",", "")
             try:
-                val = int(digits_str)
-                if price_match_standard.group(2) in ("ribu", "rb", "k") and val < 1000:
-                    val *= 1000
-                elif val < 500:
-                    val *= 1000
+                val = _parse_idr_amount(price_match_standard.group(1), price_match_standard.group(2))
                 if val > 0:
                     original_price = val
                     price_mentioned = True
             except ValueError:
                 pass
         else:
-            price_fallback = re.search(r"(?:harga\s*)?(\d+)\s*(?:ribu|rb|k)\b", raw_lower)
+            price_fallback = re.search(r"(?:harga\s*)?([\d\.,]+)\s*(ribu|rb|k)\b", raw_lower)
             if price_fallback:
                 try:
-                    val = int(price_fallback.group(1)) * 1000
+                    val = _parse_idr_amount(price_fallback.group(1), price_fallback.group(2))
                     if val > 0:
                         original_price = val
                         price_mentioned = True
@@ -109,7 +155,6 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
                     hours_cooked = round(int(minute_cooked.group(1)) / 60.0, 2)
                     cooking_time_mentioned = True
                 else:
-                    # Specific clock time: e.g. "masak jam 3 sore", "jam 15.00", "jam 11 siang"
                     spec_time = re.search(
                         r"(?:selesai\s+masak|masak|matang)?\s*jam\s*(\d{1,2})(?:[\.:](\d{2}))?\s*(pagi|siang|sore|malam)?",
                         raw_lower,
@@ -122,12 +167,16 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
                             h += 12
                         elif period == "siang" and 1 <= h <= 5:
                             h += 12
-                        
-                        # In evening reference (~18:00):
+
                         ref_hour = 18.0
                         diff = max(0.5, round(ref_hour - (h + m / 60.0), 1))
                         hours_cooked = diff
                         cooking_time_mentioned = True
+
+    # Overnight / yesterday cooked check (> 24 hours)
+    if re.search(r"\b(kemarin|semalam|tadi malam|kemarin malam)\b", raw_lower):
+        hours_cooked = max(hours_cooked + 24.0, 25.0)
+        cooking_time_mentioned = True
 
     # 4. Minutes until store closing & explicit closing detection
     closing_minutes = 120
@@ -144,27 +193,34 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
 
     # 5. Food Name extraction
     food_name = ""
+    rev_name = re.search(r"([a-zA-Z0-9\s\-]+?)\s+sisa\s+\d+", text, re.IGNORECASE)
+    cand_rev = _clean_extracted_food_name(rev_name.group(1)) if rev_name else ""
+
     name_match = re.search(
-        r"(?:\d+\s*(?:porsi|pcs|kotak|bungkus|buah|potong|cup|paket|loyang|piring|mangkok)\s+)([a-zA-Z0-9\s\-]+?)(?:,|\.|\bharga\b|\bbaru\b|\bsudah\b|\bmatang\b|\bmasak\b|\bselesai\b|\bdibuat\b|\bdibikin\b|\btoko\b|\btutup\b|$)",
+        r"(?:\d+\s*(?:porsi|pcs|pack|packs|box|botol|gelas|slice|kotak|bungkus|buah|potong|cup|paket|loyang|piring|mangkok)\s+)([a-zA-Z0-9\s\-]+?)(?:,|\.|\bharga\b|\bbaru\b|\bsudah\b|\bmatang\b|\bmasak\b|\bselesai\b|\bdibuat\b|\bdibikin\b|\btoko\b|\btutup\b|$)",
         text,
         re.IGNORECASE,
     )
     if name_match:
-        food_name = name_match.group(1).strip()
+        cand_name = _clean_extracted_food_name(name_match.group(1))
+        if cand_name and len(cand_name) >= 3 and cand_name.lower() not in ("gila", "sih", "ini", "itu"):
+            food_name = cand_name
+        elif cand_rev and len(cand_rev) >= 3:
+            food_name = cand_rev
     else:
-        # Pattern: "sisa 3 rendang" or "ada 3 porsi nasi rawon"
         sisa_name = re.search(
             r"(?:sisa\s+\d+\s+)([a-zA-Z0-9\s\-]+?)(?:,|\.|\bharga\b|\bbaru\b|\bsudah\b|\bmatang\b|\bmasak\b|\bselesai\b|\bdibuat\b|\btoko\b|\btutup\b|$)",
             text,
             re.IGNORECASE,
         )
         if sisa_name:
-            food_name = sisa_name.group(1).strip()
-        else:
-            # Pattern: "rendang sisa 3" or "rawon sisa 2"
-            rev_name = re.search(r"([a-zA-Z0-9\s\-]+?)\s+sisa\s+\d+", text, re.IGNORECASE)
-            if rev_name:
-                food_name = rev_name.group(1).strip()
+            cand_sisa = _clean_extracted_food_name(sisa_name.group(1))
+            if cand_sisa and len(cand_sisa) >= 3:
+                food_name = cand_sisa
+            elif cand_rev and len(cand_rev) >= 3:
+                food_name = cand_rev
+        elif cand_rev and len(cand_rev) >= 3:
+            food_name = cand_rev
 
     if not food_name:
         matched_item, score = vector_store.search_similar_dish(text)
@@ -195,6 +251,7 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
         "price_mentioned": price_mentioned,
         "cooking_time_mentioned": cooking_time_mentioned,
         "explicit_closing_mentioned": explicit_closing_mentioned,
+        "has_negative_value": has_negative,
     }
 
 
@@ -227,20 +284,30 @@ Keluarkan HANYA JSON objek valid tanpa teks pengantar dan tanpa blok markdown.""
             if 0 < raw_price < 500:
                 raw_price *= 1000
 
+            # If local parser detected a specific decimal suffix (e.g. 17.5k), trust local_info to avoid LLM distortion
+            if local_info["price_mentioned"] and re.search(r"\b\d+[\.,]\d{1,2}\s*(?:ribu|rb|k)\b", text.lower()):
+                raw_price = local_info["original_price"]
+
             food_name = str(data.get("food_name", "")).strip()
             if not food_name or len(food_name) < 2:
                 food_name = local_info["food_name"]
+
+            hours_cooked = max(0.0, float(data.get("hours_since_cooked", 1.0)))
+            # Enforce overnight / yesterday rule (> 24 hours) deterministically on LLM output
+            if re.search(r"\b(kemarin|semalam|tadi malam|kemarin malam)\b", text.lower()):
+                hours_cooked = max(hours_cooked + 24.0, 25.0)
 
             return {
                 "food_name": food_name.title(),
                 "quantity": max(1, int(data.get("quantity", 1))),
                 "original_price": max(1000, raw_price),
-                "hours_since_cooked": max(0.0, float(data.get("hours_since_cooked", 1.0))),
+                "hours_since_cooked": hours_cooked,
                 "minutes_until_closing": max(1, int(float(data.get("minutes_until_closing", 120)))),
                 "extraction_source": GEMINI_MODEL,
                 "price_mentioned": local_info["price_mentioned"],
                 "cooking_time_mentioned": local_info["cooking_time_mentioned"],
                 "explicit_closing_mentioned": local_info["explicit_closing_mentioned"],
+                "has_negative_value": local_info["has_negative_value"],
             }
     except Exception as e:
         logger.warning(f"Gemini entity extraction failed: {e}. Utilizing deterministic fallback.")

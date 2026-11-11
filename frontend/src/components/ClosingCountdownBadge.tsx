@@ -7,38 +7,42 @@ interface ClosingCountdownBadgeProps {
   className?: string;
 }
 
+export function computeSecondsUntilClosing(closingTime: string = "20:30"): number {
+  try {
+    const parts = closingTime.split(":");
+    const targetH = parseInt(parts[0], 10) || 20;
+    const targetM = parseInt(parts[1], 10) || 30;
+    const now = new Date();
+    const target = new Date();
+    target.setHours(targetH, targetM, 0, 0);
+
+    if (target.getTime() <= now.getTime()) {
+      // Jika jam tutup hari ini sudah lewat, hitung mundur menuju jam tutup esok hari
+      target.setDate(target.getDate() + 1);
+    }
+
+    const diffSec = Math.floor((target.getTime() - now.getTime()) / 1000);
+    return Math.max(0, diffSec);
+  } catch {
+    return 3600;
+  }
+}
+
 export const ClosingCountdownBadge: React.FC<ClosingCountdownBadgeProps> = ({
   closingTime = "20:30",
-  fallbackMinutes = 90,
   className = "",
 }) => {
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
-    try {
-      const parts = closingTime.split(":");
-      const targetH = parseInt(parts[0], 10);
-      const targetM = parseInt(parts[1], 10);
-      const now = new Date();
-      const target = new Date();
-      target.setHours(targetH, targetM, 0, 0);
-
-      let diffSec = Math.floor((target.getTime() - now.getTime()) / 1000);
-      if (diffSec <= 0 || diffSec > 18000) {
-        // Fallback or demo off-hours: deterministic simulation between 45m and 120m
-        const simMin = 45 + ((targetH * 60 + targetM) % 76);
-        diffSec = (fallbackMinutes || simMin) * 60;
-      }
-      return diffSec;
-    } catch {
-      return (fallbackMinutes || 90) * 60;
-    }
-  });
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(() =>
+    computeSecondsUntilClosing(closingTime)
+  );
 
   useEffect(() => {
+    setSecondsRemaining(computeSecondsUntilClosing(closingTime));
     const timer = setInterval(() => {
-      setSecondsRemaining((prev) => (prev > 1 ? prev - 1 : 0));
+      setSecondsRemaining(computeSecondsUntilClosing(closingTime));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [closingTime]);
 
   const hours = Math.floor(secondsRemaining / 3600);
   const minutes = Math.floor((secondsRemaining % 3600) / 60);

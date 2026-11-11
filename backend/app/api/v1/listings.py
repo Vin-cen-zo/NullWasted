@@ -21,8 +21,29 @@ from app.schemas.listing import (
 from app.services.extractor import extract_listing_entities
 from app.services.guardrail import evaluate_food_safety
 from app.services.pricing import calculate_dynamic_pricing
+from app.services.vector_store import vector_store
 
 router = APIRouter()
+
+
+def _detect_allergen_tags(text: str) -> list[str]:
+    t = text.lower()
+    tags = []
+    if any(k in t for k in ("santan", "kelapa")):
+        tags.append("Santan/Kelapa")
+    if any(k in t for k in ("susu", "dairy", "cream", "krim", "keju", "cheese", "mentega", "butter")):
+        tags.append("Susu/Dairy")
+    if any(k in t for k in ("telur", "egg")):
+        tags.append("Telur")
+    if any(k in t for k in ("kacang", "peanut")):
+        tags.append("Kacang")
+    if any(k in t for k in ("gluten", "tepung", "gandum", "roti", "pastry", "mie", "pasta", "croissant", "donat")):
+        tags.append("Gluten/Tepung")
+    if any(k in t for k in ("ikan", "udang", "cumi", "seafood", "kepiting")):
+        tags.append("Seafood/Ikan")
+    if any(k in t for k in ("kedelai", "tahu", "tempe", "kecap", "soy")):
+        tags.append("Kedelai")
+    return tags
 
 
 # ============================================================================
@@ -50,6 +71,8 @@ def get_store_menu(store_id: str, session: Session = Depends(get_session)) -> Li
             canonical_bpom_dish=item.canonical_bpom_dish,
             category=item.category,
             bpom_max_hours=item.bpom_max_hours,
+            portion_size=getattr(item, "portion_size", "Reguler") or "Reguler",
+            image_url=item.image_url,
             is_active=item.is_active,
             created_at=item.created_at,
         )
@@ -67,6 +90,11 @@ def create_store_menu_item(
         raw_text=payload.ingredients,
         hours_since_cooked=payload.default_hours_cooked,
     )
+    if safety["safety_status"] == "REJECTED" or not safety["can_publish"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ditolak BPOM: {safety['safety_reason']} Hidangan tidak memenuhi syarat kelayakan pangan dan tidak diizinkan masuk ke Buku Menu.",
+        )
 
     menu_item = StoreMenuItem(
         store_id=store_id,
@@ -78,6 +106,8 @@ def create_store_menu_item(
         canonical_bpom_dish=safety["matched_canonical_dish"],
         category=safety["category"],
         bpom_max_hours=safety["bpom_max_hours"],
+        portion_size=payload.portion_size or "Reguler",
+        image_url=payload.image_url,
         is_active=True,
     )
     session.add(menu_item)
@@ -95,6 +125,8 @@ def create_store_menu_item(
         canonical_bpom_dish=menu_item.canonical_bpom_dish,
         category=menu_item.category,
         bpom_max_hours=menu_item.bpom_max_hours,
+        portion_size=menu_item.portion_size or "Reguler",
+        image_url=menu_item.image_url,
         is_active=menu_item.is_active,
         created_at=menu_item.created_at,
     )
@@ -122,15 +154,24 @@ def update_store_menu_item(
         item.default_hours_cooked = payload.default_hours_cooked
     if payload.ingredients is not None:
         item.ingredients = payload.ingredients
+    if payload.portion_size is not None:
+        item.portion_size = payload.portion_size
+    if payload.image_url is not None:
+        item.image_url = payload.image_url
     if payload.is_active is not None:
         item.is_active = payload.is_active
 
-    if payload.food_name is not None or payload.ingredients is not None:
+    if payload.food_name is not None or payload.ingredients is not None or payload.default_hours_cooked is not None:
         safety = evaluate_food_safety(
             food_name=item.food_name,
             raw_text=item.ingredients,
             hours_since_cooked=item.default_hours_cooked,
         )
+        if safety["safety_status"] == "REJECTED" or not safety["can_publish"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Ditolak BPOM: {safety['safety_reason']}",
+            )
         item.canonical_bpom_dish = safety["matched_canonical_dish"]
         item.category = safety["category"]
         item.bpom_max_hours = safety["bpom_max_hours"]
@@ -150,6 +191,8 @@ def update_store_menu_item(
         canonical_bpom_dish=item.canonical_bpom_dish,
         category=item.category,
         bpom_max_hours=item.bpom_max_hours,
+        portion_size=getattr(item, "portion_size", "Reguler") or "Reguler",
+        image_url=item.image_url,
         is_active=item.is_active,
         created_at=item.created_at,
     )
@@ -180,6 +223,11 @@ async def create_draft_listing(
 ) -> DraftResponse:
     """Extracts entities from merchant voice/text prompt with Context-Aware Dual-Mode Slot Filling."""
     extracted = await extract_listing_entities(request.text, request.audio_base64)
+    if extracted.get("has_negative_value", False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Harga atau jumlah porsi tidak boleh bernilai negatif.",
+        )
     target_store_id = request.store_id or "FTUI-001"
 
     # Fetch store details
@@ -212,6 +260,7 @@ async def create_draft_listing(
     # Context-Aware Slot Resolution
     if matched_menu:
         food_name = matched_menu.food_name
+        image_url = matched_menu.image_url
         # Price resolution
         if not extracted.get("price_mentioned", False):
             original_price = matched_menu.original_price
@@ -233,6 +282,7 @@ async def create_draft_listing(
     else:
         # Ad-hoc item
         food_name = extracted["food_name"]
+        image_url = None
         can_save_to_catalog = True
         matched_menu_item_id = None
         hours_since_cooked = extracted["hours_since_cooked"]
@@ -246,6 +296,12 @@ async def create_draft_listing(
             catalog_match_status = "ADHOC_NEEDS_PRICE"
             needs_manual_price = True
 
+    if extracted["quantity"] > 200 or original_price > 2000000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Kuantitas porsi (maks 200) atau harga normal (maks Rp 2.000.000) melampaui batas kewajaran retail.",
+        )
+
     # Closing minutes calculation: use prompt if explicitly mentioned, else real compute
     if extracted.get("explicit_closing_mentioned", False):
         minutes_until_closing = extracted["minutes_until_closing"]
@@ -258,6 +314,8 @@ async def create_draft_listing(
         raw_text=request.text,
         hours_since_cooked=hours_since_cooked,
     )
+
+    can_save_to_catalog = bool(can_save_to_catalog and safety["safety_status"] == "SAFE" and safety["can_publish"])
 
     # Dynamic pricing computation
     pricing = calculate_dynamic_pricing(
@@ -284,12 +342,14 @@ async def create_draft_listing(
         similarity_score=safety["similarity_score"],
         extraction_source=extracted["extraction_source"],
         can_publish=safety["can_publish"],
+        portion_size=extracted.get("portion_size", "Reguler") or "Reguler",
         store_id=target_store_id,
         catalog_match_status=catalog_match_status,
         matched_menu_item_id=matched_menu_item_id,
         needs_manual_price=needs_manual_price,
         can_save_to_catalog=can_save_to_catalog,
         closing_time=store_closing,
+        image_url=image_url,
     )
 
 
@@ -300,10 +360,16 @@ def publish_listing(
     """Publishes a validated surplus food listing to the active marketplace catalog.
     Enforces hard food safety guardrail: raises HTTP 400 if safety_status is REJECTED.
     """
-    if payload.safety_status == "REJECTED" or payload.hours_since_cooked > payload.bpom_max_hours:
+    server_eval = evaluate_food_safety(payload.food_name, payload.hours_since_cooked)
+    if (
+        payload.safety_status == "REJECTED"
+        or payload.hours_since_cooked > payload.bpom_max_hours
+        or server_eval["safety_status"] == "REJECTED"
+        or not server_eval["can_publish"]
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Listing ditolak oleh Guardrail Keamanan Pangan BPOM.",
+            detail=f"Listing ditolak oleh Guardrail Keamanan Pangan BPOM: {server_eval.get('safety_reason', 'Bahan berbahaya atau kadaluarsa.')}",
         )
 
     discount_percent = max(50, min(70, payload.discount_percent))
@@ -312,6 +378,10 @@ def publish_listing(
     else:
         raw_price = payload.original_price * (1.0 - discount_percent / 100.0)
         discounted_price = int((raw_price // 100) * 100)
+
+    image_url = payload.image_url
+    if payload.is_bundle and not image_url:
+        image_url = "/assets/foods/mystery_bag.jpg"
 
     listing = ItemListing(
         store_id=payload.store_id,
@@ -339,6 +409,8 @@ def publish_listing(
         hazard_description=payload.hazard_description,
         regulation_ref=payload.regulation_ref,
         similarity_score=payload.similarity_score,
+        portion_size=payload.portion_size or "Reguler",
+        image_url=image_url,
         is_active=True,
     )
 
@@ -401,11 +473,32 @@ def create_smart_bundle(
     else:
         bundle_name = "Paket Kejutan Lauk & Makanan Hemat (Surprise Bag)"
 
-    # Build bundled items JSON
-    bundled_items_data = [
-        {"food_name": item.food_name, "quantity": item.quantity, "original_price": item.original_price}
-        for item in eligible_items
-    ]
+    # Build bundled items JSON with ingredients and allergen tags
+    bundled_items_data = []
+    for item in eligible_items:
+        stmt_menu = select(StoreMenuItem).where(
+            StoreMenuItem.store_id == target_store_id,
+            StoreMenuItem.food_name == item.food_name,
+        )
+        matched_cat = session.exec(stmt_menu).first()
+        if matched_cat and matched_cat.ingredients:
+            ing_str = matched_cat.ingredients
+        else:
+            dish_match, _ = vector_store.search_similar_dish(item.food_name)
+            ing_raw = dish_match.get("ingredients", [])
+            ing_str = ", ".join(ing_raw) if isinstance(ing_raw, list) else str(ing_raw)
+            if not ing_str:
+                ing_str = "Bahan pangan olahan segar pilihan dapur"
+
+        tags = _detect_allergen_tags(f"{item.food_name} {ing_str}")
+        ing_list = [i.strip() for i in ing_str.split(",") if i.strip()]
+        bundled_items_data.append({
+            "food_name": item.food_name,
+            "quantity": item.quantity,
+            "original_price": item.original_price,
+            "ingredients": ing_list,
+            "allergen_tags": tags,
+        })
     bundled_json = json.dumps(bundled_items_data, ensure_ascii=False)
 
     # Deactivate individual items in the same transaction
@@ -441,6 +534,7 @@ def create_smart_bundle(
         hazard_description="Paket makanan kombinasi tersertifikasi aman mikrobiologis PerBPOM No. 16/2019.",
         regulation_ref="PerBPOM No. 16/2019 Rekomendasi Bundling",
         similarity_score=0.95,
+        image_url="/assets/foods/mystery_bag.jpg",
         is_active=True,
     )
 
@@ -508,6 +602,7 @@ def reserve_order(
         food_name=listing.food_name,
         store_name=listing.store_name,
         location_badge=listing.location_badge,
+        image_url=listing.image_url,
         quantity=payload.quantity,
         unit_price=listing.discounted_price,
         total_price=total_price,
