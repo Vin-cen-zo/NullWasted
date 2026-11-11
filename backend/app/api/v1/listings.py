@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 import json
 import random
+import re
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
@@ -754,10 +755,11 @@ def complete_order_pickup(
             extracted_code = parts[1].split("|")[0].strip()
             normalized_code = extracted_code
 
-    if not normalized_code.startswith("#") and normalized_code.startswith("NW-"):
+    digits = re.sub(r"[^0-9]", "", normalized_code)
+    if len(digits) == 4:
+        normalized_code = f"#NW-{digits}"
+    elif not normalized_code.startswith("#") and normalized_code.startswith("NW-"):
         normalized_code = f"#{normalized_code}"
-    elif normalized_code.isdigit() and len(normalized_code) == 4:
-        normalized_code = f"#NW-{normalized_code}"
 
     # Search by order_code or full qr_payload
     statement = select(OrderTicket).where(

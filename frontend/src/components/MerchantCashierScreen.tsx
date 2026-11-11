@@ -47,6 +47,12 @@ function extractOrderCodeFromQr(rawText: string): string | null {
     return token.startsWith("#") ? token : `#${token}`;
   }
 
+  // Handle #xxxx, NW xxxx, or 4 digits anywhere in direct manual code input
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length === 4) {
+    return `#NW-${digits}`;
+  }
+
   return null;
 }
 
@@ -231,8 +237,9 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
     setIsCrossStoreFraud(false);
     setSuccessTicket(null);
 
+    const normalizedInput = extractOrderCodeFromQr(inputCode) || inputCode.trim();
     try {
-      const ticket = await onCompletePickup(inputCode.trim());
+      const ticket = await onCompletePickup(normalizedInput);
       setSuccessTicket(ticket);
       setInputCode("");
     } catch (err: unknown) {
