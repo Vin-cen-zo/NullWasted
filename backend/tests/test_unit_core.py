@@ -533,7 +533,7 @@ def test_smart_mystery_bag_bundling_engine(client: TestClient):
 def test_payment_methods_cash_vs_simulated_qris(client: TestClient):
     """Tests reservation with CASH_ON_PICKUP (UNPAID) vs SIMULATED_QRIS (PAID)."""
     listings = client.get("/api/v1/listings/active").json()
-    listing = listings[0]
+    listing = next(i for i in listings if i["quantity"] >= 2 and not i.get("is_bundle"))
     l_id = listing["id"]
 
     # 1. CASH_ON_PICKUP
