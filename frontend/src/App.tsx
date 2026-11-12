@@ -269,7 +269,7 @@ export const App: React.FC = () => {
                   ) : (
                     <>
                       <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                      <span className="truncate max-w-[140px] sm:max-w-xs">{session.customerName} (UI Depok)</span>
+                      <span className="truncate max-w-[140px] sm:max-w-xs">{session.customerName}</span>
                     </>
                   )}
                 </div>
@@ -405,9 +405,25 @@ export const App: React.FC = () => {
                   onDirectPublish={handlePublish}
                   isPublishing={isPublishing}
                   closingTime={session.closingTime || "20:30"}
-                  locationName={session.locationName || "Kantin FTUI · 200m"}
-                  latitude={session.latitude}
-                  longitude={session.longitude}
+                  locationName={session.locationName || ""}
+                  latitude={session.latitude ?? null}
+                  longitude={session.longitude ?? null}
+                  onStoreLocationUpdated={(lat, lng, label) => {
+                    const updated: UserSession = {
+                      ...session,
+                      latitude: lat,
+                      longitude: lng,
+                      locationName: label ?? session.locationName,
+                    };
+                    setSession(updated);
+                    try {
+                      localStorage.setItem("nw_user_session", JSON.stringify(updated));
+                    } catch {
+                      // ignore storage failure
+                    }
+                    refreshListings();
+                    showToast(lat != null ? "Pin lokasi gerai diperbarui." : "Pin lokasi gerai dihapus.");
+                  }}
                   initialText={lastInputText}
                   onTextChange={(val) => setLastInputText(val)}
                 />

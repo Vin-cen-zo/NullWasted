@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ItemListing, humanizeBpomText, resolveImageUrl } from "../types/listing";
 import {
   ShieldCheck,
@@ -18,7 +18,7 @@ import {
   Utensils,
   Coffee,
 } from "lucide-react";
-import { ClosingCountdownBadge } from "./ClosingCountdownBadge";
+import { ClosingCountdownBadge, computeSecondsUntilClosing } from "./ClosingCountdownBadge";
 import { ConsumerMapModal } from "./ConsumerMapModal";
 
 interface ConsumerFeedScreenProps {
@@ -27,27 +27,18 @@ interface ConsumerFeedScreenProps {
   customerName: string;
 }
 
-// User anchor: FTUI Kampus UI Depok
-export const DEFAULT_FTUI_COORDS: [number, number] = [-6.3626, 106.8240];
-
-export function resolveItemCoords(item: ItemListing): [number, number] {
-  if (item.store_id === "FTUI-001") {
-    return [-6.3621, 106.8246]; // ~110m dari FTUI (Zona < 500m)
+export function resolveItemCoords(item: ItemListing): [number, number] | null {
+  if (typeof item.latitude === "number" && typeof item.longitude === "number") {
+    return [item.latitude, item.longitude];
   }
-  if (item.store_id === "KUTEK-007") {
-    return [-6.3575, 106.8195]; // ~780m dari FTUI (Zona 500m - 1.5km)
-  }
-  if (item.store_id === "MARGONDA-042") {
-    return [-6.3685, 106.8375]; // ~1.85km dari FTUI (Zona > 1.5km)
-  }
-  return [item.latitude || -6.3621, item.longitude || 106.8246];
+  return null;
 }
 
 export function calculateDistanceMeters(
   lat1: number,
   lng1: number,
-  lat2: number = DEFAULT_FTUI_COORDS[0],
-  lng2: number = DEFAULT_FTUI_COORDS[1]
+  lat2: number,
+  lng2: number
 ): number {
   const R = 6371e3;
   const φ1 = (lat2 * Math.PI) / 180;
@@ -81,12 +72,21 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
     }
   });
 
-  // Dynamic Geolocation toggle (Live Device GPS vs Campus Demo Anchor)
-  const [userCoords, setUserCoords] = useState<[number, number]>(DEFAULT_FTUI_COORDS);
-  const [gpsStatus, setGpsStatus] = useState<"FTUI_ANCHOR" | "LIVE_GPS">("FTUI_ANCHOR");
+  // Live Device GPS (auto-requested after consumer enters feed)
+  const [userCoords, setUserCoords] = useState<[number, number] | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<"PENDING" | "LIVE_GPS" | "UNAVAILABLE">("PENDING");
   const [gpsNotice, setGpsNotice] = useState<string | null>(null);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
+  const [nowTick, setNowTick] = useState<number>(() => Date.now());
+
+  // Tick every 2s so items reaching 0s closing countdown are automatically removed from Jelajah catalog
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTick(Date.now());
+    }, 2000);
+    return () => clearInterval(timer);
+  }, []);
 
   const toggleBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -101,15 +101,10 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
     });
   };
 
-  const switchToFtuiDemo = () => {
-    setUserCoords(DEFAULT_FTUI_COORDS);
-    setGpsStatus("FTUI_ANCHOR");
-    setGpsNotice(null);
-  };
-
   const requestLiveGps = () => {
     if (!navigator.geolocation) {
-      alert("Browser Anda tidak mendukung Geolocation API.");
+      setGpsStatus("UNAVAILABLE");
+      setGpsNotice("Browser Anda tidak mendukung Geolocation API.");
       return;
     }
 
@@ -118,54 +113,60 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setIsGpsLoading(false);
-        const deviceLat = pos.coords.latitude;
-        const deviceLng = pos.coords.longitude;
-        const distFromFtui = calculateDistanceMeters(
-          deviceLat,
-          deviceLng,
-          DEFAULT_FTUI_COORDS[0],
-          DEFAULT_FTUI_COORDS[1]
-        );
-
-        setUserCoords([deviceLat, deviceLng]);
+        setUserCoords([pos.coords.latitude, pos.coords.longitude]);
         setGpsStatus("LIVE_GPS");
-        if (distFromFtui > 3000) {
-          setGpsNotice("Lokasi GPS Anda > 3km dari kampus UI Depok. Gunakan Mode Demo FTUI untuk simulasi sekitar kampus.");
-        }
+        setGpsNotice(null);
       },
       () => {
         setIsGpsLoading(false);
-        setUserCoords(DEFAULT_FTUI_COORDS);
-        setGpsStatus("FTUI_ANCHOR");
-        setGpsNotice("Izin GPS ditolak atau gagal — menggunakan Mode Demo FTUI.");
+        setGpsStatus("UNAVAILABLE");
+        setGpsNotice("Aktifkan izin GPS browser untuk estimasi jarak ke setiap gerai.");
       },
-      { timeout: 6000 }
+      { enableHighAccuracy: true, timeout: 8000 }
     );
   };
 
-  const filteredListings = listings.filter((item) => {
-    // 1. Category Filter (isolate bundles strictly from regular food tabs)
+  // Automatically request GPS permission upon entering Consumer Feed
+  useEffect(() => {
+    requestLiveGps();
+  }, []);
+
+  // Remove items immediately once closing countdown hits 0 (memoized by active IDs to avoid re-rendering map every tick)
+  const activeIdsKey = listings
+    .filter((item) => {
+      void nowTick;
+      return computeSecondsUntilClosing(item.closing_time || "20:30", item.expires_at) > 0;
+    })
+    .map((item) => item.id)
+    .join(",");
+
+  const activeNonExpiredListings = useMemo(() => {
+    const allowed = new Set(activeIdsKey ? activeIdsKey.split(",") : []);
+    return listings.filter((item) => allowed.has(item.id));
+  }, [listings, activeIdsKey]);
+
+  const filteredListings = activeNonExpiredListings.filter((item) => {
+    const foodType = (item.food_type || "MEAL").toUpperCase();
+
+    // 1. Food Type Filter (semantic/AI food_type decoupled from BPOM risk category)
     if (selectedCategory === "BUNDLE") {
       if (!item.is_bundle) return false;
     } else if (selectedCategory === "BAKERY") {
-      if (item.category !== "LOW_PERISHABILITY" || item.is_bundle) return false;
+      if (item.is_bundle || foodType !== "BAKERY") return false;
     } else if (selectedCategory === "HEAVY") {
-      if (item.category === "LOW_PERISHABILITY" || item.category === "BEVERAGES" || item.is_bundle) return false;
+      if (item.is_bundle || foodType !== "MEAL") return false;
     } else if (selectedCategory === "BEVERAGE") {
-      if (item.is_bundle) return false;
-      const isBeverageCategory = item.category === "BEVERAGES";
-      const isBeverageName = /\b(kopi|susu|teh|jus|cendol|dawet|wedang|sirup|boba|latte|matcha|milk|botol)\b/i.test(
-        item.food_name
-      );
-      if (!isBeverageCategory && !isBeverageName) return false;
+      if (item.is_bundle || foodType !== "BEVERAGE") return false;
     }
 
-    // 2. Distance Radius Filter (Dynamic Haversine from userCoords)
-    const [itemLat, itemLng] = resolveItemCoords(item);
-    const distanceM = calculateDistanceMeters(itemLat, itemLng, userCoords[0], userCoords[1]);
-
-    if (selectedRadius === "500" && distanceM > 500) return false;
-    if (selectedRadius === "1500" && distanceM > 1500) return false;
+    // 2. Distance Radius Filter (Dynamic Haversine when both GPS & store pinpoint exist)
+    const itemCoords = resolveItemCoords(item);
+    if (selectedRadius !== "ALL") {
+      if (!userCoords || !itemCoords) return false;
+      const distanceM = calculateDistanceMeters(itemCoords[0], itemCoords[1], userCoords[0], userCoords[1]);
+      if (selectedRadius === "500" && distanceM > 500) return false;
+      if (selectedRadius === "1500" && distanceM > 1500) return false;
+    }
 
     // 3. Tokenized Multi-Word Search Query
     if (searchQuery.trim()) {
@@ -183,47 +184,44 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
     const bFav = bookmarkedIds.includes(b.id) ? 1 : 0;
     if (aFav !== bFav) return bFav - aFav;
 
-    const [aLat, aLng] = resolveItemCoords(a);
-    const [bLat, bLng] = resolveItemCoords(b);
-    const distA = calculateDistanceMeters(aLat, aLng, userCoords[0], userCoords[1]);
-    const distB = calculateDistanceMeters(bLat, bLng, userCoords[0], userCoords[1]);
+    if (!userCoords) return 0;
+    const aCoords = resolveItemCoords(a);
+    const bCoords = resolveItemCoords(b);
+    if (!aCoords && !bCoords) return 0;
+    if (!aCoords) return 1;
+    if (!bCoords) return -1;
+    const distA = calculateDistanceMeters(aCoords[0], aCoords[1], userCoords[0], userCoords[1]);
+    const distB = calculateDistanceMeters(bCoords[0], bCoords[1], userCoords[0], userCoords[1]);
     return distA - distB;
   });
 
   return (
     <div className="flex-1 flex flex-col space-y-4">
-      {/* Header Greeting, GPS Anchor Toggle & Open Map CTA */}
+      {/* Header Greeting, Live GPS Status & Open Map CTA */}
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-sm font-bold text-[#1F1D1A]">Selamat Datang, {customerName}</h2>
           <div className="flex flex-wrap items-center gap-1.5 mt-1">
-            <div className="inline-flex items-center p-0.5 rounded-full bg-stone-100 border border-stone-200">
-              <button
-                type="button"
-                onClick={switchToFtuiDemo}
-                className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full transition cursor-pointer ${
-                  gpsStatus === "FTUI_ANCHOR"
-                    ? "bg-white text-emerald-800 shadow-xs border border-emerald-200"
-                    : "text-stone-600 hover:text-stone-900"
-                }`}
-              >
-                Mode Demo FTUI
-              </button>
-              <button
-                type="button"
-                onClick={requestLiveGps}
-                disabled={isGpsLoading}
-                className={`text-[10px] font-semibold flex items-center gap-1 px-2.5 py-0.5 rounded-full transition cursor-pointer ${
-                  gpsStatus === "LIVE_GPS"
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "text-stone-600 hover:text-stone-900"
-                }`}
-                title="Gunakan koordinat GPS asli perangkat Anda"
-              >
-                <Crosshair className={`w-3 h-3 ${isGpsLoading ? "animate-spin" : ""}`} />
-                <span>{isGpsLoading ? "Mencari GPS..." : "Gunakan Lokasi Saya"}</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={requestLiveGps}
+              disabled={isGpsLoading}
+              className={`text-[10px] font-semibold flex items-center gap-1 px-2.5 py-0.5 rounded-full transition cursor-pointer border ${
+                gpsStatus === "LIVE_GPS"
+                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                  : "bg-white text-stone-700 border-stone-300 hover:bg-stone-50"
+              }`}
+              title="Perbarui koordinat GPS perangkat Anda"
+            >
+              <Crosshair className={`w-3 h-3 ${isGpsLoading ? "animate-spin" : ""}`} />
+              <span>
+                {isGpsLoading
+                  ? "Mencari GPS..."
+                  : gpsStatus === "LIVE_GPS"
+                    ? "GPS Aktif (Perbarui Lokasi)"
+                    : "Gunakan Lokasi Saya"}
+              </span>
+            </button>
             {gpsNotice && (
               <span className="text-[10px] font-medium text-amber-700">{gpsNotice}</span>
             )}
@@ -397,9 +395,17 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
           {sortedListings.map((item) => {
-            const [itemLat, itemLng] = resolveItemCoords(item);
-            const distM = calculateDistanceMeters(itemLat, itemLng, userCoords[0], userCoords[1]);
-            const distLabel = distM < 1000 ? `${distM}m away` : `${(distM / 1000).toFixed(1)}km away`;
+            const itemCoords = resolveItemCoords(item);
+            const distM =
+              userCoords && itemCoords
+                ? calculateDistanceMeters(itemCoords[0], itemCoords[1], userCoords[0], userCoords[1])
+                : null;
+            const distLabel =
+              distM !== null
+                ? distM < 1000
+                  ? `${distM}m dari Anda`
+                  : `${(distM / 1000).toFixed(1)}km dari Anda`
+                : item.location_badge || "Lokasi via peta";
             const resolvedImg = resolveImageUrl(item.image_url, item.is_bundle);
             const hasImage = Boolean(resolvedImg && !failedImageIds.has(item.id));
             const isBookmarked = bookmarkedIds.includes(item.id);
@@ -528,6 +534,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
                       </div>
                       <ClosingCountdownBadge
                         closingTime={item.closing_time || "20:30"}
+                        expiresAt={item.expires_at}
                         fallbackMinutes={item.minutes_until_closing}
                       />
                     </div>
@@ -571,7 +578,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
       <ConsumerMapModal
         isOpen={isMapOpen}
         onClose={() => setIsMapOpen(false)}
-        listings={listings}
+        listings={activeNonExpiredListings}
         onSelectItem={onSelectItem}
         userCoords={userCoords}
       />

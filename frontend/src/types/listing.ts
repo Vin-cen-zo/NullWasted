@@ -8,10 +8,12 @@ export interface StoreMenuItem {
   ingredients: string;
   canonical_bpom_dish: string;
   category: string;
+  food_type?: string;
   bpom_max_hours: number;
   portion_size?: string;
   image_url?: string | null;
   is_active: boolean;
+  expires_at?: string | null;
   created_at: string;
 }
 
@@ -20,8 +22,8 @@ export interface StoreProfile {
   store_id: string;
   name: string;
   location_name: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number | null;
+  longitude?: number | null;
   closing_time: string;
   maps_url: string;
   is_active: boolean;
@@ -31,6 +33,7 @@ export interface DraftResponse {
   food_name: string;
   matched_canonical_dish: string;
   category: string;
+  food_type?: string;
   quantity: number;
   original_price: number;
   recommended_discount_percent: number;
@@ -61,6 +64,7 @@ export interface PublishRequest {
   food_name: string;
   matched_canonical_dish: string;
   category: string;
+  food_type?: string;
   quantity: number;
   original_price: number;
   discount_percent: number;
@@ -80,8 +84,8 @@ export interface PublishRequest {
   // Multi-tenant & bundling
   store_id?: string;
   closing_time?: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   is_bundle?: boolean;
   bundled_items_json?: string | null;
   image_url?: string | null;
@@ -93,8 +97,8 @@ export interface ItemListing {
   store_name: string;
   location_badge: string;
   maps_url: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   closing_time?: string;
   is_bundle?: boolean;
   bundled_items_json?: string | null;
@@ -103,6 +107,7 @@ export interface ItemListing {
   food_name: string;
   matched_canonical_dish: string;
   category: string;
+  food_type?: string;
   quantity: number;
   initial_quantity: number;
   original_price: number;
@@ -118,6 +123,7 @@ export interface ItemListing {
   similarity_score: number;
   image_url?: string | null;
   is_active: boolean;
+  expires_at?: string | null;
   created_at: string;
 }
 
@@ -155,8 +161,8 @@ export interface UserSession {
   customerPhone?: string;
   closingTime?: string;
   locationName?: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface AuthResponse {
@@ -169,8 +175,8 @@ export interface AuthResponse {
   customer_phone?: string;
   closing_time?: string;
   location_name?: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export function getFriendlyCategory(category?: string, isBundle?: boolean): { label: string } {

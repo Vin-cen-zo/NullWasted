@@ -81,11 +81,11 @@ export async function loginMerchant(storeId: string, pin: string): Promise<AuthR
 export async function registerMerchant(payload: {
   name: string;
   pin: string;
-  location_name: string;
+  location_name?: string;
   closing_time: string;
   category?: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
 }): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE_URL}/auth/merchant-register`, {
     method: "POST",
@@ -95,6 +95,29 @@ export async function registerMerchant(payload: {
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(formatApiError(errorData.detail, "Gagal mendaftarkan gerai mitra."));
+  }
+  return res.json();
+}
+
+export async function updateStoreLocation(
+  storeId: string,
+  payload: {
+    latitude: number | null;
+    longitude: number | null;
+    location_name?: string | null;
+  }
+): Promise<StoreProfile> {
+  const res = await fetch(`${API_BASE_URL}/auth/stores/${encodeURIComponent(storeId)}/location`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memperbarui pin lokasi gerai."));
   }
   return res.json();
 }
