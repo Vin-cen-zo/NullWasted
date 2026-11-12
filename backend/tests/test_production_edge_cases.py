@@ -335,3 +335,136 @@ def test_pbkdf2_hashing_and_legacy_sha256_fallback():
 
     assert verify_pin("4321", legacy_digest) is True
     assert verify_pin("9999", legacy_digest) is False
+
+
+def test_food_type_separation_and_seblak_accepted(client: TestClient):
+    """Verifies Es Cendol Durian -> BEVERAGE, Croissant -> BAKERY, Seblak -> MEAL & safe."""
+    from app.services.guardrail import evaluate_food_safety
+
+    res_cendol = evaluate_food_safety(
+        "Es Cendol Durian",
+        hours_since_cooked=1.0,
+        ai_is_edible=True,
+        ai_food_type="BEVERAGE",
+    )
+    assert res_cendol["can_publish"] is True
+    assert res_cendol["safety_status"] == "SAFE"
+    assert res_cendol["food_type"] == "BEVERAGE"
+
+    res_croissant = evaluate_food_safety(
+        "Croissant Mentega",
+        hours_since_cooked=2.0,
+        ai_is_edible=True,
+        ai_food_type="BAKERY",
+    )
+    assert res_croissant["can_publish"] is True
+    assert res_croissant["safety_status"] == "SAFE"
+    assert res_croissant["food_type"] == "BAKERY"
+
+    res_seblak = evaluate_food_safety(
+        "Seblak Ceker",
+        hours_since_cooked=1.5,
+        ai_is_edible=True,
+        ai_food_type="MEAL",
+    )
+    assert res_seblak["can_publish"] is True
+    assert res_seblak["safety_status"] == "SAFE"
+    assert res_seblak["food_type"] == "MEAL"
+
+    # Non-food remains strictly rejected even if AI fails to flag it
+    res_shoe = evaluate_food_safety(
+        "Sepatu Kulit",
+        hours_since_cooked=1.0,
+        ai_is_edible=False,
+    )
+    assert res_shoe["can_publish"] is False
+    assert res_shoe["safety_status"] == "REJECTED"
+
+
+def test_bekasi_store_registration_pinpoint_and_optional_consumer_address(client: TestClient):
+    """Verifies non-FTUI coordinates (Bekasi) are preserved, pinpoints update/remove cleanly, and consumer address is optional."""
+    bekasi_lat, bekasi_lng = -6.2383, 106.9756
+
+    reg_res = client.post(
+        "/api/v1/auth/merchant-register",
+        json={
+            "name": "Warung Bekasi Raya",
+            "pin": "2468",
+            "location_name": "Bekasi Timur",
+            "closing_time": "21:30",
+            "latitude": bekasi_lat,
+            "longitude": bekasi_lng,
+        },
+    )
+    assert reg_res.status_code == 200
+    merchant = reg_res.json()
+    store_id = merchant["store_id"]
+    token = merchant["token"]
+    assert merchant["latitude"] == pytest.approx(bekasi_lat)
+    assert merchant["longitude"] == pytest.approx(bekasi_lng)
+
+    # Store must appear in GET /api/v1/auth/stores even before publishing any listing
+    stores_res = client.get("/api/v1/auth/stores")
+    assert stores_res.status_code == 200
+    bekasi_store = next((s for s in stores_res.json() if s["store_id"] == store_id), None)
+    assert bekasi_store is not None
+    assert bekasi_store["latitude"] == pytest.approx(bekasi_lat)
+    assert bekasi_store["longitude"] == pytest.approx(bekasi_lng)
+
+    # Publishing without explicit lat/lng must inherit the Bekasi store coordinates, never FTUI defaults
+    pub_res = client.post(
+        "/api/v1/listings/publish",
+        json={
+            "food_name": "Es Cendol Durian",
+            "matched_canonical_dish": "Es Cendol",
+            "original_price": 25000,
+            "discounted_price": 10000,
+            "discount_percent": 60,
+            "hours_since_cooked": 1.0,
+            "category": "MEDIUM_PERISHABILITY",
+            "food_type": "BEVERAGE",
+            "bpom_max_hours": 8.0,
+            "minutes_until_closing": 120,
+            "safety_status": "SAFE",
+            "safety_reason": "Minuman segar layak konsumsi.",
+            "hazard_description": "Sesuai batas suhu ruang PerBPOM.",
+            "regulation_ref": "PerBPOM No. 16 Tahun 2019",
+            "quantity": 3,
+            "store_id": store_id,
+            "store_name": "Warung Bekasi Raya",
+            "location_badge": "Bekasi Timur",
+            "closing_time": "21:30",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert pub_res.status_code == 200
+    published = pub_res.json()
+    assert published["latitude"] == pytest.approx(bekasi_lat)
+    assert published["longitude"] == pytest.approx(bekasi_lng)
+    assert published["food_type"] == "BEVERAGE"
+
+    # Store pinpoint move & clear (remove location)
+    moved_res = client.put(
+        f"/api/v1/auth/stores/{store_id}/location",
+        json={"latitude": -6.25, "longitude": 107.0, "location_name": "Bekasi Selatan"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert moved_res.status_code == 200
+    assert moved_res.json()["latitude"] == pytest.approx(-6.25)
+
+    removed_res = client.patch(
+        f"/api/v1/auth/stores/{store_id}/location",
+        json={"latitude": None, "longitude": None},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert removed_res.status_code == 200
+    assert removed_res.json()["latitude"] is None
+    assert removed_res.json()["longitude"] is None
+
+    # Consumer registration succeeds without address
+    cons_res = client.post(
+        "/api/v1/auth/consumer-register",
+        json={"name": "Pembeli Bekasi", "phone": "081299988877"},
+    )
+    assert cons_res.status_code == 200
+    assert cons_res.json()["customer_name"] == "Pembeli Bekasi"
