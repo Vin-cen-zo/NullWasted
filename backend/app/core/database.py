@@ -48,6 +48,8 @@ def init_db() -> None:
                         conn.execute(text("ALTER TABLE item_listings ADD COLUMN image_url TEXT DEFAULT NULL"))
                     if "expires_at" not in item_cols:
                         conn.execute(text("ALTER TABLE item_listings ADD COLUMN expires_at DATETIME DEFAULT NULL"))
+                    if "food_type" not in item_cols:
+                        conn.execute(text("ALTER TABLE item_listings ADD COLUMN food_type TEXT DEFAULT 'MEAL'"))
 
                 # 2. store_menu_items migrations
                 menu_cols = [c[1] for c in conn.execute(text("PRAGMA table_info(store_menu_items)")).fetchall()]
@@ -56,6 +58,8 @@ def init_db() -> None:
                         conn.execute(text("ALTER TABLE store_menu_items ADD COLUMN portion_size TEXT DEFAULT 'Reguler'"))
                     if "image_url" not in menu_cols:
                         conn.execute(text("ALTER TABLE store_menu_items ADD COLUMN image_url TEXT DEFAULT NULL"))
+                    if "food_type" not in menu_cols:
+                        conn.execute(text("ALTER TABLE store_menu_items ADD COLUMN food_type TEXT DEFAULT 'MEAL'"))
 
                 # 3. order_tickets migrations
                 order_cols = [c[1] for c in conn.execute(text("PRAGMA table_info(order_tickets)")).fetchall()]
@@ -102,6 +106,12 @@ def init_db() -> None:
                 conn.execute(text("UPDATE item_listings SET image_url = '/assets/foods/donat_klasik.jpg' WHERE food_name LIKE '%Donat%' AND image_url IS NULL"))
                 conn.execute(text("UPDATE item_listings SET image_url = '/assets/foods/pisang_bakar.jpg' WHERE food_name LIKE '%Pisang%' AND image_url IS NULL"))
                 conn.execute(text("UPDATE item_listings SET image_url = '/assets/foods/mystery_bag.jpg' WHERE is_bundle = 1 AND image_url IS NULL"))
+
+                # 6. Backfill food_type on legacy rows
+                conn.execute(text("UPDATE store_menu_items SET food_type = 'BAKERY' WHERE (food_name LIKE '%Croissant%' OR food_name LIKE '%Roti%' OR food_name LIKE '%Donat%' OR food_name LIKE '%Danish%') AND (food_type IS NULL OR food_type = 'MEAL')"))
+                conn.execute(text("UPDATE store_menu_items SET food_type = 'BEVERAGE' WHERE (food_name LIKE '%Kopi%' OR food_name LIKE '%Cendol%' OR food_name LIKE '%Matcha%' OR food_name LIKE '%Boba%' OR food_name LIKE '%Teh%') AND (food_type IS NULL OR food_type = 'MEAL')"))
+                conn.execute(text("UPDATE item_listings SET food_type = 'BAKERY' WHERE (food_name LIKE '%Croissant%' OR food_name LIKE '%Roti%' OR food_name LIKE '%Donat%' OR food_name LIKE '%Danish%') AND (food_type IS NULL OR food_type = 'MEAL')"))
+                conn.execute(text("UPDATE item_listings SET food_type = 'BEVERAGE' WHERE (food_name LIKE '%Kopi%' OR food_name LIKE '%Cendol%' OR food_name LIKE '%Matcha%' OR food_name LIKE '%Boba%' OR food_name LIKE '%Teh%') AND (food_type IS NULL OR food_type = 'MEAL')"))
 
                 conn.commit()
             except Exception:
