@@ -39,10 +39,10 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 | Role | Entity | Store ID / Identifier | Security Key / PIN | Coordinate Offset |
 | :--- | :--- | :--- | :--- | :--- |
-| **Merchant** | Dapur Barokah FTUI | `FTUI-001` | `1234` | ~110 m (FTUI Dekanat) |
-| **Merchant** | Warkop Berkah Kutek | `KUTEK-007` | `1234` | ~780 m (Kutek) |
-| **Merchant** | Roti Unyil Margonda | `MARGONDA-002` | `1234` | ~1.8 km (Margonda Raya) |
-| **Consumer** | Primary Test User | `0812-8899-0011` | Direct Session Verification | User Reference Node |
+| **Merchant** | Dapur Barokah FTUI | `FTUI-001` | `1234` | ~110 m (Kantin FTUI) |
+| **Merchant** | Warkop & Snack Kutek | `KUTEK-007` | `1234` | ~780 m (Kukusan Teknik) |
+| **Merchant** | Roti Unyil & Pastry Margonda | `MARGONDA-042` | `1234` | ~1.8 km (Jl. Margonda Raya) |
+| **Consumer** | Budi Santoso | `0812-8899-0011` | Direct Session Verification | User Reference Node |
 
 ---
 
@@ -50,7 +50,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 | Suite | Category | Functional Scope | Case Count |
 | :--- | :--- | :--- | :---: |
-| **Suite 1** | Automated Suite | Pytest unit/integration tests and Vite TypeScript compilation | 3 |
+| **Suite 1** | Automated Suite | Full pytest suite (`42` unit & edge-case tests), Vite/TS build, & `/health` | 3 |
 | **Suite 2** | Authentication | Merchant onboarding, session caching, and consumer verification | 4 |
 | **Suite 3** | Merchant Operations | Speech recognition, AI entity extraction, and catalog batching | 6 |
 | **Suite 4** | Safety Guardrail | PerBPOM No. 16/2019 semantic RAG, poison filtering, and time decay | 9 |
@@ -59,7 +59,8 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 | **Suite 7** | Order Lifecycle | Atomic inventory transactions, QRIS single-modal, and QR pass generation | 5 |
 | **Suite 8** | Cashier POS | Optical webcam decoding, POS shift summaries, and anti-fraud checks | 6 |
 | **Suite 9** | Image System | Dual-mode upload, canvas compression, inheritance, and adaptive UI | 5 |
-| **Total** | | **Comprehensive System Scope** | **48 Cases** |
+| **Suite 10** | Hardening & UX Polish | Live preview controls, GPS toggle, bookmarks, expiry guards, bilingual RAG, & JWT isolation | 10 |
+| **Total** | | **Comprehensive System Scope** | **58 Cases** |
 
 ---
 
@@ -73,12 +74,12 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
   - **Command:**
     ```powershell
     cd backend
-    py -m pytest tests/test_unit_core.py -v
+    py -m pytest tests/ -v
     ```
   - **Expected Result:**
-    - All 33 test cases pass (`33 passed`).
+    - All 42 test cases pass (`42 passed`: `33` in `tests/test_unit_core.py` + `9` in `tests/test_production_edge_cases.py`).
     - Exit code: `0`.
-    - Verification includes Guardrail RAG, Dynamic Pricing clamping, Mystery Bag clustering, ticket status machines, dual-mode image uploads, and image URL lifecycle inheritance.
+    - Verification includes Guardrail RAG (`100` bilingual BPOM dishes), Dynamic Pricing clamping, Mystery Bag clustering, atomic stock decrement (`409`), expiry guards, optional JWT cross-store isolation (`403`), PBKDF2 hashing, and image URL lifecycle inheritance.
 
 - [ ] **TC-AUTO-02: Frontend Production Build Compilation**
   - **Command:**
@@ -107,7 +108,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     3. Input custom category: `Dimsum & Bento Specialist`.
     4. Input store name: `Kantin Dekanat Baru`.
     5. Input store address: `Gedung Dekanat FTUI Lantai 1` (must be >= 10 characters).
-    6. Input 4-digit PIN: `9999`, then click `"Daftarkan Gerai Saya"`.
+    6. Input 4-6 digit PIN: `9999`, then click `"Daftarkan Gerai & Dapatkan Store ID"`.
   - **Expected Result:**
     - Registration completes successfully; system allocates a unique Store ID (`STORE-xxxx`).
     - Session initiates automatically as the newly registered merchant.
@@ -125,7 +126,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
   - **Procedure:**
     1. In the account dialog, select the `"Konsumen"` tab.
     2. Input WhatsApp phone number: `0812-8899-0011`.
-    3. Click `"Lanjutkan ke Katalog"`.
+    3. Click `"Masuk & Jelajah Surplus"`.
   - **Expected Result:**
     - Consumer session initializes immediately without requiring external OTP mock gates; navigation directs to the discovery feed.
 
@@ -144,9 +145,9 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 - [ ] **TC-MERCH-01: Native Web Speech Recognition (Indonesian Language)**
   - **Procedure:**
     1. On Merchant tab, select `"Input Suara / Menu Spesial AI"`.
-    2. Click `"Mulai Dikte Suara"` (grant browser microphone access).
+    2. Click `"Dikte Suara"` (grant browser microphone access).
     3. Speak: *"Ada rendang sapi sisa lima porsi baru matang jam dua siang harga tiga puluh ribu"*.
-    4. Click `"Selesai & Kirim ke AI"`.
+    4. Click `"Stop Bicara (Sedang Mendengarkan...)"` (if auto-stop has not triggered), then click `"Analisis dengan AI & Guardrail BPOM"`.
   - **Expected Result:**
     - Transcribed text renders directly into the input area in real time via the native W3C Speech Recognition interface.
 
@@ -356,7 +357,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 - [ ] **TC-CONS-03: Leaflet Interactive Map & Google Maps External Navigation**
   - **Procedure:**
-    1. Click `"Peta Gerai"` in the consumer header.
+    1. Click `"Cek Merchant"` in the consumer header.
     2. Inspect user radius circle (500 m walking boundary).
     3. Click a store marker pin.
     4. In the resulting panel, click `"Buka Petunjuk Arah di Google Maps"`.
@@ -422,7 +423,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     1. With 1 portion remaining for an item, execute concurrent checkout requests across two separate browser sessions.
   - **Expected Result:**
     - Initial transaction completes with HTTP 200.
-    - Secondary transaction fails with HTTP 400 or 409 (`"Stok porsi telah habis"`).
+    - Secondary transaction fails atomically with HTTP `409 Conflict` (`"Stok porsi tidak mencukupi atau sedang dipesan."`).
     - Inventory balance never falls below 0.
 
 ---
@@ -441,7 +442,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 - [ ] **TC-POS-02: Optical Webcam QR Scanner Verification (`html5-qrcode`)**
   - **Procedure:**
-    1. Click `"Buka Scanner Kamera"` (grant browser webcam permissions).
+    1. Click `"Nyalakan Kamera Pemindai"` (grant browser webcam permissions).
     2. Present consumer ticket QR pass `#NW-xxxx` to the camera.
   - **Expected Result:**
     - Optical scanner decodes ticket payload `#NW-xxxx`.
@@ -451,7 +452,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 - [ ] **TC-POS-03: Manual Ticket Code Entry**
   - **Procedure:**
     1. In the manual verification field, input ticket code `#NW-xxxx`.
-    2. Click `"Verifikasi & Selesaikan"`.
+    2. Click `"Verifikasi & Serah Terima"`.
   - **Expected Result:**
     - System validates order identity and transitions status to `COMPLETED`.
 
@@ -534,11 +535,105 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 ---
 
+### SUITE 10: System Hardening, Security & Production UX Polish
+
+- [ ] **TC-HARD-01: Merchant Preview Live Countdown & Photo Replace/Remove Controls**
+  - **Procedure:**
+    1. Log in as `FTUI-001` (`PIN: 1234`), open `"Input Suara / Menu Spesial AI"`, analyze a compliant dish (`e.g., "Sisa 3 porsi Ayam Bakar Madu harga 25k baru matang"`).
+    2. On the preview card (`MerchantPreviewScreen`), observe `"Sisa waktu tutup toko:"` for 5 seconds without clicking anything.
+    3. Click `"Ganti Foto"`, upload a valid `.jpg`/`.png`/`.webp` image, and observe the preview thumbnail.
+    4. Click `"Hapus Foto"`, then publish via `"1-Tap Terbitkan Listing Resmi"`.
+  - **Expected Result:**
+    - `"Sisa waktu tutup toko:"` decrements live every second (`X menit YY detik` or `CLOSED (Toko Tutup)`).
+    - `"Ganti Foto"` compresses and uploads the image immediately, showing `"Foto baru berhasil diunggah"`.
+    - `"Hapus Foto"` clears the thumbnail back to `"Tanpa Foto Khusus"` and publishes cleanly with `image_url: null`.
+
+- [ ] **TC-HARD-02: Merchant Registration Dynamic Coordinates & Validation (`422`)**
+  - **Procedure:**
+    1. Open `"Ganti Akun"` -> `"Mitra Toko"` -> `"Daftarkan Gerai Baru"`.
+    2. Inspect closing time format validation: via UI or `POST /api/v1/auth/merchant-register`, test invalid `closing_time` (`25:99`) and invalid non-numeric or short PIN (`abc` / `12`).
+    3. Complete a valid store registration with a real physical address (`>= 10` chars) and PIN `1234`, then publish a dish from that new store.
+  - **Expected Result:**
+    - Invalid `closing_time` or malformed PIN is rejected cleanly (`HTTP 422 Unprocessable Entity` from API validation).
+    - Published listing binds the newly registered store's `location_name`, `latitude`, and `longitude` dynamically instead of defaulting to `FTUI-001`.
+
+- [ ] **TC-HARD-03: Consumer Account Persistence & 1-Tap Quick Selector**
+  - **Procedure:**
+    1. Open `"Konsumen"` -> `"Masuk Akun"`.
+    2. Confirm `"Ingat Nomor di Perangkat Ini"` is checked, enter `0812-8899-0011`, and click `"Masuk & Jelajah Surplus"`.
+    3. Test invalid phone format validation via `POST /api/v1/auth/consumer-login` or UI (`12345`).
+    4. Click `"Ganti Akun"`, switch back to `"Konsumen"` -> `"Masuk Akun"`.
+  - **Expected Result:**
+    - Malformed phone numbers fail validation (`HTTP 422`).
+    - Returning to consumer login displays `"Pilih Cepat Akun Anda"` with chip `Budi Santoso · 0812-8899-0011` persisted in `localStorage` (`nullwasted_saved_consumer`), and clicking it populates the phone field immediately.
+
+- [ ] **TC-HARD-04: Persistent Consumer Bookmarks & Priority Top-Sorting**
+  - **Procedure:**
+    1. On the Consumer discovery feed (`ConsumerFeedScreen`), click the heart bookmark button (`aria-label="Bookmark store"`) on a card lower in the list (e.g., an item from `MARGONDA-042`).
+    2. Reload the browser (`F5` / hard refresh) and return to the Consumer feed.
+  - **Expected Result:**
+    - Heart icon turns solid rose (`aria-pressed="true"`).
+    - Bookmark list persists in `localStorage` under `nullwasted_favorite_listings`.
+    - Favorited listings automatically sort to the top of the discovery grid ahead of non-favorited closer stores.
+
+- [ ] **TC-HARD-05: Beverage Keyword Filter, Bundle Isolation & Live Browser GPS Toggle**
+  - **Procedure:**
+    1. In Consumer feed, click `"Beverages"` filter pill, then `"Meals"`, `"Bakery"`, and `"Mystery Bag"`.
+    2. Inspect header location toggle pills: switch from `"Mode Demo FTUI"` to `"Gunakan Lokasi Saya"`, then switch back to `"Mode Demo FTUI"`.
+  - **Expected Result:**
+    - `"Beverages"` surfaces drinks matching `BEVERAGES` category or beverage keywords (`kopi`, `susu`, `teh`, `jus`, `matcha`, `latte`, `boba`, etc.) while hiding `Mystery Bag` bundles.
+    - `"Meals"` and `"Bakery"` exclude `is_bundle` listings (`!item.is_bundle`), while `"Mystery Bag"` displays bundles only.
+    - `"Gunakan Lokasi Saya"` invokes `navigator.geolocation.getCurrentPosition`, updates Haversine distances (showing fallback notice if GPS permission is denied or `> 3km` from campus UI), and `"Mode Demo FTUI"` restores the default anchor (`-6.3626, 106.8240`).
+
+- [ ] **TC-HARD-06: Bilingual Fusion RAG Matching (`100` Dishes) & Bidirectional Slang Stripping**
+  - **Procedure:**
+    1. On Merchant `"Input Suara / Menu Spesial AI"`, test English/fusion dishes such as:
+       - `Ada 3 porsi Chicken Katsu Curry harga 28k baru masak 1 jam lalu`
+       - `Ada 2 porsi Spaghetti Carbonara Cream Sauce baru matang 1 jam lalu harga 35k`
+    2. Test bidirectional colloquial filler text + decimal time:
+       - `Eh ini enak banget roasted chicken sisa 3 packs gila sih harga 17.5k baru masak jam 14.30 sore`
+  - **Expected Result:**
+    - `100`-dish semantic knowledge base + bilingual token mapper resolves fusion dishes cleanly (`HIGH_PERISHABILITY` `4.0` jam for cream-based `Carbonara` vs appropriate BPOM category for `Chicken Katsu`).
+    - Filler slang phrases at both prefix and suffix are stripped, leaving a clean dish title, `quantity: 3`, and `original_price: 17500`.
+
+- [ ] **TC-HARD-07: Direct Publish Spoilage Guardrail & Catalog Name Preservation**
+  - **Procedure:**
+    1. Ensure store `FTUI-001` has catalog menu items (e.g., `Rendang Daging Sapi`). Analyze a specific ad-hoc variant like `Rendang Paru Balado sisa 2 porsi harga 28k baru masak 1 jam lalu`.
+    2. Attempt via Swagger (`/docs` -> `POST /api/v1/listings`) or API client to publish a stale item where `hours_since_cooked` exceeds `bpom_max_hours` (e.g., `5.0 > 4.0` for `HIGH_PERISHABILITY`).
+  - **Expected Result:**
+    - Specific dish names (`Rendang Paru Balado`) are preserved without blind generic catalog overwrite unless primary noun + tokens genuinely match.
+    - Backend publish guardrail rejects spoiled listings with `HTTP 400 Bad Request` (`evaluate_food_safety` enforced server-side).
+
+- [ ] **TC-HARD-08: Dual-Condition `expires_at` Feed Hiding & Cancelled-Order Expiry Guard**
+  - **Procedure:**
+    1. Publish a fresh listing and inspect `expires_at` returned by `POST /api/v1/listings` (computed from `min(food_expiry_dt, closing_dt)` with midnight-crossing rollover support).
+    2. Simulate an expired listing (`expires_at <= now` in SQLite or via test scenario) after a consumer has placed an order, then call `GET /api/v1/listings/active` and cancel that order.
+  - **Expected Result:**
+    - Expired listings (`expires_at <= now`) are excluded from `GET /api/v1/listings/active`.
+    - Cancelling an order (`POST /api/v1/orders/{id}/cancel`) restores `quantity` on the row but **never** sets `is_active = True` once `now >= expires_at`.
+
+- [ ] **TC-HARD-09: Cashier Short-Code Normalization & Optional JWT Role/Store Isolation**
+  - **Procedure:**
+    1. Reserve an order (`#NW-XXXX`) for `FTUI-001`.
+    2. In `"Kasir QR"`, enter only the 4 digits (e.g. `4821` or `#4821` without `#NW-`) and click `"Verifikasi & Serah Terima"`.
+    3. Attempt via API (`POST /api/v1/orders/complete-pickup` or `POST /api/v1/listings`) using a Consumer Bearer JWT or another store's (`KUTEK-007`) Bearer JWT.
+  - **Expected Result:**
+    - Cashier normalizes bare `4821`, `#4821`, `NW-4821`, and `#NW-4821` uniformly and transitions the ticket to `COMPLETED`.
+    - Authenticated requests with mismatched `role` or `store_id` in the JWT fail with `HTTP 403 Forbidden`.
+
+- [ ] **TC-HARD-10: Cross-Origin CORS Credentials Compliance (`localhost` / LAN)**
+  - **Procedure:**
+    1. Interact across Merchant login, AI draft analysis, image upload, and Consumer checkout from `http://localhost:5173` against `http://127.0.0.1:8000` with Chrome DevTools Network & Console open.
+  - **Expected Result:**
+    - All API preflight (`OPTIONS`) and credentialed `POST`/`GET` requests return valid `Access-Control-Allow-Origin` headers matching `allow_origin_regex` (`^https?://.*`) without W3C wildcard-with-credentials console errors.
+
+---
+
 ## 4. Acceptance Sign-Off Matrix
 
 | Suite | Functional Domain | Tester | Date | Verdict |
 | :--- | :--- | :--- | :---: | :---: |
-| **Suite 1** | Automated Suite & Build | | | [ ] PASS / [ ] FAIL |
+| **Suite 1** | Automated Suite & Build (`42` pytest + `vite build`) | | | [ ] PASS / [ ] FAIL |
 | **Suite 2** | Multi-Tenant Authentication | | | [ ] PASS / [ ] FAIL |
 | **Suite 3** | Merchant Operations & AI Assistant | | | [ ] PASS / [ ] FAIL |
 | **Suite 4** | BPOM Food Safety Guardrail | | | [ ] PASS / [ ] FAIL |
@@ -547,6 +642,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 | **Suite 7** | Order Lifecycle & Transactions | | | [ ] PASS / [ ] FAIL |
 | **Suite 8** | Cashier POS & Anti-Fraud Security | | | [ ] PASS / [ ] FAIL |
 | **Suite 9** | Dynamic Menu Image & Adaptive UI | | | [ ] PASS / [ ] FAIL |
+| **Suite 10** | System Hardening, Security & UX Polish | | | [ ] PASS / [ ] FAIL |
 
 ---
 
