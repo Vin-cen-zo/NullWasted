@@ -219,11 +219,6 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                   </span>
                 )}
 
-                {item.portion_size && item.portion_size !== "Reguler" && (
-                  <span className="text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
-                    Porsi: {item.portion_size}
-                  </span>
-                )}
               </div>
               <button
                 type="button"
@@ -527,7 +522,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
               <span className="text-[10px] text-stone-500 block">Toko / Gerai Penjual:</span>
               <span className="font-bold text-stone-900 block">{item.store_name}</span>
               <p className="text-[11px] text-stone-600 mt-0.5">
-                {qty}x {item.food_name} {item.portion_size && `(${item.portion_size})`}
+                {qty}x {item.food_name}
               </p>
             </div>
 

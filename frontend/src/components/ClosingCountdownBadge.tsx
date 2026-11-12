@@ -3,11 +3,15 @@ import { Clock } from "lucide-react";
 
 interface ClosingCountdownBadgeProps {
   closingTime?: string;
+  expiresAt?: string | null;
   fallbackMinutes?: number;
   className?: string;
 }
 
-export function computeSecondsUntilClosing(closingTime: string = "20:30"): number {
+export function computeSecondsUntilClosing(
+  closingTime: string = "20:30",
+  expiresAt?: string | null
+): number {
   try {
     const parts = closingTime.split(":");
     const targetH = parseInt(parts[0], 10) || 20;
@@ -17,12 +21,21 @@ export function computeSecondsUntilClosing(closingTime: string = "20:30"): numbe
     target.setHours(targetH, targetM, 0, 0);
 
     if (target.getTime() <= now.getTime()) {
-      // Jika jam tutup hari ini sudah lewat, hitung mundur menuju jam tutup esok hari
-      target.setDate(target.getDate() + 1);
+      // Hanya treat jam dini hari (00:00-05:59) sebagai jadwal tutup lanjutan malam ini
+      if (targetH < 6 && now.getHours() >= 18) {
+        target.setDate(target.getDate() + 1);
+      } else {
+        return 0;
+      }
     }
-
-    const diffSec = Math.floor((target.getTime() - now.getTime()) / 1000);
-    return Math.max(0, diffSec);
+    let diffSeconds = Math.max(0, Math.floor((target.getTime() - now.getTime()) / 1000));
+    if (expiresAt) {
+      const expMs = new Date(expiresAt).getTime();
+      if (!Number.isNaN(expMs)) {
+        diffSeconds = Math.min(diffSeconds, Math.max(0, Math.floor((expMs - now.getTime()) / 1000)));
+      }
+    }
+    return diffSeconds;
   } catch {
     return 3600;
   }
@@ -30,19 +43,20 @@ export function computeSecondsUntilClosing(closingTime: string = "20:30"): numbe
 
 export const ClosingCountdownBadge: React.FC<ClosingCountdownBadgeProps> = ({
   closingTime = "20:30",
+  expiresAt = null,
   className = "",
 }) => {
   const [secondsRemaining, setSecondsRemaining] = useState<number>(() =>
-    computeSecondsUntilClosing(closingTime)
+    computeSecondsUntilClosing(closingTime, expiresAt)
   );
 
   useEffect(() => {
-    setSecondsRemaining(computeSecondsUntilClosing(closingTime));
+    setSecondsRemaining(computeSecondsUntilClosing(closingTime, expiresAt));
     const timer = setInterval(() => {
-      setSecondsRemaining(computeSecondsUntilClosing(closingTime));
+      setSecondsRemaining(computeSecondsUntilClosing(closingTime, expiresAt));
     }, 1000);
     return () => clearInterval(timer);
-  }, [closingTime]);
+  }, [closingTime, expiresAt]);
 
   const hours = Math.floor(secondsRemaining / 3600);
   const minutes = Math.floor((secondsRemaining % 3600) / 60);

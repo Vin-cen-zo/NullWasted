@@ -28,8 +28,6 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
   const [price, setPrice] = useState("");
   const [cookingTime, setCookingTime] = useState("16:00");
   const [ingredients, setIngredients] = useState("");
-  const [riskCategory, setRiskCategory] = useState<"HIGH_PERISHABILITY" | "MEDIUM_PERISHABILITY" | "LOW_PERISHABILITY">("MEDIUM_PERISHABILITY");
-  const [portionSize, setPortionSize] = useState<string>("Reguler");
   const [submitting, setSubmitting] = useState(false);
 
   // Optional image upload states
@@ -120,15 +118,14 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
         food_name: foodName.trim(),
         original_price: numPrice,
         typical_cooking_time: cookingTime.trim(),
-        default_hours_cooked: riskCategory === "HIGH_PERISHABILITY" ? 1.5 : 2.0,
+        default_hours_cooked: 1.5,
         ingredients: ingredients.trim(),
-        portion_size: portionSize,
+        portion_size: "Reguler",
         image_url: uploadedImageUrl,
       });
       setFoodName("");
       setPrice("");
       setIngredients("");
-      setPortionSize("Reguler");
       handleRemoveImage();
       await loadMenu();
       if (onMenuUpdated) onMenuUpdated();
@@ -231,30 +228,11 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-stone-600 mb-0.5">Klasifikasi Risiko BPOM</label>
-                <select
-                  value={riskCategory}
-                  onChange={(e) => setRiskCategory(e.target.value as any)}
-                  className="w-full px-2 py-1.5 text-xs rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                >
-                  <option value="HIGH_PERISHABILITY">Santan / Susu / Krim (Maks 4 Jam)</option>
-                  <option value="MEDIUM_PERISHABILITY">Siap Saji / Tumis (Maks 8 Jam)</option>
-                  <option value="LOW_PERISHABILITY">Roti / Pastry Kering (Maks 24 Jam)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-stone-600 mb-0.5">Ukuran Porsi</label>
-                <select
-                  value={portionSize}
-                  onChange={(e) => setPortionSize(e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                >
-                  <option value="Reguler">Reguler</option>
-                  <option value="Kecil / Hemat">Kecil / Hemat</option>
-                  <option value="Besar / Jumbo">Besar / Jumbo</option>
-                </select>
+              <div className="col-span-2">
+                <p className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>Klasifikasi keamanan & batas simpan BPOM dideteksi otomatis oleh AI dari nama & komposisi menu.</span>
+                </p>
               </div>
 
               <div className="col-span-2">
@@ -369,11 +347,6 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                         <div className="min-w-0">
                           <div className="flex items-center space-x-2">
                             <span className="font-bold text-xs text-stone-800 truncate">{item.food_name}</span>
-                            {item.portion_size && item.portion_size !== "Reguler" && (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 shrink-0">
-                                {item.portion_size}
-                              </span>
-                            )}
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 flex items-center space-x-1 shrink-0">
                               <ShieldCheck className="w-2.5 h-2.5" />
                               <span>Max {item.bpom_max_hours}j</span>

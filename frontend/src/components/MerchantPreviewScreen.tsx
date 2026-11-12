@@ -25,8 +25,8 @@ interface MerchantPreviewScreenProps {
   storeId?: string;
   closingTime?: string;
   locationName?: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
@@ -89,7 +89,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
     const mins = Math.floor((totalSecs % 3600) / 60);
     const secs = totalSecs % 60;
     const pad = (n: number) => String(n).padStart(2, "0");
-    if (hrs > 0) return `${hrs}j ${pad(mins)}m ${pad(secs)}d (${Math.ceil(totalSecs / 60)} menit)`;
+    if (hrs > 0) return `${hrs}j ${pad(mins)}m ${pad(secs)}d`;
     return `${mins} menit ${pad(secs)} detik`;
   };
 
@@ -164,6 +164,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       food_name: foodName.trim() || draft.food_name,
       matched_canonical_dish: draft.matched_canonical_dish,
       category: draft.category,
+      food_type: draft.food_type || "MEAL",
       quantity: Math.max(1, Math.min(200, quantity)),
       original_price: Math.max(1000, Math.min(2000000, originalPrice)),
       discount_percent: discountPercent,

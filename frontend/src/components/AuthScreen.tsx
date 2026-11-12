@@ -13,6 +13,7 @@ import {
   Utensils,
   CheckCircle2,
   Sparkles,
+  X,
 } from "lucide-react";
 import {
   loginMerchant,
@@ -20,6 +21,7 @@ import {
   loginConsumer,
   registerConsumer,
 } from "../services/api";
+import { StorePinpointPickerModal } from "./StorePinpointPickerModal";
 
 interface AuthScreenProps {
   onLogin: (session: UserSession) => void;
@@ -65,8 +67,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [regCategory, setRegCategory] = useState("Lauk & Makanan Berat");
   const [customCategory, setCustomCategory] = useState("");
   const [regClosingTime, setRegClosingTime] = useState("20:30");
-  const [regAddress, setRegAddress] = useState("");
-  const [regLandmark, setRegLandmark] = useState("");
+  const [regPinLat, setRegPinLat] = useState<number | null>(null);
+  const [regPinLng, setRegPinLng] = useState<number | null>(null);
+  const [regPinLabel, setRegPinLabel] = useState("");
+  const [isRegPinpointOpen, setIsRegPinpointOpen] = useState(false);
   const [regPin, setRegPin] = useState("");
   const [regError, setRegError] = useState("");
   const [isSubmittingRegStore, setIsSubmittingRegStore] = useState(false);
@@ -100,9 +104,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   // Consumer Register State
   const [regCustomerName, setRegCustomerName] = useState("");
   const [regCustomerPhone, setRegCustomerPhone] = useState("");
-  const [regCustomerAddress, setRegCustomerAddress] = useState("Kawasan Kampus UI Depok");
   const [regConsumerError, setRegConsumerError] = useState("");
   const [isSubmittingRegConsumer, setIsSubmittingRegConsumer] = useState(false);
+
+  const removeSavedMerchant = (targetStoreId: string) => {
+    try {
+      const updated = savedMerchants.filter((m) => m.storeId !== targetStoreId);
+      setSavedMerchants(updated);
+      localStorage.setItem("nullwasted_saved_merchant", JSON.stringify(updated));
+    } catch {
+      // ignore storage failure
+    }
+  };
 
   const saveMerchantToStorage = (account: SavedMerchantAccount) => {
     try {
@@ -192,29 +205,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       return;
     }
 
-    // Physical Address validation (Min 10 chars, alphabetic check, no single character repetition)
-    const cleanAddress = regAddress.trim();
-    if (cleanAddress.length < 10) {
-      setRegError("Alamat lengkap gerai minimal 10 karakter.");
-      return;
-    }
-    if (!/[a-zA-Z]{3,}/.test(cleanAddress)) {
-      setRegError("Alamat gerai harus memuat nama jalan atau gedung yang jelas.");
-      return;
-    }
-    if (/^(.)\1+$/.test(cleanAddress)) {
-      setRegError("Alamat gerai tidak boleh berupa pengulangan satu karakter.");
-      return;
-    }
-
-    const fullLocation = regLandmark.trim()
-      ? `${cleanAddress} (${regLandmark.trim()})`
-      : cleanAddress;
-
     if (regPin.trim().length < 4) {
       setRegError("PIN Kasir baru minimal 4 digit.");
       return;
     }
+
+    const resolvedLocationName = regPinLabel.trim() || regStoreName.trim();
 
     try {
       setIsSubmittingRegStore(true);
@@ -222,12 +218,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       const auth = await registerMerchant({
         name: regStoreName.trim(),
         pin: regPin.trim(),
-        location_name: fullLocation,
+        location_name: resolvedLocationName,
         closing_time: regClosingTime.trim() || "20:30",
         category: resolvedCategory,
+        latitude: regPinLat,
+        longitude: regPinLng,
       });
 
-      const effectiveStoreId = auth.store_id || "FTUI-001";
+      const effectiveStoreId = auth.store_id || "STORE-NEW";
       const effectiveStoreName = auth.store_name || regStoreName.trim();
 
       saveMerchantToStorage({
@@ -243,16 +241,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         storeId: effectiveStoreId,
         storeName: effectiveStoreName,
         closingTime: auth.closing_time || regClosingTime.trim(),
-        locationName: auth.location_name || fullLocation,
-        latitude: auth.latitude,
-        longitude: auth.longitude,
+        locationName: auth.location_name || resolvedLocationName,
+        latitude: auth.latitude ?? regPinLat,
+        longitude: auth.longitude ?? regPinLng,
       };
 
       setRegisteredStoreData({
         storeId: effectiveStoreId,
         storeName: effectiveStoreName,
         closingTime: auth.closing_time || regClosingTime.trim(),
-        locationName: auth.location_name || fullLocation,
+        locationName: auth.location_name || resolvedLocationName,
         session: newSession,
       });
     } catch (err: unknown) {
@@ -260,6 +258,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       setRegError(msg);
     } finally {
       setIsSubmittingRegStore(false);
+    }
+  };
+
+  const removeSavedConsumer = (targetPhone: string) => {
+    try {
+      const updated = savedConsumers.filter((c) => c.customerPhone !== targetPhone);
+      setSavedConsumers(updated);
+      localStorage.setItem("nullwasted_saved_consumer", JSON.stringify(updated));
+    } catch {
+      // ignore storage failure
     }
   };
 
@@ -334,7 +342,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       const auth = await registerConsumer({
         name: regCustomerName.trim(),
         phone: regCustomerPhone.trim(),
-        address: regCustomerAddress.trim() || "Kawasan Kampus UI Depok",
       });
       const resolvedName = auth.customer_name || regCustomerName.trim();
       const resolvedPhone = auth.customer_phone || regCustomerPhone.trim();
@@ -451,15 +458,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {savedMerchants.map((item) => (
-                          <button
+                          <div
                             key={item.storeId}
-                            type="button"
-                            onClick={() => handleSelectQuickMerchant(item)}
-                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-100 border border-emerald-300 text-[11px] font-medium text-stone-800 transition-colors flex items-center gap-1 shadow-sm"
+                            className="inline-flex items-center rounded-lg bg-white border border-emerald-300 shadow-sm overflow-hidden"
                           >
-                            <span className="font-mono font-bold text-emerald-700">{item.storeId}</span>
-                            <span className="text-stone-600 truncate max-w-[120px]">· {item.storeName}</span>
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectQuickMerchant(item)}
+                              className="px-2.5 py-1 hover:bg-emerald-100 text-[11px] font-medium text-stone-800 transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <span className="font-mono font-bold text-emerald-700">{item.storeId}</span>
+                              <span className="text-stone-600 truncate max-w-[115px]">· {item.storeName}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeSavedMerchant(item.storeId)}
+                              aria-label={`Hapus ${item.storeName} dari daftar tersimpan`}
+                              title="Hapus akun gerai tersimpan"
+                              className="px-1.5 py-1 text-stone-400 hover:text-red-600 hover:bg-red-50 border-l border-emerald-200 transition-colors cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -634,40 +654,35 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                       <p className="text-[10px] text-stone-500 mb-1">Format jam tutup 24 jam (00:00 - 23:59), contoh: 20:30</p>
                     </div>
 
-                    {/* Column 1: Physical Full Address (Mandatory) */}
+                    {/* Pinpoint Lokasi Gerai via Peta Interaktif */}
                     <div>
                       <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
-                        Alamat Lengkap Gerai <span className="text-red-500">*</span>
+                        Pin Lokasi Gerai di Peta <span className="text-stone-400 font-normal">(Bisa diubah/dihapus kapan saja)</span>
                       </label>
-                      <div className="relative">
-                        <div className="absolute top-2.5 left-3 flex items-start pointer-events-none text-gray-400">
-                          <MapPin className="w-4 h-4" />
+                      <button
+                        type="button"
+                        onClick={() => setIsRegPinpointOpen(true)}
+                        className="w-full px-3 py-2.5 rounded-xl border border-[#D8D2C5] bg-white hover:bg-emerald-50/60 text-left flex items-center justify-between gap-2 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <div className="min-w-0">
+                            <span className="block text-xs font-bold text-[#1F1D1A] truncate">
+                              {regPinLat !== null && regPinLng !== null
+                                ? regPinLabel || "Pin Lokasi Gerai Terpasang"
+                                : "Pilih Titik Lokasi Gerai di Peta"}
+                            </span>
+                            <span className="block text-[10px] text-[#6B655B] font-mono truncate">
+                              {regPinLat !== null && regPinLng !== null
+                                ? `${regPinLat.toFixed(5)}, ${regPinLng.toFixed(5)}`
+                                : "Klik untuk menaruh pin agar toko tampil di peta jelajah"}
+                            </span>
+                          </div>
                         </div>
-                        <textarea
-                          rows={2}
-                          value={regAddress}
-                          onChange={(e) => setRegAddress(e.target.value)}
-                          minLength={10}
-                          maxLength={150}
-                          placeholder="Contoh: Kantin Utama FTUI Gedung Dekanat Lantai 1, Kampus UI Depok"
-                          className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 resize-none"
-                        />
-                      </div>
-                      <span className="text-[10px] text-stone-400 block mt-0.5">Minimal 10 karakter jalan / nama gedung fisik.</span>
-                    </div>
-
-                    {/* Column 2: Landmark / Pickup Detail (Optional) */}
-                    <div>
-                      <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
-                        Patokan / Detail Lokasi Penjemputan <span className="text-stone-400 font-normal">(Opsional)</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={regLandmark}
-                        onChange={(e) => setRegLandmark(e.target.value)}
-                        placeholder="Contoh: Depan lift barang, sebelah ATM center, stan no. 4"
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
-                      />
+                        <span className="text-[11px] font-bold text-emerald-700 shrink-0">
+                          {regPinLat !== null ? "Ubah Pin" : "Pasang Pin"}
+                        </span>
+                      </button>
                     </div>
 
                     <div>
@@ -703,6 +718,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                     </button>
                   </form>
                 )}
+                <StorePinpointPickerModal
+                  isOpen={isRegPinpointOpen}
+                  initialLat={regPinLat}
+                  initialLng={regPinLng}
+                  initialLabel={regPinLabel}
+                  storeName={regStoreName.trim() || "Gerai Baru"}
+                  allowRemove={regPinLat !== null}
+                  onClose={() => setIsRegPinpointOpen(false)}
+                  onSave={(lat, lng, label) => {
+                    setRegPinLat(lat);
+                    setRegPinLng(lng);
+                    if (label !== undefined) setRegPinLabel(label);
+                  }}
+                />
               </div>
             )}
           </div>
@@ -749,17 +778,30 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {savedConsumers.map((item) => (
-                        <button
+                        <div
                           key={item.customerPhone}
-                          type="button"
-                          onClick={() => handleSelectQuickConsumer(item)}
-                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-100 border border-emerald-300 text-[11px] font-medium text-stone-800 transition-colors flex items-center gap-1 shadow-sm cursor-pointer"
+                          className="inline-flex items-center rounded-lg bg-white border border-emerald-300 shadow-sm overflow-hidden"
                         >
-                          <span className="font-bold text-emerald-700 truncate max-w-[110px]">
-                            {item.customerName}
-                          </span>
-                          <span className="font-mono text-stone-600">· {item.customerPhone}</span>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectQuickConsumer(item)}
+                            className="px-2.5 py-1 hover:bg-emerald-100 text-[11px] font-medium text-stone-800 transition-colors flex items-center gap-1 cursor-pointer"
+                          >
+                            <span className="font-bold text-emerald-700 truncate max-w-[105px]">
+                              {item.customerName}
+                            </span>
+                            <span className="font-mono text-stone-600">· {item.customerPhone}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeSavedConsumer(item.customerPhone)}
+                            aria-label={`Hapus ${item.customerName} dari daftar tersimpan`}
+                            title="Hapus akun konsumen tersimpan"
+                            className="px-1.5 py-1 text-stone-400 hover:text-red-600 hover:bg-red-50 border-l border-emerald-200 transition-colors cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -844,21 +886,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Wilayah / Domisili</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                      <MapPin className="w-4 h-4" />
-                    </div>
-                    <input
-                      type="text"
-                      value={regCustomerAddress}
-                      onChange={(e) => setRegCustomerAddress(e.target.value)}
-                      placeholder="Contoh: Kawasan Kampus UI Depok"
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
-                    />
-                  </div>
-                </div>
+                <p className="text-[11px] text-[#6B655B] bg-[#F8F6F0] px-3 py-2 rounded-xl border border-[#E7E1D4]">
+                  Setelah masuk, aplikasi akan meminta izin GPS perangkat Anda untuk menghitung jarak ke gerai sekitar.
+                </p>
 
                 {regConsumerError && (
                   <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-700 font-semibold">
@@ -886,7 +916,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           Platform Marketplace Surplus Food Berbasis Agentic AI
         </p>
         <p className="text-[9px] text-[#A8A196] mt-0.5">
-          Universitas Indonesia · UI Depok Area V1
+          Hemat Pangan · Temukan Gerai Terdekat di Sekitarmu
         </p>
       </div>
     </div>

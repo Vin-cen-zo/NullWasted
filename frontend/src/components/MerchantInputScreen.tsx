@@ -15,10 +15,12 @@ import {
   Send,
   X,
   Utensils,
+  MapPin,
 } from "lucide-react";
 import { startIndonesianSpeechRecognition } from "../services/speech";
-import { fetchStoreMenu, publishListing } from "../services/api";
+import { fetchStoreMenu, publishListing, updateStoreLocation } from "../services/api";
 import { MerchantCatalogModal } from "./MerchantCatalogModal";
+import { StorePinpointPickerModal } from "./StorePinpointPickerModal";
 import { PublishRequest, StoreMenuItem, getFriendlyCategory, resolveImageUrl } from "../types/listing";
 
 interface MerchantInputScreenProps {
@@ -30,8 +32,9 @@ interface MerchantInputScreenProps {
   isPublishing?: boolean;
   closingTime?: string;
   locationName?: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
+  onStoreLocationUpdated?: (lat: number | null, lng: number | null, label?: string) => void;
   initialText?: string;
   onTextChange?: (text: string) => void;
 }
@@ -44,9 +47,10 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   onDirectPublish,
   isPublishing = false,
   closingTime = "20:30",
-  locationName = "Kantin FTUI · 200m",
-  latitude = -6.3621,
-  longitude = 106.8246,
+  locationName = "",
+  latitude = null,
+  longitude = null,
+  onStoreLocationUpdated,
   initialText = "",
   onTextChange,
 }) => {
@@ -63,7 +67,6 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   const [batchCookHour, setBatchCookHour] = useState("16");
   const [batchCookMinute, setBatchCookMinute] = useState("00");
   const [batchDiscountPercent, setBatchDiscountPercent] = useState(60);
-  const [batchPortionSize, setBatchPortionSize] = useState<string>("Reguler");
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
 
   // Jalur 2: Voice & AI Ad-Hoc State
@@ -73,8 +76,9 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   const [speechStopFn, setSpeechStopFn] = useState<(() => void) | null>(null);
   const baseTextRef = useRef("");
 
-  // Catalog Modal Manager
+  // Catalog & Pinpoint Modal Managers
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [isPinpointOpen, setIsPinpointOpen] = useState(false);
 
   useEffect(() => {
     if (initialText && initialText !== inputText) {
@@ -155,7 +159,6 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
     setBatchCookHour(parts[0] ? parts[0].padStart(2, "0") : "16");
     setBatchCookMinute(parts[1] ? parts[1].padStart(2, "0") : "00");
     setBatchDiscountPercent(60);
-    setBatchPortionSize(item.portion_size || "Reguler");
   };
 
   const handleSetCurrentTime = () => {
@@ -198,6 +201,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
         food_name: selectedMenuItem.food_name,
         matched_canonical_dish: selectedMenuItem.canonical_bpom_dish || selectedMenuItem.food_name,
         category: selectedMenuItem.category || "MEDIUM_PERISHABILITY",
+        food_type: selectedMenuItem.food_type || "MEAL",
         quantity: Math.max(1, Math.min(200, batchQty)),
         original_price: selectedMenuItem.original_price,
         discount_percent: batchDiscountPercent,
@@ -210,11 +214,11 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
         hazard_description: "Kepatuhan batas simpan suhu ruang PerBPOM No. 16/2019.",
         regulation_ref: "PerBPOM No. 16/2019",
         similarity_score: 0.95,
-        location_badge: locationName || "Kantin FTUI · 200m",
+        location_badge: locationName || "Area Gerai Mitra",
         closing_time: closingTime || "20:30",
-        latitude: latitude,
-        longitude: longitude,
-        portion_size: batchPortionSize,
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
+        portion_size: "Reguler",
         image_url: selectedMenuItem.image_url ?? null,
       };
 
@@ -238,23 +242,61 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
     <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full space-y-4">
       {/* Top Banner / Store Context & Catalog Quick Action */}
       <div className="bg-white p-3.5 rounded-2xl border border-[#E2DDD3] shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-bold text-[#1F1D1A]">Buat Listing Makanan Surplus</h2>
             <p className="text-xs text-[#6B655B]">
               Gerai: <span className="font-semibold text-emerald-800">{storeName}</span> ({storeId})
             </p>
+            <p className="text-[11px] text-[#6B655B] mt-0.5 flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+              <span>
+                {latitude != null && longitude != null
+                  ? `${locationName ? `${locationName} · ` : ""}${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+                  : "Pin peta belum dipasang (tidak tampil di peta jelajah)"}
+              </span>
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsCatalogOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition shadow-sm cursor-pointer"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Kelola Buku Menu</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsPinpointOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-800 border border-[#D8D2C5] text-xs font-bold transition shadow-sm cursor-pointer"
+            >
+              <MapPin className="w-3.5 h-3.5 text-emerald-700" />
+              <span>{latitude != null ? "Ubah Pin" : "Pasang Pin"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsCatalogOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition shadow-sm cursor-pointer"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Kelola Buku Menu</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      <StorePinpointPickerModal
+        isOpen={isPinpointOpen}
+        initialLat={latitude ?? null}
+        initialLng={longitude ?? null}
+        initialLabel={locationName}
+        storeName={storeName}
+        allowRemove={true}
+        onClose={() => setIsPinpointOpen(false)}
+        onSave={async (lat, lng, label) => {
+          const updated = await updateStoreLocation(storeId, {
+            latitude: lat,
+            longitude: lng,
+            location_name: label ?? (locationName || undefined),
+          });
+          if (onStoreLocationUpdated) {
+            onStoreLocationUpdated(updated.latitude ?? null, updated.longitude ?? null, updated.location_name);
+          }
+        }}
+      />
 
       {/* Dual-Mode Tabs */}
       <div className="grid grid-cols-2 gap-1 p-1 bg-[#E8E3D9]/60 rounded-xl border border-[#D8D2C5]">
@@ -533,22 +575,6 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               </div>
             </div>
 
-            {/* Varian Ukuran Porsi */}
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Ukuran Porsi:
-              </label>
-              <select
-                value={batchPortionSize}
-                onChange={(e) => setBatchPortionSize(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 bg-white text-stone-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="Reguler">Reguler</option>
-                <option value="Kecil / Hemat">Kecil / Hemat</option>
-                <option value="Besar / Jumbo">Besar / Jumbo</option>
-              </select>
-            </div>
-
             {/* Jam Matang Batch 24-Jam (Dual Dropdown) & Quick Action Buttons */}
             <div className="space-y-2">
               <label className="block text-xs font-semibold text-stone-700">
@@ -636,7 +662,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] font-bold text-emerald-800 block">
-                      Diskon {batchDiscountPercent}% ({batchPortionSize})
+                      Diskon {batchDiscountPercent}%
                     </span>
                     <span className="text-base font-black text-emerald-700">
                       Rp {calculatedDiscountedPrice.toLocaleString("id-ID")}
