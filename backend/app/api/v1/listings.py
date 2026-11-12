@@ -22,7 +22,7 @@ from app.schemas.listing import (
     ReserveOrderRequest,
     SmartBundleRequest,
 )
-from app.services.extractor import extract_listing_entities
+from app.services.extractor import classify_dish_with_ai, extract_listing_entities
 from app.services.guardrail import evaluate_food_safety
 from app.services.pricing import calculate_dynamic_pricing
 from app.services.vector_store import vector_store
@@ -74,6 +74,7 @@ def get_store_menu(store_id: str, session: Session = Depends(get_session)) -> Li
             ingredients=item.ingredients,
             canonical_bpom_dish=item.canonical_bpom_dish,
             category=item.category,
+            food_type=getattr(item, "food_type", "MEAL") or "MEAL",
             bpom_max_hours=item.bpom_max_hours,
             portion_size=getattr(item, "portion_size", "Reguler") or "Reguler",
             image_url=item.image_url,
@@ -85,14 +86,19 @@ def get_store_menu(store_id: str, session: Session = Depends(get_session)) -> Li
 
 
 @router.post("/menu/{store_id}", response_model=MenuItemResponse)
-def create_store_menu_item(
+async def create_store_menu_item(
     store_id: str, payload: MenuItemCreateRequest, session: Session = Depends(get_session)
 ) -> MenuItemResponse:
-    """Adds a new routine dish to the store catalog with automatic BPOM vector mapping."""
-    safety = evaluate_food_safety(
+    """Adds a new routine dish to the store catalog with automatic AI + BPOM vector mapping."""
+    ai_cls = await classify_dish_with_ai(payload.food_name, payload.ingredients)
+    safety = await asyncio.to_thread(
+        evaluate_food_safety,
         food_name=payload.food_name,
         raw_text=payload.ingredients,
         hours_since_cooked=payload.default_hours_cooked,
+        ai_is_edible=ai_cls.get("is_edible_food"),
+        ai_food_type=ai_cls.get("food_type"),
+        ai_inferred_risk=ai_cls.get("inferred_risk"),
     )
     if safety["safety_status"] == "REJECTED" or not safety["can_publish"]:
         raise HTTPException(
@@ -109,6 +115,7 @@ def create_store_menu_item(
         ingredients=payload.ingredients,
         canonical_bpom_dish=safety["matched_canonical_dish"],
         category=safety["category"],
+        food_type=safety["food_type"],
         bpom_max_hours=safety["bpom_max_hours"],
         portion_size=payload.portion_size or "Reguler",
         image_url=payload.image_url,
@@ -128,6 +135,7 @@ def create_store_menu_item(
         ingredients=menu_item.ingredients,
         canonical_bpom_dish=menu_item.canonical_bpom_dish,
         category=menu_item.category,
+        food_type=menu_item.food_type,
         bpom_max_hours=menu_item.bpom_max_hours,
         portion_size=menu_item.portion_size or "Reguler",
         image_url=menu_item.image_url,
@@ -137,7 +145,7 @@ def create_store_menu_item(
 
 
 @router.put("/menu/{store_id}/{menu_id}", response_model=MenuItemResponse)
-def update_store_menu_item(
+async def update_store_menu_item(
     store_id: str,
     menu_id: str,
     payload: MenuItemUpdateRequest,
@@ -166,10 +174,15 @@ def update_store_menu_item(
         item.is_active = payload.is_active
 
     if payload.food_name is not None or payload.ingredients is not None or payload.default_hours_cooked is not None:
-        safety = evaluate_food_safety(
+        ai_cls = await classify_dish_with_ai(item.food_name, item.ingredients)
+        safety = await asyncio.to_thread(
+            evaluate_food_safety,
             food_name=item.food_name,
             raw_text=item.ingredients,
             hours_since_cooked=item.default_hours_cooked,
+            ai_is_edible=ai_cls.get("is_edible_food"),
+            ai_food_type=ai_cls.get("food_type"),
+            ai_inferred_risk=ai_cls.get("inferred_risk"),
         )
         if safety["safety_status"] == "REJECTED" or not safety["can_publish"]:
             raise HTTPException(
@@ -178,6 +191,7 @@ def update_store_menu_item(
             )
         item.canonical_bpom_dish = safety["matched_canonical_dish"]
         item.category = safety["category"]
+        item.food_type = safety["food_type"]
         item.bpom_max_hours = safety["bpom_max_hours"]
 
     session.add(item)
@@ -194,6 +208,7 @@ def update_store_menu_item(
         ingredients=item.ingredients,
         canonical_bpom_dish=item.canonical_bpom_dish,
         category=item.category,
+        food_type=getattr(item, "food_type", "MEAL") or "MEAL",
         bpom_max_hours=item.bpom_max_hours,
         portion_size=getattr(item, "portion_size", "Reguler") or "Reguler",
         image_url=item.image_url,
@@ -354,9 +369,15 @@ async def create_draft_listing(
         food_name=food_name,
         raw_text=request.text,
         hours_since_cooked=hours_since_cooked,
+        ai_is_edible=extracted.get("is_edible_food"),
+        ai_food_type=extracted.get("food_type"),
+        ai_inferred_risk=extracted.get("inferred_risk"),
     )
 
     can_save_to_catalog = bool(can_save_to_catalog and safety["safety_status"] == "SAFE" and safety["can_publish"])
+    resolved_food_type = (
+        getattr(matched_menu, "food_type", None) if matched_menu else None
+    ) or safety.get("food_type", "MEAL")
 
     # Dynamic pricing computation
     pricing = calculate_dynamic_pricing(
@@ -369,6 +390,7 @@ async def create_draft_listing(
         food_name=food_name,
         matched_canonical_dish=safety["matched_canonical_dish"],
         category=safety["category"],
+        food_type=resolved_food_type,
         quantity=extracted["quantity"],
         original_price=original_price,
         recommended_discount_percent=pricing["discount_percent"],
@@ -419,6 +441,8 @@ def publish_listing(
         food_name=payload.food_name,
         raw_text=payload.food_name,
         hours_since_cooked=payload.hours_since_cooked,
+        ai_food_type=payload.food_type,
+        ai_inferred_risk=payload.category if payload.category in ("HIGH_PERISHABILITY", "MEDIUM_PERISHABILITY", "LOW_PERISHABILITY") else None,
     )
     if (
         payload.safety_status == "REJECTED"
@@ -464,15 +488,25 @@ def publish_listing(
 
     store_row = session.exec(select(Store).where(Store.store_id == payload.store_id)).first()
     resolved_store_name = payload.store_name or (store_row.name if store_row else "Dapur Barokah")
-    resolved_location = payload.location_badge or (store_row.location_name if store_row else "Depok Area")
-    resolved_lat = payload.latitude if payload.latitude is not None else (store_row.latitude if store_row else -6.3621)
-    resolved_lng = payload.longitude if payload.longitude is not None else (store_row.longitude if store_row else 106.8246)
+    resolved_location = payload.location_badge or (store_row.location_name if store_row else "Lokasi belum diatur")
+    resolved_lat = payload.latitude if payload.latitude is not None else (store_row.latitude if store_row else None)
+    resolved_lng = payload.longitude if payload.longitude is not None else (store_row.longitude if store_row else None)
+    resolved_maps_url = (
+        f"https://maps.google.com/?q={resolved_lat},{resolved_lng}"
+        if (resolved_lat is not None and resolved_lng is not None)
+        else ""
+    )
+    resolved_food_type = (
+        payload.food_type
+        if payload.food_type in ("MEAL", "BAKERY", "BEVERAGE")
+        else server_eval.get("food_type", "MEAL")
+    )
 
     listing = ItemListing(
         store_id=payload.store_id,
         store_name=resolved_store_name,
         location_badge=resolved_location,
-        maps_url=f"https://maps.google.com/?q={resolved_lat},{resolved_lng}",
+        maps_url=resolved_maps_url,
         latitude=resolved_lat,
         longitude=resolved_lng,
         closing_time=payload.closing_time,
@@ -481,6 +515,7 @@ def publish_listing(
         food_name=payload.food_name,
         matched_canonical_dish=payload.matched_canonical_dish,
         category=payload.category,
+        food_type=resolved_food_type,
         quantity=payload.quantity,
         initial_quantity=payload.quantity,
         original_price=payload.original_price,
@@ -614,6 +649,7 @@ def create_smart_bundle(
         food_name=bundle_name,
         matched_canonical_dish="Mystery Bag Surprise",
         category=base.category,
+        food_type=getattr(base, "food_type", "MEAL") or "MEAL",
         quantity=1,
         initial_quantity=1,
         original_price=total_original_price,

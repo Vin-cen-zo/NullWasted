@@ -14,6 +14,7 @@ class DraftResponse(BaseModel):
     food_name: str
     matched_canonical_dish: str
     category: str
+    food_type: str = "MEAL"
     quantity: int
     original_price: int
     recommended_discount_percent: int
@@ -44,6 +45,7 @@ class PublishRequest(BaseModel):
     food_name: str
     matched_canonical_dish: str
     category: str
+    food_type: str = Field(default="MEAL")
     quantity: int = Field(ge=1, le=200)
     original_price: int = Field(ge=1000, le=2000000)
     discount_percent: int = Field(ge=50, le=70)
@@ -132,6 +134,7 @@ class MenuItemResponse(BaseModel):
     ingredients: str
     canonical_bpom_dish: str
     category: str
+    food_type: str = "MEAL"
     bpom_max_hours: float
     portion_size: str = "Reguler"
     image_url: Optional[str] = None
@@ -161,11 +164,11 @@ class MerchantLoginRequest(BaseModel):
 class MerchantRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2)
     pin: str = Field(..., min_length=4)
-    location_name: str = Field(..., min_length=2)
+    location_name: Optional[str] = Field(default="")
     closing_time: str = Field(default="20:30")
     category: Optional[str] = Field(default="Kuliner & Makanan")
-    latitude: float = Field(default=-6.3621)
-    longitude: float = Field(default=106.8246)
+    latitude: Optional[float] = Field(default=None)
+    longitude: Optional[float] = Field(default=None)
 
     @field_validator("pin")
     @classmethod
@@ -201,7 +204,7 @@ class ConsumerLoginRequest(BaseModel):
 class ConsumerRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2)
     phone: str = Field(..., min_length=8)
-    address: Optional[str] = Field(default="Kawasan UI Depok")
+    address: Optional[str] = Field(default=None)
 
     @field_validator("phone")
     @classmethod
@@ -227,13 +230,19 @@ class AuthResponse(BaseModel):
     longitude: Optional[float] = None
 
 
+class StoreLocationUpdateRequest(BaseModel):
+    latitude: Optional[float] = Field(default=None)
+    longitude: Optional[float] = Field(default=None)
+    location_name: Optional[str] = Field(default=None)
+
+
 class StoreProfileResponse(BaseModel):
     id: str
     store_id: str
     name: str
     location_name: str
-    latitude: float
-    longitude: float
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     closing_time: str
-    maps_url: str
+    maps_url: str = ""
     is_active: bool
