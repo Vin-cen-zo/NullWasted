@@ -70,7 +70,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 ### SUITE 1: Automated Verification & Build Hygiene
 
-- [ ] **TC-AUTO-01: Backend Pytest Suite Execution**
+- [x] **TC-AUTO-01: Backend Pytest Suite Execution**
   - **Command:**
     ```powershell
     cd backend
@@ -81,7 +81,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Exit code: `0`.
     - Verification includes Guardrail RAG (`100` bilingual BPOM dishes), Dynamic Pricing clamping, Mystery Bag clustering, atomic stock decrement (`409`), expiry guards, optional JWT cross-store isolation (`403`), PBKDF2 hashing, and image URL lifecycle inheritance.
 
-- [ ] **TC-AUTO-02: Frontend Production Build Compilation**
+- [x] **TC-AUTO-02: Frontend Production Build Compilation**
   - **Command:**
     ```powershell
     cd frontend
@@ -101,7 +101,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 ### SUITE 2: Multi-Tenant Authentication & Session Management
 
-- [ ] **TC-AUTH-01: Merchant Self-Service Registration with Custom Category**
+- [x] **TC-AUTH-01: Merchant Self-Service Registration with Custom Category**
   - **Procedure:**
     1. Open `http://localhost:5173`, click `"Ganti Akun"`, select `"Mitra Toko"`, and open sub-tab `"Daftarkan Gerai Baru"`.
     2. Under Category, select `"Lainnya (Tulis Sendiri)..."`.
@@ -113,7 +113,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Registration completes successfully; system allocates a unique Store ID (`STORE-xxxx`).
     - Session initiates automatically as the newly registered merchant.
 
-- [ ] **TC-AUTH-02: Merchant Credential Persistence & Quick Selector**
+- [x] **TC-AUTH-02: Merchant Credential Persistence & Quick Selector**
   - **Procedure:**
     1. On the Merchant Login tab, enable the checkbox `"Ingat Kredensial di Perangkat Ini"`.
     2. Input `Store ID: FTUI-001` and `PIN: 1234`, then click `"Masuk ke Dapur Mitra"`.
@@ -122,7 +122,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Quick selection card displays stored account chip: `FTUI-001 · Dapur Barokah FTUI`.
     - Selecting the chip automatically populates Store ID and PIN inputs.
 
-- [ ] **TC-AUTH-03: Consumer Phone Authentication**
+- [x] **TC-AUTH-03: Consumer Phone Authentication**
   - **Procedure:**
     1. In the account dialog, select the `"Konsumen"` tab.
     2. Input WhatsApp phone number: `0812-8899-0011`.
@@ -130,7 +130,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
   - **Expected Result:**
     - Consumer session initializes immediately without requiring external OTP mock gates; navigation directs to the discovery feed.
 
-- [ ] **TC-AUTH-04: Stateless Role Transition**
+- [x] **TC-AUTH-04: Stateless Role Transition**
   - **Procedure:**
     1. From an active Consumer session, click `"Ganti Akun"`.
     2. Log in using Merchant credentials.
@@ -142,7 +142,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 ### SUITE 3: Merchant Kitchen Operations & AI Store Assistant
 
-- [ ] **TC-MERCH-01: Native Web Speech Recognition (Indonesian Language)**
+- [x] **TC-MERCH-01: Native Web Speech Recognition (Indonesian Language)**
   - **Procedure:**
     1. On Merchant tab, select `"Input Suara / Menu Spesial AI"`.
     2. Click `"Dikte Suara"` (grant browser microphone access).
@@ -151,7 +151,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
   - **Expected Result:**
     - Transcribed text renders directly into the input area in real time via the native W3C Speech Recognition interface.
 
-- [ ] **TC-MERCH-02: Colloquial Natural Language Extraction (Gemini 3.5 Flash-Lite)**
+- [x] **TC-MERCH-02: Colloquial Natural Language Extraction (Gemini 3.5 Flash-Lite)**
   - **Procedure:**
     1. Input the following text into the prompt field:
        ```text
@@ -165,7 +165,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Category classification: `"Makanan Berat (Lauk & Nasi)"`.
     - Dynamic discount calculated within range: `50% - 60%`.
 
-- [ ] **TC-MERCH-03: Offline Fallback Parser Resilience**
+- [x] **TC-MERCH-03: Offline Fallback Parser Resilience**
   - **Procedure:**
     1. Test irregular or abbreviated colloquial input:
        ```text
@@ -175,7 +175,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
   - **Expected Result:**
     - Regex parser accurately extracts currency (`15k` -> `Rp 15.000`) and quantity (`3 porsi` -> `3`) even if external LLM latency triggers fallback.
 
-- [ ] **TC-MERCH-04: Master Catalog Enrollment ("Simpan ke Buku Menu")**
+- [x] **TC-MERCH-04: Master Catalog Enrollment ("Simpan ke Buku Menu")**
   - **Procedure:**
     1. Following a compliant AI extraction result, inspect the verification card.
     2. Click `"Simpan ke Buku Menu"`.
@@ -183,7 +183,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
   - **Expected Result:**
     - Dish is persisted permanently into the store master menu SQLite table (`storemenuitem`).
 
-- [ ] **TC-MERCH-05: Routine Catalog Quick Batch Modal (Dual Dropdown 24h & Portion Variants)**
+- [x] **TC-MERCH-05: Routine Catalog Quick Batch Modal (Dual Dropdown 24h & Portion Variants)**
   - **Procedure:**
     1. Navigate to tab `"Pilih Menu Rutin Gerai"`.
     2. Select a pre-registered item (e.g., *Ayam Bakar Madu*).
@@ -197,7 +197,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Room temperature duration evaluates as compliant (`[PASSED]`).
     - Listing appears immediately in the active inventory feed.
 
-- [ ] **TC-MERCH-06: Verification Card Text Input Preservation**
+- [x] **TC-MERCH-06: Verification Card Text Input Preservation**
   - **Procedure:**
     1. Input text in the AI field and execute `"Analisis dengan AI & Guardrail BPOM"`.
     2. From the resulting confirmation card, click `"Ubah Input"`.
@@ -208,7 +208,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 ### SUITE 4: Deterministic BPOM Food Safety Guardrail (PerBPOM No. 16/2019)
 
-- [ ] **TC-BPOM-01: Toxic Chemical & Poison Rejection**
+- [x] **TC-BPOM-01: Toxic Chemical & Poison Rejection**
   - **Input Text:**
     ```text
     Ada sisa 2 bungkus racun tikus arsenik harga 10k baru matang
@@ -219,7 +219,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Publish action is locked: `[LOCKED: REJECTED BY BPOM GUARDRAIL]`.
     - `"Simpan ke Buku Menu"` button is suppressed.
 
-- [ ] **TC-BPOM-02: Non-Food Object / Battery Rejection**
+- [x] **TC-BPOM-02: Non-Food Object / Battery Rejection**
   - **Input Text:**
     ```text
     Tersisa 3 pcs baterai panasonic bekas harga 15 ribu
@@ -228,7 +228,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Audit Status: `[REJECTED: BPOM COMPLIANCE VIOLATION]`.
     - Cause: Non-food item detected (`baterai`).
 
-- [ ] **TC-BPOM-03: Prohibited Wildlife Meat Rejection**
+- [x] **TC-BPOM-03: Prohibited Wildlife Meat Rejection**
   - **Input Text:**
     ```text
     Sate daging anjing bumbu kacang sisa 4 porsi baru matang 1 jam lalu
@@ -237,7 +237,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Audit Status: `[REJECTED: BPOM COMPLIANCE VIOLATION]`.
     - Cause: Meat source violates public food consumption regulations.
 
-- [ ] **TC-BPOM-04: Substring False-Positive Prevention (Aglio Olio & Brokoli)**
+- [x] **TC-BPOM-04: Substring False-Positive Prevention (Aglio Olio & Brokoli)**
   - **Input Text 1 (Aglio Olio):**
     ```text
     Ada 2 porsi Spaghetti Aglio Olio harga 25 ribu baru matang 1 jam lalu
@@ -250,7 +250,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Both evaluate to `[PASSED: COMPLIANT / SAFE]`.
     - Keyword boundary rules prevent false-positive matches on substrings `olio` or `brokoli`.
 
-- [ ] **TC-BPOM-05: Colloquial Slang & Decimal Currency Parsing**
+- [x] **TC-BPOM-05: Colloquial Slang & Decimal Currency Parsing**
   - **Input Text:**
     ```text
     Ada roasted chicken sisa 3 packs gila sih ini harga 17.5k baru masak 1 jam lalu
@@ -261,7 +261,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Price: `Rp 17.500`.
     - Audit Status: `[PASSED: COMPLIANT / SAFE]`.
 
-- [ ] **TC-BPOM-06: High-Risk Dairy/Coconut Milk 4.0-Hour Room Temperature Threshold**
+- [x] **TC-BPOM-06: High-Risk Dairy/Coconut Milk 4.0-Hour Room Temperature Threshold**
   - **Scenario A (Expired):**
     - Input: `Klappertaart fla susu sisa 3 porsi matang 5 jam lalu harga 20k`
     - Result: `[REJECTED: BPOM COMPLIANCE VIOLATION]` (Storage time 5.0 h > 4.0 h limit).
@@ -269,7 +269,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Input: `Klappertaart fla susu sisa 2 porsi matang 2 jam lalu harga 20k`
     - Result: `[PASSED: COMPLIANT / SAFE]` (Storage time 2.0 h <= 4.0 h limit).
 
-- [ ] **TC-BPOM-07: Medium-Risk 8.0-Hour Ceiling & Overnight Cooking Rejection**
+- [x] **TC-BPOM-07: Medium-Risk 8.0-Hour Ceiling & Overnight Cooking Rejection**
   - **Input Text:**
     ```text
     Ada ayam bakar bumbu madu sisa 3 porsi masak jam 10 malam kemarin harga 25k
@@ -278,7 +278,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Storage duration calculates to >= 25.0 hours.
     - Audit Status: `[REJECTED: BPOM COMPLIANCE VIOLATION]` (Exceeds 8.0 h limit).
 
-- [ ] **TC-BPOM-08: Future Cooking Timestamp Rejection**
+- [x] **TC-BPOM-08: Future Cooking Timestamp Rejection**
   - **Input Text:**
     ```text
     Ada 4 porsi rendang daging sapi masak besok pagi harga 30k
@@ -287,7 +287,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Audit Status: `[REJECTED: BPOM COMPLIANCE VIOLATION]`.
     - Cause: Cooking timestamp cannot occur in the future.
 
-- [ ] **TC-BPOM-09: Direct API Guardrail Enforcement**
+- [x] **TC-BPOM-09: Direct API Guardrail Enforcement**
   - **Procedure:**
     1. Attempt to send an HTTP `POST /api/v1/listings` request with a rejected dish payload directly to the API endpoint.
   - **Expected Result:**
@@ -297,7 +297,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 ### SUITE 5: Dynamic Pricing & Smart Mystery Bag Bundling
 
-- [ ] **TC-PRICING-01: Time-Decay Dynamic Pricing Calculation (50% - 70% Clamped)**
+- [x] **TC-PRICING-01: Time-Decay Dynamic Pricing Calculation (50% - 70% Clamped)**
   - **Procedure:**
     1. Generate an item listing scheduled to close in 1 hour.
     2. Generate an item listing scheduled to close in 4 hours.
@@ -305,14 +305,14 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Discount values are clamped strictly between 50% and 70%.
     - Items closer to the closing threshold receive a proportionally higher discount.
 
-- [ ] **TC-PRICING-02: Price-Locked Invariance**
+- [x] **TC-PRICING-02: Price-Locked Invariance**
   - **Procedure:**
     1. Publish a listing with dynamic discount set to 60% (Discounted price: `Rp 12.000`).
     2. Re-examine the active listing in the consumer feed 15 minutes later.
   - **Expected Result:**
     - Price remains fixed at `Rp 12.000`; dynamic recalculation ceases upon formal publication.
 
-- [ ] **TC-BUNDLE-01: Smart Mystery Bag Automatic Clustering**
+- [x] **TC-BUNDLE-01: Smart Mystery Bag Automatic Clustering**
   - **Procedure:**
     1. Ensure at least two active standalone listings have low stock (quantity 1 or 2).
     2. In the Merchant view, select `"Kelola Menu Toko"` and click `"Buat Paket Mystery Bag Otomatis"`.
@@ -321,14 +321,14 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Aggressive discount rate (60% - 70%) is applied.
     - Mystery Bag listing is created with constituent items documented.
 
-- [ ] **TC-BUNDLE-02: Strict Shelf-Life Ceiling & Constituent Deactivation**
+- [x] **TC-BUNDLE-02: Strict Shelf-Life Ceiling & Constituent Deactivation**
   - **Procedure:**
     1. Inspect a Mystery Bag composed of Item A (2.0 hours shelf life remaining) and Item B (5.0 hours remaining).
   - **Expected Result:**
     - The composite bundle inherits the most restrictive shelf-life limit (2.0 hours).
     - Constituent items are deactivated from the standalone listing feed.
 
-- [ ] **TC-BUNDLE-03: Ingredient Transparency & Allergen Tagging**
+- [x] **TC-BUNDLE-03: Ingredient Transparency & Allergen Tagging**
   - **Procedure:**
     1. In Consumer view, select category filter `"Mystery Bag"` and open the bundle details.
   - **Expected Result:**
@@ -338,7 +338,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 ### SUITE 6: Consumer Discovery, Geospatial Navigation, & Catalog Feed
 
-- [ ] **TC-CONS-01: Haversine Radius Filters (<500m, <1.5km, All)**
+- [x] **TC-CONS-01: Haversine Radius Filters (<500m, <1.5km, All)**
   - **Procedure:**
     1. In the Consumer feed, evaluate the three distance filter buttons:
        - Select `"< 500m (Jalan Kaki)"`.
@@ -349,13 +349,13 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - `< 1.5km`: Displays Kantin FTUI and Warkop Kutek (~780 m).
     - `Semua`: Displays all available stores, including Roti Unyil Margonda (~1.8 km).
 
-- [ ] **TC-CONS-02: Tokenized Keyword Search**
+- [x] **TC-CONS-02: Tokenized Keyword Search**
   - **Procedure:**
     1. Input non-consecutive keywords into the search bar: `rendang sapi`.
   - **Expected Result:**
     - Feed resolves to `"Rendang Daging Sapi"` regardless of word order.
 
-- [ ] **TC-CONS-03: Leaflet Interactive Map & Google Maps External Navigation**
+- [x] **TC-CONS-03: Leaflet Interactive Map & Google Maps External Navigation**
   - **Procedure:**
     1. Click `"Cek Merchant"` in the consumer header.
     2. Inspect user radius circle (500 m walking boundary).
@@ -365,13 +365,13 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - OpenStreetMap tiles render correctly without external key failures.
     - External navigation link opens Google Maps routed to the store coordinates.
 
-- [ ] **TC-CONS-04: Closing Window Countdown Timer**
+- [x] **TC-CONS-04: Closing Window Countdown Timer**
   - **Procedure:**
     1. Inspect any active listing card with an approaching closing window.
   - **Expected Result:**
     - Real-time countdown updates continuously (e.g., `Sisa 2j 15m`).
 
-- [ ] **TC-CONS-05: Viewport Adaptability (Desktop Grid vs Mobile PWA)**
+- [x] **TC-CONS-05: Viewport Adaptability (Desktop Grid vs Mobile PWA)**
   - **Procedure:**
     1. Inspect application layout at full desktop resolution (> 1024 px).
     2. Scale browser viewport down to mobile width (< 640 px).
@@ -383,7 +383,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 ### SUITE 7: Order Lifecycle, Concurrency, & Atomic Transactions
 
-- [ ] **TC-ORD-01: Cash on Pickup Checkout & Atomic Stock Decrement**
+- [x] **TC-ORD-01: Cash on Pickup Checkout & Atomic Stock Decrement**
   - **Procedure:**
     1. Select an item with stock = 5.
     2. Click `"Beli Porsi Ini"`.
@@ -393,7 +393,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Order is confirmed; unique ticket `#NW-xxxx` is issued.
     - Stock quantity in SQLite table `itemlisting` decreases from 5 to 4.
 
-- [ ] **TC-ORD-02: Single-Modal QRIS Settlement**
+- [x] **TC-ORD-02: Single-Modal QRIS Settlement**
   - **Procedure:**
     1. Select an item and proceed to checkout.
     2. Select `"QRIS Instan"`, then click `"Lanjut ke Pembayaran QRIS"`.
@@ -402,14 +402,14 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Backdrop remains single-layer without double-shadow rendering issues.
     - Clicking `"Saya Sudah Selesai Bayar via E-Wallet"` confirms ticket generation.
 
-- [ ] **TC-ORD-03: ISO/IEC 18004 Digital Pass `#NW-xxxx` & QR Matrix**
+- [x] **TC-ORD-03: ISO/IEC 18004 Digital Pass `#NW-xxxx` & QR Matrix**
   - **Procedure:**
     1. Navigate to the `"Pesanan Saya"` tab and inspect the active ticket.
   - **Expected Result:**
     - High-contrast SVG QR Code matrix renders alongside ticket code `#NW-xxxx`.
     - Ticket state displays as `RESERVED`.
 
-- [ ] **TC-ORD-04: Atomic Order Cancellation & Inventory Restitution**
+- [x] **TC-ORD-04: Atomic Order Cancellation & Inventory Restitution**
   - **Procedure:**
     1. On an active `RESERVED` ticket, click `"Batalkan Pesanan"`.
     2. Confirm the cancellation prompt.
@@ -418,7 +418,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Ticket state transitions to `CANCELLED`.
     - Item inventory quantity increments by +1 immediately in SQLite.
 
-- [ ] **TC-ORD-05: Concurrency Control & Overselling Prevention**
+- [x] **TC-ORD-05: Concurrency Control & Overselling Prevention**
   - **Procedure:**
     1. With 1 portion remaining for an item, execute concurrent checkout requests across two separate browser sessions.
   - **Expected Result:**
@@ -430,7 +430,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 ### SUITE 8: Cashier POS Operations & Anti-Fraud Security
 
-- [ ] **TC-POS-01: Cashier POS Daily Shift Summary Metrics**
+- [x] **TC-POS-01: Cashier POS Daily Shift Summary Metrics**
   - **Procedure:**
     1. Under Merchant view, select tab `"Kasir QR"`.
     2. Review summary cards in the header.
@@ -440,7 +440,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
       2. *Wajib Setor Tunai* (reconciled cash receivable)
       3. *Lunas Digital (QRIS)* (settled electronic payments)
 
-- [ ] **TC-POS-02: Optical Webcam QR Scanner Verification (`html5-qrcode`)**
+- [x] **TC-POS-02: Optical Webcam QR Scanner Verification (`html5-qrcode`)**
   - **Procedure:**
     1. Click `"Nyalakan Kamera Pemindai"` (grant browser webcam permissions).
     2. Present consumer ticket QR pass `#NW-xxxx` to the camera.
@@ -449,14 +449,14 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Prompts verification dialog displaying order items and settlement method.
     - Confirming verification transitions order to `COMPLETED`.
 
-- [ ] **TC-POS-03: Manual Ticket Code Entry**
+- [x] **TC-POS-03: Manual Ticket Code Entry**
   - **Procedure:**
     1. In the manual verification field, input ticket code `#NW-xxxx`.
     2. Click `"Verifikasi & Serah Terima"`.
   - **Expected Result:**
     - System validates order identity and transitions status to `COMPLETED`.
 
-- [ ] **TC-POS-04: Anti Double-Redemption Protection**
+- [x] **TC-POS-04: Anti Double-Redemption Protection**
   - **Procedure:**
     1. Attempt to scan or enter the same completed ticket code `#NW-xxxx` a second time.
   - **Expected Result:**
@@ -464,7 +464,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
       `Tiket #NW-xxxx sudah selesai diserahkan sebelumnya (COMPLETED). Tidak dapat ditukarkan ulang.`
     - Metrics and inventory remain unaffected.
 
-- [ ] **TC-POS-05: Unauthorized Cross-Store Redemption Prevention**
+- [x] **TC-POS-05: Unauthorized Cross-Store Redemption Prevention**
   - **Procedure:**
     1. Generate an order for store `FTUI-001` (ticket `#NW-7788`).
     2. Switch merchant session to store `KUTEK-007`.
@@ -473,7 +473,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - System rejects transaction with HTTP 403 Forbidden:
       `[SECURITY ALERT: UNAUTHORIZED CROSS-STORE REDEMPTION] Tiket #NW-7788 adalah pesanan milik gerai Dapur Barokah FTUI, bukan gerai Anda.`
 
-- [ ] **TC-POS-06: Real-Time Consumer Ticket Live Polling (3.5s Interval)**
+- [x] **TC-POS-06: Real-Time Consumer Ticket Live Polling (3.5s Interval)**
   - **Procedure:**
     1. Open consumer device to `"Pesanan Saya"` displaying an active `RESERVED` ticket.
     2. Complete cashier verification on merchant device.
@@ -485,7 +485,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 ### SUITE 9: Dynamic Menu Image System & Adaptive Presentation
 
-- [ ] **TC-IMG-01: Merchant Catalog Photo Upload & Client-Side Canvas Compression**
+- [x] **TC-IMG-01: Merchant Catalog Photo Upload & Client-Side Canvas Compression**
   - **Procedure:**
     1. In Merchant view, click `"Kelola Buku Menu"`.
     2. In the "Tambah Hidangan Rutin ke Katalog" form, enter dish name, normal price, and raw food photo (>2 MB).
@@ -496,7 +496,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - `POST /api/v1/upload-image` responds with HTTP 200 and image URL.
     - Dish is registered with `image_url` and appears in the menu catalog list displaying a $48 \times 48\text{ px}$ thumbnail.
 
-- [ ] **TC-IMG-02: Dual-Mode Upload Engine & Graceful Local Static Fallback**
+- [x] **TC-IMG-02: Dual-Mode Upload Engine & Graceful Local Static Fallback**
   - **Procedure:**
     1. Send a `POST /api/v1/upload-image` request without active Cloudinary credentials (or simulate network timeout).
     2. Inspect response payload and storage location.
@@ -505,7 +505,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Valid image is stored in `backend/static/uploads/<uuid>.<ext>` and served via FastAPI StaticFiles with response `{"storage_mode": "local", "image_url": "/static/uploads/..."}`.
     - Invalid file or corrupted magic bytes is rejected with HTTP 400 Bad Request (`Header biner file tidak cocok`).
 
-- [ ] **TC-IMG-03: Listing Publication Image Inheritance vs. Ad-Hoc Null Fallback**
+- [x] **TC-IMG-03: Listing Publication Image Inheritance vs. Ad-Hoc Null Fallback**
   - **Procedure:**
     1. Publish a surplus listing from a catalog menu item that has an official `image_url` (via batch modal or voice AI matching catalog).
     2. Publish an ad-hoc uncataloged dish via voice/text AI (`ADHOC_COMPLETE`).
@@ -515,7 +515,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Ad-hoc listing has `image_url: null` without synthetic/generic stock photo guessing.
     - Mystery Bag bundle retains `/assets/foods/mystery_bag.jpg`.
 
-- [ ] **TC-IMG-04: Consumer Discovery Feed Adaptive Card Presentation**
+- [x] **TC-IMG-04: Consumer Discovery Feed Adaptive Card Presentation**
   - **Procedure:**
     1. Open consumer feed (`ConsumerFeedScreen.tsx`) containing both catalog items with images and ad-hoc items without images.
     2. Inspect visual rendering of each card layout.
@@ -523,7 +523,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Items with valid `image_url`: Render full photo banner (`h-44`) with stock pill and discount badge overlay.
     - Items with `image_url: null` (or broken image triggering `onError`): Render sleek compact card layout without image banner; stock pill and discount badge adapt seamlessly under store header without broken layout or empty gap.
 
-- [ ] **TC-IMG-05: Order Ticket Snapshot & Cashier POS Thumbnail Verification**
+- [x] **TC-IMG-05: Order Ticket Snapshot & Cashier POS Thumbnail Verification**
   - **Procedure:**
     1. Reserve an item that has an `image_url`.
     2. Open `"Pesanan Saya"` tab on consumer view.
@@ -537,7 +537,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 ### SUITE 10: System Hardening, Security & Production UX Polish
 
-- [ ] **TC-HARD-01: Merchant Preview Live Countdown & Photo Replace/Remove Controls**
+- [x] **TC-HARD-01: Merchant Preview Live Countdown & Photo Replace/Remove Controls**
   - **Procedure:**
     1. Log in as `FTUI-001` (`PIN: 1234`), open `"Input Suara / Menu Spesial AI"`, analyze a compliant dish (`e.g., "Sisa 3 porsi Ayam Bakar Madu harga 25k baru matang"`).
     2. On the preview card (`MerchantPreviewScreen`), observe `"Sisa waktu tutup toko:"` for 5 seconds without clicking anything.
@@ -548,7 +548,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - `"Ganti Foto"` compresses and uploads the image immediately, showing `"Foto baru berhasil diunggah"`.
     - `"Hapus Foto"` clears the thumbnail back to `"Tanpa Foto Khusus"` and publishes cleanly with `image_url: null`.
 
-- [ ] **TC-HARD-02: Merchant Registration Dynamic Coordinates & Validation (`422`)**
+- [x] **TC-HARD-02: Merchant Registration Dynamic Coordinates & Validation (`422`)**
   - **Procedure:**
     1. Open `"Ganti Akun"` -> `"Mitra Toko"` -> `"Daftarkan Gerai Baru"`.
     2. Inspect closing time format validation: via UI or `POST /api/v1/auth/merchant-register`, test invalid `closing_time` (`25:99`) and invalid non-numeric or short PIN (`abc` / `12`).
@@ -557,7 +557,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Invalid `closing_time` or malformed PIN is rejected cleanly (`HTTP 422 Unprocessable Entity` from API validation).
     - Published listing binds the newly registered store's `location_name`, `latitude`, and `longitude` dynamically instead of defaulting to `FTUI-001`.
 
-- [ ] **TC-HARD-03: Consumer Account Persistence & 1-Tap Quick Selector**
+- [x] **TC-HARD-03: Consumer Account Persistence & 1-Tap Quick Selector**
   - **Procedure:**
     1. Open `"Konsumen"` -> `"Masuk Akun"`.
     2. Confirm `"Ingat Nomor di Perangkat Ini"` is checked, enter `0812-8899-0011`, and click `"Masuk & Jelajah Surplus"`.
@@ -567,7 +567,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Malformed phone numbers fail validation (`HTTP 422`).
     - Returning to consumer login displays `"Pilih Cepat Akun Anda"` with chip `Budi Santoso · 0812-8899-0011` persisted in `localStorage` (`nullwasted_saved_consumer`), and clicking it populates the phone field immediately.
 
-- [ ] **TC-HARD-04: Persistent Consumer Bookmarks & Priority Top-Sorting**
+- [x] **TC-HARD-04: Persistent Consumer Bookmarks & Priority Top-Sorting**
   - **Procedure:**
     1. On the Consumer discovery feed (`ConsumerFeedScreen`), click the heart bookmark button (`aria-label="Bookmark store"`) on a card lower in the list (e.g., an item from `MARGONDA-042`).
     2. Reload the browser (`F5` / hard refresh) and return to the Consumer feed.
@@ -576,7 +576,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Bookmark list persists in `localStorage` under `nullwasted_favorite_listings`.
     - Favorited listings automatically sort to the top of the discovery grid ahead of non-favorited closer stores.
 
-- [ ] **TC-HARD-05: Beverage Keyword Filter, Bundle Isolation & Live Browser GPS Toggle**
+- [x] **TC-HARD-05: Beverage Keyword Filter, Bundle Isolation & Live Browser GPS Toggle**
   - **Procedure:**
     1. In Consumer feed, click `"Beverages"` filter pill, then `"Meals"`, `"Bakery"`, and `"Mystery Bag"`.
     2. Inspect header location toggle pills: switch from `"Mode Demo FTUI"` to `"Gunakan Lokasi Saya"`, then switch back to `"Mode Demo FTUI"`.
@@ -585,7 +585,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - `"Meals"` and `"Bakery"` exclude `is_bundle` listings (`!item.is_bundle`), while `"Mystery Bag"` displays bundles only.
     - `"Gunakan Lokasi Saya"` invokes `navigator.geolocation.getCurrentPosition`, updates Haversine distances (showing fallback notice if GPS permission is denied or `> 3km` from campus UI), and `"Mode Demo FTUI"` restores the default anchor (`-6.3626, 106.8240`).
 
-- [ ] **TC-HARD-06: Bilingual Fusion RAG Matching (`100` Dishes) & Bidirectional Slang Stripping**
+- [x] **TC-HARD-06: Bilingual Fusion RAG Matching (`100` Dishes) & Bidirectional Slang Stripping**
   - **Procedure:**
     1. On Merchant `"Input Suara / Menu Spesial AI"`, test English/fusion dishes such as:
        - `Ada 3 porsi Chicken Katsu Curry harga 28k baru masak 1 jam lalu`
@@ -596,7 +596,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - `100`-dish semantic knowledge base + bilingual token mapper resolves fusion dishes cleanly (`HIGH_PERISHABILITY` `4.0` jam for cream-based `Carbonara` vs appropriate BPOM category for `Chicken Katsu`).
     - Filler slang phrases at both prefix and suffix are stripped, leaving a clean dish title, `quantity: 3`, and `original_price: 17500`.
 
-- [ ] **TC-HARD-07: Direct Publish Spoilage Guardrail & Catalog Name Preservation**
+- [x] **TC-HARD-07: Direct Publish Spoilage Guardrail & Catalog Name Preservation**
   - **Procedure:**
     1. Ensure store `FTUI-001` has catalog menu items (e.g., `Rendang Daging Sapi`). Analyze a specific ad-hoc variant like `Rendang Paru Balado sisa 2 porsi harga 28k baru masak 1 jam lalu`.
     2. Attempt via Swagger (`/docs` -> `POST /api/v1/listings`) or API client to publish a stale item where `hours_since_cooked` exceeds `bpom_max_hours` (e.g., `5.0 > 4.0` for `HIGH_PERISHABILITY`).
@@ -604,7 +604,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Specific dish names (`Rendang Paru Balado`) are preserved without blind generic catalog overwrite unless primary noun + tokens genuinely match.
     - Backend publish guardrail rejects spoiled listings with `HTTP 400 Bad Request` (`evaluate_food_safety` enforced server-side).
 
-- [ ] **TC-HARD-08: Dual-Condition `expires_at` Feed Hiding & Cancelled-Order Expiry Guard**
+- [x] **TC-HARD-08: Dual-Condition `expires_at` Feed Hiding & Cancelled-Order Expiry Guard**
   - **Procedure:**
     1. Publish a fresh listing and inspect `expires_at` returned by `POST /api/v1/listings` (computed from `min(food_expiry_dt, closing_dt)` with midnight-crossing rollover support).
     2. Simulate an expired listing (`expires_at <= now` in SQLite or via test scenario) after a consumer has placed an order, then call `GET /api/v1/listings/active` and cancel that order.
@@ -612,7 +612,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Expired listings (`expires_at <= now`) are excluded from `GET /api/v1/listings/active`.
     - Cancelling an order (`POST /api/v1/orders/{id}/cancel`) restores `quantity` on the row but **never** sets `is_active = True` once `now >= expires_at`.
 
-- [ ] **TC-HARD-09: Cashier Short-Code Normalization & Optional JWT Role/Store Isolation**
+- [x] **TC-HARD-09: Cashier Short-Code Normalization & Optional JWT Role/Store Isolation**
   - **Procedure:**
     1. Reserve an order (`#NW-XXXX`) for `FTUI-001`.
     2. In `"Kasir QR"`, enter only the 4 digits (e.g. `4821` or `#4821` without `#NW-`) and click `"Verifikasi & Serah Terima"`.
@@ -621,7 +621,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Cashier normalizes bare `4821`, `#4821`, `NW-4821`, and `#NW-4821` uniformly and transitions the ticket to `COMPLETED`.
     - Authenticated requests with mismatched `role` or `store_id` in the JWT fail with `HTTP 403 Forbidden`.
 
-- [ ] **TC-HARD-10: Cross-Origin CORS Credentials Compliance (`localhost` / LAN)**
+- [x] **TC-HARD-10: Cross-Origin CORS Credentials Compliance (`localhost` / LAN)**
   - **Procedure:**
     1. Interact across Merchant login, AI draft analysis, image upload, and Consumer checkout from `http://localhost:5173` against `http://127.0.0.1:8000` with Chrome DevTools Network & Console open.
   - **Expected Result:**
