@@ -180,9 +180,9 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   };
 
   const handleSetCurrentTime = () => {
-    const now = new Date();
-    setBatchCookHour(String(now.getHours()).padStart(2, "0"));
-    setBatchCookMinute(String(Math.floor(now.getMinutes() / 5) * 5).padStart(2, "0"));
+    const nowWib = getWibComponents(getEffectiveNow());
+    setBatchCookHour(String(nowWib.hour).padStart(2, "0"));
+    setBatchCookMinute(String(Math.floor(nowWib.minute / 5) * 5).padStart(2, "0"));
   };
 
   const handleSetTypicalTime = () => {
