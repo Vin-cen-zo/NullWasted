@@ -183,14 +183,13 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
   - **Expected Result:**
     - Dish is persisted permanently into the store master menu SQLite table (`storemenuitem`).
 
-- [x] **TC-MERCH-05: Routine Catalog Quick Batch Modal (Dual Dropdown 24h & Portion Variants)**
+- [x] **TC-MERCH-05: Routine Catalog Quick Batch Modal (Dual Dropdown 24h & Live Clock Sync)**
   - **Procedure:**
     1. Navigate to tab `"Pilih Menu Rutin Gerai"`.
     2. Select a pre-registered item (e.g., *Ayam Bakar Madu*).
     3. In the batch configuration modal:
        - Adjust portion stepper to `3`.
-       - Select portion variant: `"Besar / Jumbo"`.
-       - Click `"Waktu Sekarang"` to synchronize cooking timestamp with local clock.
+       - Click `"Waktu Sekarang"` to synchronize cooking timestamp with the active WIB / simulated clock.
     4. Click `"Terbitkan Listing Sekarang"`.
   - **Expected Result:**
     - Modal provides separate 24-hour dropdowns for hours (00-23) and minutes (00-55).
@@ -576,14 +575,14 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Bookmark list persists in `localStorage` under `nullwasted_favorite_listings`.
     - Favorited listings automatically sort to the top of the discovery grid ahead of non-favorited closer stores.
 
-- [x] **TC-HARD-05: Beverage Keyword Filter, Bundle Isolation & Live Browser GPS Toggle**
+- [x] **TC-HARD-05: Beverage Keyword Filter, Bundle Isolation & Live Browser GPS Refresh**
   - **Procedure:**
     1. In Consumer feed, click `"Beverages"` filter pill, then `"Meals"`, `"Bakery"`, and `"Mystery Bag"`.
-    2. Inspect header location toggle pills: switch from `"Mode Demo FTUI"` to `"Gunakan Lokasi Saya"`, then switch back to `"Mode Demo FTUI"`.
+    2. Inspect header GPS status button (`"Gunakan Lokasi Saya"` or `"GPS Aktif (Perbarui Lokasi)"`): click it to request/refresh live browser geolocation, then test radius pills (`Semua`, `< 500m`, `< 1.5km`).
   - **Expected Result:**
-    - `"Beverages"` surfaces drinks matching `BEVERAGES` category or beverage keywords (`kopi`, `susu`, `teh`, `jus`, `matcha`, `latte`, `boba`, etc.) while hiding `Mystery Bag` bundles.
+    - `"Beverages"` surfaces drinks matching `BEVERAGE` food type (`food_type === "BEVERAGE"`) while hiding `Mystery Bag` bundles.
     - `"Meals"` and `"Bakery"` exclude `is_bundle` listings (`!item.is_bundle`), while `"Mystery Bag"` displays bundles only.
-    - `"Gunakan Lokasi Saya"` invokes `navigator.geolocation.getCurrentPosition`, updates Haversine distances (showing fallback notice if GPS permission is denied or `> 3km` from campus UI), and `"Mode Demo FTUI"` restores the default anchor (`-6.3626, 106.8240`).
+    - Clicking `"Gunakan Lokasi Saya"` / `"GPS Aktif (Perbarui Lokasi)"` invokes `navigator.geolocation.getCurrentPosition`, updates Haversine distances and sorts nearest stores first (or displays `"Aktifkan izin GPS browser untuk estimasi jarak ke setiap gerai."` if permission is denied).
 
 - [x] **TC-HARD-06: Bilingual Fusion RAG Matching (`100` Dishes) & Bidirectional Slang Stripping**
   - **Procedure:**
