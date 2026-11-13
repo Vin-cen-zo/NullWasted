@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   ArrowRight,
   KeyRound,
+  Mail,
   User,
   Phone,
   Clock,
@@ -13,6 +14,8 @@ import {
   Utensils,
   CheckCircle2,
   Sparkles,
+  Eye,
+  EyeOff,
   X,
 } from "lucide-react";
 import {
@@ -28,28 +31,49 @@ interface AuthScreenProps {
 }
 
 export interface SavedMerchantAccount {
-  storeId: string;
+  email: string;
+  storeId?: string;
   storeName: string;
-  pin?: string;
   lastLoginAt: string;
 }
 
 export interface SavedConsumerAccount {
+  email: string;
   customerName: string;
-  customerPhone: string;
+  customerPhone?: string;
   lastLoginAt: string;
 }
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const DEMO_MERCHANT_EMAILS = [
+  { label: "Dapur Barokah FTUI", email: "dapurbarokah@nullwasted.id" },
+  { label: "Roti Unyil Margonda", email: "rotiunyil@nullwasted.id" },
+  { label: "Warkop Kutek", email: "warkopkutek@nullwasted.id" },
+];
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [role, setRole] = useState<"merchant" | "consumer">("merchant");
   const [merchantTab, setMerchantTab] = useState<"login" | "register">("login");
   const [consumerTab, setConsumerTab] = useState<"login" | "register">("login");
 
-  // Saved Merchant Accounts in localStorage
+  // Saved Merchant Accounts in localStorage (email & display metadata only — never store secrets)
   const [savedMerchants, setSavedMerchants] = useState<SavedMerchantAccount[]>(() => {
     try {
       const raw = localStorage.getItem("nullwasted_saved_merchant");
-      return raw ? JSON.parse(raw) : [];
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const sanitized: SavedMerchantAccount[] = parsed
+        .filter((m) => m && typeof m.email === "string" && m.email.includes("@"))
+        .map((m) => ({
+          email: m.email,
+          storeId: m.storeId,
+          storeName: m.storeName || "Gerai Mitra",
+          lastLoginAt: m.lastLoginAt || new Date().toISOString(),
+        }));
+      localStorage.setItem("nullwasted_saved_merchant", JSON.stringify(sanitized));
+      return sanitized;
     } catch {
       return [];
     }
@@ -57,13 +81,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [rememberMerchant, setRememberMerchant] = useState<boolean>(true);
 
   // Merchant Login State
-  const [storeId, setStoreId] = useState("");
-  const [storePin, setStorePin] = useState("");
+  const [merchantEmail, setMerchantEmail] = useState("");
+  const [merchantPassword, setMerchantPassword] = useState("");
+  const [showMerchantPassword, setShowMerchantPassword] = useState(false);
   const [merchantError, setMerchantError] = useState("");
   const [isSubmittingMerchant, setIsSubmittingMerchant] = useState(false);
 
   // Merchant Register State
   const [regStoreName, setRegStoreName] = useState("");
+  const [regMerchantEmail, setRegMerchantEmail] = useState("");
+  const [regMerchantPassword, setRegMerchantPassword] = useState("");
+  const [showRegMerchantPassword, setShowRegMerchantPassword] = useState(false);
   const [regCategory, setRegCategory] = useState("Lauk & Makanan Berat");
   const [customCategory, setCustomCategory] = useState("");
   const [regClosingTime, setRegClosingTime] = useState("20:30");
@@ -71,25 +99,34 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [regPinLng, setRegPinLng] = useState<number | null>(null);
   const [regPinLabel, setRegPinLabel] = useState("");
   const [isRegPinpointOpen, setIsRegPinpointOpen] = useState(false);
-  const [regPin, setRegPin] = useState("");
   const [regError, setRegError] = useState("");
   const [isSubmittingRegStore, setIsSubmittingRegStore] = useState(false);
   const [registeredStoreData, setRegisteredStoreData] = useState<{
     storeId: string;
     storeName: string;
+    email: string;
     closingTime: string;
     locationName: string;
     session: UserSession;
   } | null>(null);
 
-  // Saved Consumer Accounts in localStorage
+  // Saved Consumer Accounts in localStorage (email & display metadata only — never store secrets)
   const [savedConsumers, setSavedConsumers] = useState<SavedConsumerAccount[]>(() => {
     try {
       const raw = localStorage.getItem("nullwasted_saved_consumer");
       if (!raw) return [];
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-      return parsed?.customerPhone ? [parsed] : [];
+      if (!Array.isArray(parsed)) return [];
+      const sanitized: SavedConsumerAccount[] = parsed
+        .filter((c) => c && typeof c.email === "string" && c.email.includes("@"))
+        .map((c) => ({
+          email: c.email,
+          customerName: c.customerName || "Konsumen NullWasted",
+          customerPhone: c.customerPhone,
+          lastLoginAt: c.lastLoginAt || new Date().toISOString(),
+        }));
+      localStorage.setItem("nullwasted_saved_consumer", JSON.stringify(sanitized));
+      return sanitized;
     } catch {
       return [];
     }
@@ -97,19 +134,24 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [rememberConsumer, setRememberConsumer] = useState<boolean>(true);
 
   // Consumer Login State
-  const [customerPhone, setCustomerPhone] = useState("");
+  const [consumerEmail, setConsumerEmail] = useState("");
+  const [consumerPassword, setConsumerPassword] = useState("");
+  const [showConsumerPassword, setShowConsumerPassword] = useState(false);
   const [consumerError, setConsumerError] = useState("");
   const [isSubmittingConsumer, setIsSubmittingConsumer] = useState(false);
 
   // Consumer Register State
   const [regCustomerName, setRegCustomerName] = useState("");
+  const [regCustomerEmail, setRegCustomerEmail] = useState("");
+  const [regCustomerPassword, setRegCustomerPassword] = useState("");
+  const [showRegConsumerPassword, setShowRegConsumerPassword] = useState(false);
   const [regCustomerPhone, setRegCustomerPhone] = useState("");
   const [regConsumerError, setRegConsumerError] = useState("");
   const [isSubmittingRegConsumer, setIsSubmittingRegConsumer] = useState(false);
 
-  const removeSavedMerchant = (targetStoreId: string) => {
+  const removeSavedMerchant = (targetEmail: string) => {
     try {
-      const updated = savedMerchants.filter((m) => m.storeId !== targetStoreId);
+      const updated = savedMerchants.filter((m) => m.email !== targetEmail);
       setSavedMerchants(updated);
       localStorage.setItem("nullwasted_saved_merchant", JSON.stringify(updated));
     } catch {
@@ -119,7 +161,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
   const saveMerchantToStorage = (account: SavedMerchantAccount) => {
     try {
-      const filtered = savedMerchants.filter((m) => m.storeId !== account.storeId);
+      const filtered = savedMerchants.filter((m) => m.email !== account.email);
       const updated = [account, ...filtered].slice(0, 5);
       setSavedMerchants(updated);
       localStorage.setItem("nullwasted_saved_merchant", JSON.stringify(updated));
@@ -131,26 +173,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   // Merchant Handlers
   const handleMerchantLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!storeId.trim()) {
-      setMerchantError("Store ID wajib diisi.");
+    const cleanedEmail = merchantEmail.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(cleanedEmail)) {
+      setMerchantError("Format email gerai tidak valid.");
       return;
     }
-    if (storePin.trim().length < 4) {
-      setMerchantError("PIN Kasir / Dapur minimal 4 digit.");
+    if (merchantPassword.trim().length < 6) {
+      setMerchantError("Password akun gerai minimal 6 karakter.");
       return;
     }
 
     try {
       setIsSubmittingMerchant(true);
       setMerchantError("");
-      const auth = await loginMerchant(storeId.trim(), storePin.trim());
+      const auth = await loginMerchant(cleanedEmail, merchantPassword.trim());
       const effectiveStoreName = auth.store_name || "Gerai Mitra NullWasted";
 
       if (rememberMerchant) {
         saveMerchantToStorage({
-          storeId: auth.store_id || storeId.trim(),
+          email: auth.email || cleanedEmail,
+          storeId: auth.store_id,
           storeName: effectiveStoreName,
-          pin: storePin.trim(),
           lastLoginAt: new Date().toISOString(),
         });
       }
@@ -158,7 +201,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       onLogin({
         token: auth.token,
         role: "merchant",
-        storeId: auth.store_id || storeId.trim(),
+        email: auth.email || cleanedEmail,
+        storeId: auth.store_id,
         storeName: effectiveStoreName,
         closingTime: auth.closing_time,
         locationName: auth.location_name,
@@ -174,21 +218,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   };
 
   const handleSelectQuickMerchant = (item: SavedMerchantAccount) => {
-    setStoreId(item.storeId);
-    if (item.pin) {
-      setStorePin(item.pin);
-    }
+    setMerchantEmail(item.email);
     setMerchantError("");
   };
 
   const handleMerchantRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regStoreName.trim()) {
-      setRegError("Nama usaha / gerai wajib diisi.");
+    if (regStoreName.trim().length < 2) {
+      setRegError("Nama usaha / gerai minimal 2 karakter.");
       return;
     }
 
-    // Category validation
+    const cleanedEmail = regMerchantEmail.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(cleanedEmail)) {
+      setRegError("Format email gerai tidak valid.");
+      return;
+    }
+
+    if (regMerchantPassword.trim().length < 6) {
+      setRegError("Password gerai baru minimal 6 karakter.");
+      return;
+    }
+
     let resolvedCategory = regCategory;
     if (regCategory === "CUSTOM") {
       if (customCategory.trim().length < 3) {
@@ -198,15 +249,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       resolvedCategory = customCategory.trim();
     }
 
-    // 24h Closing time validation
     const time24Regex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     if (!time24Regex.test(regClosingTime.trim())) {
       setRegError("Format jam tutup harus 24 jam (HH:MM), contoh: 20:30.");
-      return;
-    }
-
-    if (regPin.trim().length < 4) {
-      setRegError("PIN Kasir baru minimal 4 digit.");
       return;
     }
 
@@ -217,7 +262,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       setRegError("");
       const auth = await registerMerchant({
         name: regStoreName.trim(),
-        pin: regPin.trim(),
+        email: cleanedEmail,
+        password: regMerchantPassword.trim(),
         location_name: resolvedLocationName,
         closing_time: regClosingTime.trim() || "20:30",
         category: resolvedCategory,
@@ -227,17 +273,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
       const effectiveStoreId = auth.store_id || "STORE-NEW";
       const effectiveStoreName = auth.store_name || regStoreName.trim();
+      const effectiveEmail = auth.email || cleanedEmail;
 
-      saveMerchantToStorage({
-        storeId: effectiveStoreId,
-        storeName: effectiveStoreName,
-        pin: regPin.trim(),
-        lastLoginAt: new Date().toISOString(),
-      });
+      if (rememberMerchant) {
+        saveMerchantToStorage({
+          email: effectiveEmail,
+          storeId: effectiveStoreId,
+          storeName: effectiveStoreName,
+          lastLoginAt: new Date().toISOString(),
+        });
+      }
 
       const newSession: UserSession = {
         token: auth.token,
         role: "merchant",
+        email: effectiveEmail,
         storeId: effectiveStoreId,
         storeName: effectiveStoreName,
         closingTime: auth.closing_time || regClosingTime.trim(),
@@ -249,6 +299,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       setRegisteredStoreData({
         storeId: effectiveStoreId,
         storeName: effectiveStoreName,
+        email: effectiveEmail,
         closingTime: auth.closing_time || regClosingTime.trim(),
         locationName: auth.location_name || resolvedLocationName,
         session: newSession,
@@ -261,9 +312,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     }
   };
 
-  const removeSavedConsumer = (targetPhone: string) => {
+  const removeSavedConsumer = (targetEmail: string) => {
     try {
-      const updated = savedConsumers.filter((c) => c.customerPhone !== targetPhone);
+      const updated = savedConsumers.filter((c) => c.email !== targetEmail);
       setSavedConsumers(updated);
       localStorage.setItem("nullwasted_saved_consumer", JSON.stringify(updated));
     } catch {
@@ -273,7 +324,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
   const saveConsumerToStorage = (account: SavedConsumerAccount) => {
     try {
-      const filtered = savedConsumers.filter((c) => c.customerPhone !== account.customerPhone);
+      const filtered = savedConsumers.filter((c) => c.email !== account.email);
       const updated = [account, ...filtered].slice(0, 5);
       setSavedConsumers(updated);
       localStorage.setItem("nullwasted_saved_consumer", JSON.stringify(updated));
@@ -283,27 +334,34 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   };
 
   const handleSelectQuickConsumer = (item: SavedConsumerAccount) => {
-    setCustomerPhone(item.customerPhone);
+    setConsumerEmail(item.email);
     setConsumerError("");
   };
 
   // Consumer Handlers
   const handleConsumerLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerPhone.trim()) {
-      setConsumerError("Nomor WhatsApp wajib diisi.");
+    const cleanedEmail = consumerEmail.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(cleanedEmail)) {
+      setConsumerError("Format email konsumen tidak valid.");
+      return;
+    }
+    if (consumerPassword.trim().length < 6) {
+      setConsumerError("Password minimal 6 karakter.");
       return;
     }
 
     try {
       setIsSubmittingConsumer(true);
       setConsumerError("");
-      const auth = await loginConsumer(customerPhone.trim());
+      const auth = await loginConsumer(cleanedEmail, consumerPassword.trim());
       const resolvedName = auth.customer_name || "Konsumen NullWasted";
-      const resolvedPhone = auth.customer_phone || customerPhone.trim();
+      const resolvedPhone = auth.customer_phone || "";
+      const resolvedEmail = auth.email || cleanedEmail;
 
       if (rememberConsumer) {
         saveConsumerToStorage({
+          email: resolvedEmail,
           customerName: resolvedName,
           customerPhone: resolvedPhone,
           lastLoginAt: new Date().toISOString(),
@@ -313,6 +371,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       onLogin({
         token: auth.token,
         role: "consumer",
+        email: resolvedEmail,
         userId: auth.user_id,
         customerName: resolvedName,
         customerPhone: resolvedPhone,
@@ -327,12 +386,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
   const handleConsumerRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regCustomerName.trim()) {
-      setRegConsumerError("Nama lengkap wajib diisi.");
+    if (regCustomerName.trim().length < 2) {
+      setRegConsumerError("Nama lengkap minimal 2 karakter.");
       return;
     }
-    if (!regCustomerPhone.trim()) {
-      setRegConsumerError("Nomor WhatsApp wajib diisi.");
+    const cleanedEmail = regCustomerEmail.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(cleanedEmail)) {
+      setRegConsumerError("Format email tidak valid.");
+      return;
+    }
+    if (regCustomerPassword.trim().length < 6) {
+      setRegConsumerError("Password minimal 6 karakter.");
       return;
     }
 
@@ -341,20 +405,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       setRegConsumerError("");
       const auth = await registerConsumer({
         name: regCustomerName.trim(),
-        phone: regCustomerPhone.trim(),
+        email: cleanedEmail,
+        password: regCustomerPassword.trim(),
+        phone: regCustomerPhone.trim() || undefined,
       });
       const resolvedName = auth.customer_name || regCustomerName.trim();
       const resolvedPhone = auth.customer_phone || regCustomerPhone.trim();
+      const resolvedEmail = auth.email || cleanedEmail;
 
-      saveConsumerToStorage({
-        customerName: resolvedName,
-        customerPhone: resolvedPhone,
-        lastLoginAt: new Date().toISOString(),
-      });
+      if (rememberConsumer) {
+        saveConsumerToStorage({
+          email: resolvedEmail,
+          customerName: resolvedName,
+          customerPhone: resolvedPhone,
+          lastLoginAt: new Date().toISOString(),
+        });
+      }
 
       onLogin({
         token: auth.token,
         role: "consumer",
+        email: resolvedEmail,
         userId: auth.user_id,
         customerName: resolvedName,
         customerPhone: resolvedPhone,
@@ -447,19 +518,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
               </div>
 
               {merchantTab === "login" ? (
-                /* Merchant Login Form */
                 <form onSubmit={handleMerchantLogin} className="space-y-3">
-                  {/* Quick Account Selector if available */}
+                  {/* Saved Merchant Email Quick Chips (never store password) */}
                   {savedMerchants.length > 0 && (
                     <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
                       <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1.5">
                         <Sparkles className="w-3 h-3 text-emerald-600" />
-                        <span>Pilih Cepat Gerai Anda</span>
+                        <span>Pilih Cepat Email Gerai</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {savedMerchants.map((item) => (
                           <div
-                            key={item.storeId}
+                            key={item.email}
                             className="inline-flex items-center rounded-lg bg-white border border-emerald-300 shadow-sm overflow-hidden"
                           >
                             <button
@@ -467,14 +537,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                               onClick={() => handleSelectQuickMerchant(item)}
                               className="px-2.5 py-1 hover:bg-emerald-100 text-[11px] font-medium text-stone-800 transition-colors flex items-center gap-1 cursor-pointer"
                             >
-                              <span className="font-mono font-bold text-emerald-700">{item.storeId}</span>
-                              <span className="text-stone-600 truncate max-w-[115px]">· {item.storeName}</span>
+                              <span className="font-bold text-emerald-700 truncate max-w-[110px]">
+                                {item.storeName}
+                              </span>
+                              <span className="text-stone-500 truncate max-w-[110px]">· {item.email}</span>
                             </button>
                             <button
                               type="button"
-                              onClick={() => removeSavedMerchant(item.storeId)}
+                              onClick={() => removeSavedMerchant(item.email)}
                               aria-label={`Hapus ${item.storeName} dari daftar tersimpan`}
-                              title="Hapus akun gerai tersimpan"
+                              title="Hapus email gerai tersimpan"
                               className="px-1.5 py-1 text-stone-400 hover:text-red-600 hover:bg-red-50 border-l border-emerald-200 transition-colors cursor-pointer"
                             >
                               <X className="w-3 h-3" />
@@ -485,441 +557,575 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                     </div>
                   )}
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Store ID</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                      <Store className="w-4 h-4" />
-                    </div>
-                    <input
-                      type="text"
-                      value={storeId}
-                      onChange={(e) => setStoreId(e.target.value.toUpperCase())}
-                      placeholder="Contoh: FTUI-001"
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">PIN Kasir / Dapur</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                      <KeyRound className="w-4 h-4" />
-                    </div>
-                    <input
-                      type="password"
-                      maxLength={6}
-                      value={storePin}
-                      onChange={(e) => setStorePin(e.target.value)}
-                      placeholder="Masukkan PIN 4-6 digit"
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="checkbox"
-                    id="rememberMerchant"
-                    checked={rememberMerchant}
-                    onChange={(e) => setRememberMerchant(e.target.checked)}
-                    className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
-                  />
-                  <label htmlFor="rememberMerchant" className="text-xs text-stone-600 select-none cursor-pointer">
-                    Ingat Kredensial di Perangkat Ini
-                  </label>
-                </div>
-
-                {merchantError && (
-                  <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-700 font-semibold">
-                    {merchantError}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isSubmittingMerchant}
-                  className="w-full py-3 px-4 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
-                >
-                  <span>{isSubmittingMerchant ? "Memverifikasi PIN..." : "Masuk ke Dapur Gerai"}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </form>
-            ) : (
-              /* Merchant Register Form */
-              <div>
-                {registeredStoreData ? (
-                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-stone-800 space-y-3">
-                    <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                      <span>Gerai Berhasil Terdaftar!</span>
-                    </div>
-                    <p className="text-xs text-stone-600">
-                      Selamat datang, mitra <strong className="text-stone-900">{registeredStoreData.storeName}</strong>. Berikut adalah Store ID resmi gerai Anda:
+                  {/* Quick-fill Demo Store Emails (fills email only, no secret persisted) */}
+                  <div className="p-2.5 rounded-xl bg-[#F8F6F0] border border-[#E2DDD3]">
+                    <p className="text-[10px] font-bold text-[#5C574F] uppercase tracking-wider mb-1.5">
+                      Isi Cepat Email Gerai Demo (Password uji: <code className="font-mono text-[#1F1D1A]">nullwasted123</code>)
                     </p>
-                    <div className="p-3 bg-white rounded-xl border border-emerald-200 text-center">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 block mb-0.5">
-                        Store ID Resmi Anda
-                      </span>
-                      <span className="text-xl font-mono font-black text-emerald-700 tracking-wider">
-                        {registeredStoreData.storeId}
-                      </span>
-                      <p className="text-[10px] text-stone-500 mt-1">
-                        Simpan Store ID dan PIN ini untuk login kasir dan staf dapur.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onLogin(registeredStoreData.session)}
-                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all"
-                    >
-                      <span>Lanjut Masuk ke Dapur Gerai</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleMerchantRegister} className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Nama Usaha / Gerai</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                          <Store className="w-4 h-4" />
-                        </div>
-                        <input
-                          type="text"
-                          value={regStoreName}
-                          onChange={(e) => setRegStoreName(e.target.value)}
-                          placeholder="Contoh: Warung Berkah Nusantara"
-                          className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Kategori Kuliner</label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                            <Utensils className="w-4 h-4" />
-                          </div>
-                          <select
-                            value={regCategory}
-                            onChange={(e) => setRegCategory(e.target.value)}
-                            className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
-                          >
-                            <option value="Lauk & Makanan Berat">Lauk Nusantara</option>
-                            <option value="Bakery & Pastry">Bakery & Roti</option>
-                            <option value="Kopi & Kudapan">Kopi & Minuman</option>
-                            <option value="Kuliner Umum">Kuliner Umum</option>
-                            <option value="CUSTOM">Lainnya (Tulis Sendiri)...</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Jam Tutup (24 Jam)</label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                            <Clock className="w-4 h-4" />
-                          </div>
-                          <input
-                            type="time"
-                            step={60}
-                            value={regClosingTime}
-                            onChange={(e) => setRegClosingTime(e.target.value)}
-                            className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Custom Category Input if selected */}
-                    {regCategory === "CUSTOM" && (
-                      <div>
-                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
-                          Nama Kategori Kuliner Kustom <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={customCategory}
-                          onChange={(e) => setCustomCategory(e.target.value)}
-                          placeholder="Contoh: Dimsum & Chinese Food, Bento Jepang"
-                          className="w-full px-3 py-2 text-xs rounded-xl border border-emerald-400 bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                        />
-                      </div>
-                    )}
-
-                    <div>
-                      <p className="text-[10px] text-stone-500 mb-1">Format jam tutup 24 jam (00:00 - 23:59), contoh: 20:30</p>
-                    </div>
-
-                    {/* Pinpoint Lokasi Gerai via Peta Interaktif */}
-                    <div>
-                      <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
-                        Pin Lokasi Gerai di Peta <span className="text-stone-400 font-normal">(Bisa diubah/dihapus kapan saja)</span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setIsRegPinpointOpen(true)}
-                        className="w-full px-3 py-2.5 rounded-xl border border-[#D8D2C5] bg-white hover:bg-emerald-50/60 text-left flex items-center justify-between gap-2 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <div className="min-w-0">
-                            <span className="block text-xs font-bold text-[#1F1D1A] truncate">
-                              {regPinLat !== null && regPinLng !== null
-                                ? regPinLabel || "Pin Lokasi Gerai Terpasang"
-                                : "Pilih Titik Lokasi Gerai di Peta"}
-                            </span>
-                            <span className="block text-[10px] text-[#6B655B] font-mono truncate">
-                              {regPinLat !== null && regPinLng !== null
-                                ? `${regPinLat.toFixed(5)}, ${regPinLng.toFixed(5)}`
-                                : "Klik untuk menaruh pin agar toko tampil di peta jelajah"}
-                            </span>
-                          </div>
-                        </div>
-                        <span className="text-[11px] font-bold text-emerald-700 shrink-0">
-                          {regPinLat !== null ? "Ubah Pin" : "Pasang Pin"}
-                        </span>
-                      </button>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Buat PIN Kasir Baru (Min. 4 Digit)</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                          <KeyRound className="w-4 h-4" />
-                        </div>
-                        <input
-                          type="password"
-                          maxLength={6}
-                          value={regPin}
-                          onChange={(e) => setRegPin(e.target.value)}
-                          placeholder="PIN 4-6 digit untuk staf dapur"
-                          className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
-                        />
-                      </div>
-                    </div>
-
-                    {regError && (
-                      <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-700 font-semibold">
-                        {regError}
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={isSubmittingRegStore}
-                      className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
-                    >
-                      <span>{isSubmittingRegStore ? "Mendaftarkan Gerai..." : "Daftarkan Gerai & Dapatkan Store ID"}</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </form>
-                )}
-                <StorePinpointPickerModal
-                  isOpen={isRegPinpointOpen}
-                  initialLat={regPinLat}
-                  initialLng={regPinLng}
-                  initialLabel={regPinLabel}
-                  storeName={regStoreName.trim() || "Gerai Baru"}
-                  allowRemove={regPinLat !== null}
-                  onClose={() => setIsRegPinpointOpen(false)}
-                  onSave={(lat, lng, label) => {
-                    setRegPinLat(lat);
-                    setRegPinLng(lng);
-                    if (label !== undefined) setRegPinLabel(label);
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        ) : (
-          /* ========================================================================= */
-          /* CONSUMER FLOW                                                             */
-          /* ========================================================================= */
-          <div className="mt-4">
-            {/* Consumer Sub-Tabs */}
-            <div className="flex border-b border-[#D8D2C5] mb-4">
-              <button
-                type="button"
-                onClick={() => setConsumerTab("login")}
-                className={`flex-1 py-2 text-xs font-bold transition-all border-b-2 ${
-                  consumerTab === "login"
-                    ? "border-emerald-600 text-emerald-800"
-                    : "border-transparent text-stone-500 hover:text-stone-700"
-                }`}
-              >
-                Masuk Akun
-              </button>
-              <button
-                type="button"
-                onClick={() => setConsumerTab("register")}
-                className={`flex-1 py-2 text-xs font-bold transition-all border-b-2 ${
-                  consumerTab === "register"
-                    ? "border-emerald-600 text-emerald-800"
-                    : "border-transparent text-stone-500 hover:text-stone-700"
-                }`}
-              >
-                Daftar Pengguna Baru
-              </button>
-            </div>
-
-            {consumerTab === "login" ? (
-              /* Consumer Login Form */
-              <form onSubmit={handleConsumerLogin} className="space-y-3">
-                {/* Quick Consumer Account Selector if available */}
-                {savedConsumers.length > 0 && (
-                  <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1.5">
-                      <Sparkles className="w-3 h-3 text-emerald-600" />
-                      <span>Pilih Cepat Akun Anda</span>
-                    </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {savedConsumers.map((item) => (
-                        <div
-                          key={item.customerPhone}
-                          className="inline-flex items-center rounded-lg bg-white border border-emerald-300 shadow-sm overflow-hidden"
+                      {DEMO_MERCHANT_EMAILS.map((demo) => (
+                        <button
+                          key={demo.email}
+                          type="button"
+                          onClick={() => {
+                            setMerchantEmail(demo.email);
+                            setMerchantError("");
+                          }}
+                          className="px-2 py-1 rounded-lg bg-white hover:bg-emerald-50 border border-[#D8D2C5] text-[10px] font-semibold text-[#1F1D1A] transition-colors cursor-pointer"
                         >
-                          <button
-                            type="button"
-                            onClick={() => handleSelectQuickConsumer(item)}
-                            className="px-2.5 py-1 hover:bg-emerald-100 text-[11px] font-medium text-stone-800 transition-colors flex items-center gap-1 cursor-pointer"
-                          >
-                            <span className="font-bold text-emerald-700 truncate max-w-[105px]">
-                              {item.customerName}
-                            </span>
-                            <span className="font-mono text-stone-600">· {item.customerPhone}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeSavedConsumer(item.customerPhone)}
-                            aria-label={`Hapus ${item.customerName} dari daftar tersimpan`}
-                            title="Hapus akun konsumen tersimpan"
-                            className="px-1.5 py-1 text-stone-400 hover:text-red-600 hover:bg-red-50 border-l border-emerald-200 transition-colors cursor-pointer"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
+                          {demo.label}
+                        </button>
                       ))}
                     </div>
                   </div>
-                )}
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Nomor WhatsApp Terdaftar</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                      <Phone className="w-4 h-4" />
+                  <div>
+                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Email Akun Gerai</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="email"
+                        value={merchantEmail}
+                        onChange={(e) => setMerchantEmail(e.target.value)}
+                        placeholder="Contoh: dapurbarokah@nullwasted.id"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                      />
                     </div>
-                    <input
-                      type="tel"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="Contoh: 0812-8899-0011"
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
-                    />
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="checkbox"
-                    id="rememberConsumer"
-                    checked={rememberConsumer}
-                    onChange={(e) => setRememberConsumer(e.target.checked)}
-                    className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                  <div>
+                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Password</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <KeyRound className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showMerchantPassword ? "text" : "password"}
+                        value={merchantPassword}
+                        onChange={(e) => setMerchantPassword(e.target.value)}
+                        placeholder="Minimal 6 karakter"
+                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowMerchantPassword((prev) => !prev)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        aria-label={showMerchantPassword ? "Sembunyikan password" : "Lihat password"}
+                      >
+                        {showMerchantPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="rememberMerchant"
+                      checked={rememberMerchant}
+                      onChange={(e) => setRememberMerchant(e.target.checked)}
+                      className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                    />
+                    <label htmlFor="rememberMerchant" className="text-xs text-stone-600 select-none cursor-pointer">
+                      Ingat Email Gerai di Perangkat Ini
+                    </label>
+                  </div>
+
+                  {merchantError && (
+                    <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-700 font-semibold">
+                      {merchantError}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingMerchant}
+                    className="w-full py-3 px-4 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    <span>{isSubmittingMerchant ? "Memverifikasi Akun..." : "Masuk ke Dapur Gerai"}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </form>
+              ) : (
+                <div>
+                  {registeredStoreData ? (
+                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-stone-800 space-y-3">
+                      <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                        <span>Gerai Berhasil Terdaftar!</span>
+                      </div>
+                      <p className="text-xs text-stone-600">
+                        Selamat datang, mitra <strong className="text-stone-900">{registeredStoreData.storeName}</strong> ({registeredStoreData.email}). Store ID internal gerai Anda:
+                      </p>
+                      <div className="p-3 bg-white rounded-xl border border-emerald-200 text-center">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 block mb-0.5">
+                          Store ID Internal Gerai
+                        </span>
+                        <span className="text-xl font-mono font-black text-emerald-700 tracking-wider">
+                          {registeredStoreData.storeId}
+                        </span>
+                        <p className="text-[10px] text-stone-500 mt-1">
+                          Gunakan email terdaftar dan password Anda untuk login berikutnya.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onLogin(registeredStoreData.session)}
+                        className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all"
+                      >
+                        <span>Lanjut Masuk ke Dapur Gerai</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleMerchantRegister} className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Nama Usaha / Gerai</label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                            <Store className="w-4 h-4" />
+                          </div>
+                          <input
+                            type="text"
+                            value={regStoreName}
+                            onChange={(e) => setRegStoreName(e.target.value)}
+                            placeholder="Contoh: Warung Berkah Nusantara"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Email Bisnis / Gerai</label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                            <Mail className="w-4 h-4" />
+                          </div>
+                          <input
+                            type="email"
+                            value={regMerchantEmail}
+                            onChange={(e) => setRegMerchantEmail(e.target.value)}
+                            placeholder="Contoh: gerai@warungberkah.id"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Kategori Kuliner</label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                              <Utensils className="w-4 h-4" />
+                            </div>
+                            <select
+                              value={regCategory}
+                              onChange={(e) => setRegCategory(e.target.value)}
+                              className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                            >
+                              <option value="Lauk & Makanan Berat">Lauk Nusantara</option>
+                              <option value="Bakery & Pastry">Bakery & Roti</option>
+                              <option value="Kopi & Kudapan">Kopi & Minuman</option>
+                              <option value="Kuliner Umum">Kuliner Umum</option>
+                              <option value="CUSTOM">Lainnya (Tulis Sendiri)...</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Jam Tutup (24 Jam)</label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                              <Clock className="w-4 h-4" />
+                            </div>
+                            <input
+                              type="time"
+                              step={60}
+                              value={regClosingTime}
+                              onChange={(e) => setRegClosingTime(e.target.value)}
+                              className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {regCategory === "CUSTOM" && (
+                        <div>
+                          <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                            Nama Kategori Kuliner Kustom <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={customCategory}
+                            onChange={(e) => setCustomCategory(e.target.value)}
+                            placeholder="Contoh: Dimsum & Chinese Food, Bento Jepang"
+                            className="w-full px-3 py-2 text-xs rounded-xl border border-emerald-400 bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <p className="text-[10px] text-stone-500 mb-1">
+                          Format jam tutup 24 jam (00:00 - 23:59), contoh: 20:30
+                        </p>
+                      </div>
+
+                      {/* Pinpoint Lokasi Gerai via Peta Interaktif */}
+                      <div>
+                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                          Pin Lokasi Gerai di Peta{" "}
+                          <span className="text-stone-400 font-normal">(Bisa diubah/dihapus kapan saja)</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setIsRegPinpointOpen(true)}
+                          className="w-full px-3 py-2.5 rounded-xl border border-[#D8D2C5] bg-white hover:bg-emerald-50/60 text-left flex items-center justify-between gap-2 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <div className="min-w-0">
+                              <span className="block text-xs font-bold text-[#1F1D1A] truncate">
+                                {regPinLat !== null && regPinLng !== null
+                                  ? regPinLabel || "Pin Lokasi Gerai Terpasang"
+                                  : "Pilih Titik Lokasi Gerai di Peta"}
+                              </span>
+                              <span className="block text-[10px] text-[#6B655B] font-mono truncate">
+                                {regPinLat !== null && regPinLng !== null
+                                  ? `${regPinLat.toFixed(5)}, ${regPinLng.toFixed(5)}`
+                                  : "Klik untuk menaruh pin agar toko tampil di peta jelajah"}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="text-[11px] font-bold text-emerald-700 shrink-0">
+                            {regPinLat !== null ? "Ubah Pin" : "Pasang Pin"}
+                          </span>
+                        </button>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                          Buat Password Gerai (Min. 6 Karakter)
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                            <KeyRound className="w-4 h-4" />
+                          </div>
+                          <input
+                            type={showRegMerchantPassword ? "text" : "password"}
+                            value={regMerchantPassword}
+                            onChange={(e) => setRegMerchantPassword(e.target.value)}
+                            placeholder="Minimal 6 karakter"
+                            className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowRegMerchantPassword((prev) => !prev)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                            aria-label={showRegMerchantPassword ? "Sembunyikan password" : "Lihat password"}
+                          >
+                            {showRegMerchantPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {regError && (
+                        <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-700 font-semibold">
+                          {regError}
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={isSubmittingRegStore}
+                        className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
+                      >
+                        <span>{isSubmittingRegStore ? "Mendaftarkan Gerai..." : "Daftarkan Gerai Baru"}</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </form>
+                  )}
+                  <StorePinpointPickerModal
+                    isOpen={isRegPinpointOpen}
+                    initialLat={regPinLat}
+                    initialLng={regPinLng}
+                    initialLabel={regPinLabel}
+                    storeName={regStoreName.trim() || "Gerai Baru"}
+                    allowRemove={regPinLat !== null}
+                    onClose={() => setIsRegPinpointOpen(false)}
+                    onSave={(lat, lng, label) => {
+                      setRegPinLat(lat);
+                      setRegPinLng(lng);
+                      if (label !== undefined) setRegPinLabel(label);
+                    }}
                   />
-                  <label htmlFor="rememberConsumer" className="text-xs text-stone-600 select-none cursor-pointer">
-                    Ingat Nomor di Perangkat Ini
-                  </label>
                 </div>
-
-                {consumerError && (
-                  <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-700 font-semibold">
-                    {consumerError}
-                  </div>
-                )}
-
+              )}
+            </div>
+          ) : (
+            /* ========================================================================= */
+            /* CONSUMER FLOW                                                             */
+            /* ========================================================================= */
+            <div className="mt-4">
+              {/* Consumer Sub-Tabs */}
+              <div className="flex border-b border-[#D8D2C5] mb-4">
                 <button
-                  type="submit"
-                  disabled={isSubmittingConsumer}
-                  className="w-full py-3 px-4 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
+                  type="button"
+                  onClick={() => setConsumerTab("login")}
+                  className={`flex-1 py-2 text-xs font-bold transition-all border-b-2 ${
+                    consumerTab === "login"
+                      ? "border-emerald-600 text-emerald-800"
+                      : "border-transparent text-stone-500 hover:text-stone-700"
+                  }`}
                 >
-                  <span>{isSubmittingConsumer ? "Menghubungkan..." : "Masuk & Jelajah Surplus"}</span>
-                  <ArrowRight className="w-4 h-4" />
+                  Masuk Akun
                 </button>
-              </form>
-            ) : (
-              /* Consumer Register Form */
-              <form onSubmit={handleConsumerRegister} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Nama Lengkap</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                      <User className="w-4 h-4" />
-                    </div>
-                    <input
-                      type="text"
-                      value={regCustomerName}
-                      onChange={(e) => setRegCustomerName(e.target.value)}
-                      placeholder="Contoh: Budi Santoso"
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Nomor WhatsApp Aktif</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                      <Phone className="w-4 h-4" />
-                    </div>
-                    <input
-                      type="tel"
-                      value={regCustomerPhone}
-                      onChange={(e) => setRegCustomerPhone(e.target.value)}
-                      placeholder="Contoh: 0812-8899-0011"
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
-                    />
-                  </div>
-                </div>
-
-                <p className="text-[11px] text-[#6B655B] bg-[#F8F6F0] px-3 py-2 rounded-xl border border-[#E7E1D4]">
-                  Setelah masuk, aplikasi akan meminta izin GPS perangkat Anda untuk menghitung jarak ke gerai sekitar.
-                </p>
-
-                {regConsumerError && (
-                  <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-700 font-semibold">
-                    {regConsumerError}
-                  </div>
-                )}
-
                 <button
-                  type="submit"
-                  disabled={isSubmittingRegConsumer}
-                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
+                  type="button"
+                  onClick={() => setConsumerTab("register")}
+                  className={`flex-1 py-2 text-xs font-bold transition-all border-b-2 ${
+                    consumerTab === "register"
+                      ? "border-emerald-600 text-emerald-800"
+                      : "border-transparent text-stone-500 hover:text-stone-700"
+                  }`}
                 >
-                  <span>{isSubmittingRegConsumer ? "Mendaftarkan Akun..." : "Daftar & Mulai Belanja Surplus"}</span>
-                  <ArrowRight className="w-4 h-4" />
+                  Daftar Pengguna Baru
                 </button>
-              </form>
-            )}
-          </div>
-        )}
-      </div>
+              </div>
 
-      {/* Footer Info */}
-      <div className="text-center pt-2 border-t border-[#E8E2D5]">
-        <p className="text-[10px] text-[#7C7569]">
-          Platform Marketplace Surplus Food Berbasis Agentic AI
-        </p>
-        <p className="text-[9px] text-[#A8A196] mt-0.5">
-          Hemat Pangan · Temukan Gerai Terdekat di Sekitarmu
-        </p>
+              {consumerTab === "login" ? (
+                <form onSubmit={handleConsumerLogin} className="space-y-3">
+                  {savedConsumers.length > 0 && (
+                    <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1.5">
+                        <Sparkles className="w-3 h-3 text-emerald-600" />
+                        <span>Pilih Cepat Email Anda</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {savedConsumers.map((item) => (
+                          <div
+                            key={item.email}
+                            className="inline-flex items-center rounded-lg bg-white border border-emerald-300 shadow-sm overflow-hidden"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleSelectQuickConsumer(item)}
+                              className="px-2.5 py-1 hover:bg-emerald-100 text-[11px] font-medium text-stone-800 transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <span className="font-bold text-emerald-700 truncate max-w-[100px]">
+                                {item.customerName}
+                              </span>
+                              <span className="text-stone-500 truncate max-w-[115px]">· {item.email}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeSavedConsumer(item.email)}
+                              aria-label={`Hapus ${item.customerName} dari daftar tersimpan`}
+                              title="Hapus email konsumen tersimpan"
+                              className="px-1.5 py-1 text-stone-400 hover:text-red-600 hover:bg-red-50 border-l border-emerald-200 transition-colors cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quick-fill Demo Consumer Email */}
+                  <div className="p-2.5 rounded-xl bg-[#F8F6F0] border border-[#E2DDD3] flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-[#5C574F]">
+                      Akun demo: <code className="font-mono font-bold text-[#1F1D1A]">budi@nullwasted.id</code> (pw:{" "}
+                      <code className="font-mono text-[#1F1D1A]">nullwasted123</code>)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConsumerEmail("budi@nullwasted.id");
+                        setConsumerError("");
+                      }}
+                      className="px-2 py-1 rounded-lg bg-white hover:bg-emerald-50 border border-[#D8D2C5] text-[10px] font-bold text-emerald-700 shrink-0 cursor-pointer"
+                    >
+                      Isi Email
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Email Terdaftar</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="email"
+                        value={consumerEmail}
+                        onChange={(e) => setConsumerEmail(e.target.value)}
+                        placeholder="Contoh: budi@nullwasted.id"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Password</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <KeyRound className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showConsumerPassword ? "text" : "password"}
+                        value={consumerPassword}
+                        onChange={(e) => setConsumerPassword(e.target.value)}
+                        placeholder="Minimal 6 karakter"
+                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConsumerPassword((prev) => !prev)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        aria-label={showConsumerPassword ? "Sembunyikan password" : "Lihat password"}
+                      >
+                        {showConsumerPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="rememberConsumer"
+                      checked={rememberConsumer}
+                      onChange={(e) => setRememberConsumer(e.target.checked)}
+                      className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                    />
+                    <label htmlFor="rememberConsumer" className="text-xs text-stone-600 select-none cursor-pointer">
+                      Ingat Email di Perangkat Ini
+                    </label>
+                  </div>
+
+                  {consumerError && (
+                    <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-700 font-semibold">
+                      {consumerError}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingConsumer}
+                    className="w-full py-3 px-4 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    <span>{isSubmittingConsumer ? "Memverifikasi..." : "Masuk & Jelajah Surplus"}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleConsumerRegister} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Nama Lengkap</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="text"
+                        value={regCustomerName}
+                        onChange={(e) => setRegCustomerName(e.target.value)}
+                        placeholder="Contoh: Budi Santoso"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Email Aktif</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="email"
+                        value={regCustomerEmail}
+                        onChange={(e) => setRegCustomerEmail(e.target.value)}
+                        placeholder="Contoh: nama@email.id"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                      Password (Min. 6 Karakter)
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <KeyRound className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showRegConsumerPassword ? "text" : "password"}
+                        value={regCustomerPassword}
+                        onChange={(e) => setRegCustomerPassword(e.target.value)}
+                        placeholder="Minimal 6 karakter"
+                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegConsumerPassword((prev) => !prev)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        aria-label={showRegConsumerPassword ? "Sembunyikan password" : "Lihat password"}
+                      >
+                        {showRegConsumerPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                      Nomor WhatsApp <span className="text-stone-400 font-normal">(Opsional untuk kontak tiket)</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <Phone className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="tel"
+                        value={regCustomerPhone}
+                        onChange={(e) => setRegCustomerPhone(e.target.value)}
+                        placeholder="Contoh: 0812-8899-0011"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                      />
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-[#6B655B] bg-[#F8F6F0] px-3 py-2 rounded-xl border border-[#E7E1D4]">
+                    Setelah masuk, aplikasi akan meminta izin GPS perangkat Anda untuk menghitung jarak ke gerai sekitar.
+                  </p>
+
+                  {regConsumerError && (
+                    <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-700 font-semibold">
+                      {regConsumerError}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingRegConsumer}
+                    className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    <span>{isSubmittingRegConsumer ? "Mendaftarkan Akun..." : "Daftar & Mulai Belanja Surplus"}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer Info */}
+        <div className="text-center pt-2 border-t border-[#E8E2D5]">
+          <p className="text-[10px] text-[#7C7569]">Platform Marketplace Surplus Food Berbasis Agentic AI</p>
+          <p className="text-[9px] text-[#A8A196] mt-0.5">Hemat Pangan · Temukan Gerai Terdekat di Sekitarmu</p>
+        </div>
       </div>
     </div>
-  </div>
   );
 };

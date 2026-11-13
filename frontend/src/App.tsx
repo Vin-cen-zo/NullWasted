@@ -8,7 +8,9 @@ import { MerchantCashierScreen } from "./components/MerchantCashierScreen";
 import { ConsumerFeedScreen } from "./components/ConsumerFeedScreen";
 import { ConsumerDetailModal } from "./components/ConsumerDetailModal";
 import { ConsumerOrdersScreen } from "./components/ConsumerOrdersScreen";
+import { TimeSimulatorPill } from "./components/TimeSimulatorPill";
 import {
+  NW_AUTH_EXPIRED_EVENT,
   createDraft,
   publishListing,
   createSmartBundle,
@@ -19,6 +21,7 @@ import {
   cancelOrder,
   deleteListing,
 } from "./services/api";
+import { NW_CLOCK_CHANGE_EVENT, getEffectiveNow, parseBackendUtcMs } from "./utils/clock";
 import {
   PlusCircle,
   ClipboardList,
@@ -60,6 +63,7 @@ export const App: React.FC = () => {
 
   // Toast feedback state
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [clockTick, setClockTick] = useState<number>(() => getEffectiveNow().getTime());
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
@@ -96,6 +100,40 @@ export const App: React.FC = () => {
     refreshListings();
     refreshOrders();
   }, [session]);
+
+  useEffect(() => {
+    const handleClockChange = () => {
+      setClockTick(getEffectiveNow().getTime());
+      refreshListings();
+      refreshOrders();
+    };
+    const handleAuthExpired = () => {
+      handleLogout();
+      showToast("Sesi telah kedaluwarsa, silakan masuk kembali.", "error");
+    };
+    window.addEventListener(NW_CLOCK_CHANGE_EVENT, handleClockChange);
+    window.addEventListener(NW_AUTH_EXPIRED_EVENT, handleAuthExpired);
+    const tickTimer = setInterval(() => setClockTick(getEffectiveNow().getTime()), 10000);
+    return () => {
+      window.removeEventListener(NW_CLOCK_CHANGE_EVENT, handleClockChange);
+      window.removeEventListener(NW_AUTH_EXPIRED_EVENT, handleAuthExpired);
+      clearInterval(tickTimer);
+    };
+  }, [session]);
+
+  useEffect(() => {
+    if (session?.role !== "consumer" || consumerTab !== "explore") return;
+    const pollTimer = setInterval(() => {
+      refreshListings();
+    }, 12000);
+    return () => clearInterval(pollTimer);
+  }, [session, consumerTab]);
+
+  const nonExpiredListingsCount = activeListings.filter((item) => {
+    if (!item.expires_at) return true;
+    const expMs = parseBackendUtcMs(item.expires_at);
+    return Number.isNaN(expMs) || expMs > clockTick;
+  }).length;
 
   // Auth Handler
   const handleLogin = (newSession: UserSession) => {
@@ -184,7 +222,7 @@ export const App: React.FC = () => {
       await refreshListings();
       showToast("Listing berhasil ditarik dari katalog.");
     } catch (err) {
-      showToast("Gagal menghapus listing.", "error");
+      showToast(err instanceof Error ? err.message : "Gagal menghapus listing.", "error");
     }
   };
 
@@ -338,7 +376,7 @@ export const App: React.FC = () => {
                     }`}
                   >
                     <UtensilsCrossed className="w-4 h-4" />
-                    <span>Jelajah ({activeListings.length})</span>
+                    <span>Jelajah ({nonExpiredListingsCount})</span>
                   </button>
 
                   <button
@@ -358,20 +396,21 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {/* Sisi Kanan: Logout / Switch Role */}
-          {session ? (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700 transition-colors shrink-0 cursor-pointer"
-              title="Ganti Peran / Logout"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Ganti Akun</span>
-            </button>
-          ) : (
-            <div className="w-16" />
-          )}
+          {/* Sisi Kanan: Time Simulator + Logout / Switch Role */}
+          <div className="flex items-center gap-2 shrink-0">
+            <TimeSimulatorPill />
+            {session ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700 transition-colors shrink-0 cursor-pointer"
+                title="Ganti Peran / Logout"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Ganti Akun</span>
+              </button>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -537,7 +576,7 @@ export const App: React.FC = () => {
                 }`}
               >
                 <UtensilsCrossed className="w-5 h-5" />
-                <span className="text-[10px]">Jelajah ({activeListings.length})</span>
+                <span className="text-[10px]">Jelajah ({nonExpiredListingsCount})</span>
               </button>
 
               <button

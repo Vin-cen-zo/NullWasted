@@ -89,6 +89,7 @@ export interface PublishRequest {
   is_bundle?: boolean;
   bundled_items_json?: string | null;
   image_url?: string | null;
+  cooked_at_hhmm?: string;
 }
 
 export interface ItemListing {
@@ -154,6 +155,7 @@ export interface OrderTicket {
 export interface UserSession {
   token?: string;
   role: "merchant" | "consumer";
+  email?: string;
   userId?: string;
   storeId?: string;
   storeName?: string;
@@ -168,6 +170,7 @@ export interface UserSession {
 export interface AuthResponse {
   token: string;
   role: "merchant" | "consumer";
+  email?: string;
   user_id?: string;
   store_id?: string;
   store_name?: string;
