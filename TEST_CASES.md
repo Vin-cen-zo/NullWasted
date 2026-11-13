@@ -35,14 +35,14 @@ npm run dev
 | **Health Check** | `http://localhost:8000/health` | Fast in-memory process status |
 
 ### 1.4 Pre-Seeded Test Credentials
-The local SQLite instance (`backend/nullwasted_local.db`) contains the following default test accounts:
+The local SQLite instance (`backend/nullwasted_local.db`) contains the following default Email + Password test accounts:
 
-| Role | Entity | Store ID / Identifier | Security Key / PIN | Coordinate Offset |
+| Role | Entity | Email | Store ID / Phone | Demo Password |
 | :--- | :--- | :--- | :--- | :--- |
-| **Merchant** | Dapur Barokah FTUI | `FTUI-001` | `1234` | ~110 m (Kantin FTUI) |
-| **Merchant** | Warkop & Snack Kutek | `KUTEK-007` | `1234` | ~780 m (Kukusan Teknik) |
-| **Merchant** | Roti Unyil & Pastry Margonda | `MARGONDA-042` | `1234` | ~1.8 km (Jl. Margonda Raya) |
-| **Consumer** | Budi Santoso | `0812-8899-0011` | Direct Session Verification | User Reference Node |
+| **Merchant** | Dapur Barokah FTUI | `dapurbarokah@nullwasted.id` | `FTUI-001` | `nullwasted123` |
+| **Merchant** | Warkop & Snack Kutek | `warkopkutek@nullwasted.id` | `KUTEK-007` | `nullwasted123` |
+| **Merchant** | Roti Unyil & Pastry Margonda | `rotiunyil@nullwasted.id` | `MARGONDA-042` | `nullwasted123` |
+| **Consumer** | Budi Santoso | `budi@nullwasted.id` | `0812-8899-0011` | `nullwasted123` |
 
 ---
 
@@ -50,8 +50,8 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 | Suite | Category | Functional Scope | Case Count |
 | :--- | :--- | :--- | :---: |
-| **Suite 1** | Automated Suite | Full pytest suite (`42` unit & edge-case tests), Vite/TS build, & `/health` | 3 |
-| **Suite 2** | Authentication | Merchant onboarding, session caching, and consumer verification | 4 |
+| **Suite 1** | Automated Suite | Full pytest suite (`50` unit & edge-case tests), Vite/TS build, & `/health` | 3 |
+| **Suite 2** | Authentication | Merchant onboarding, session caching, and consumer Email + Password verification | 4 |
 | **Suite 3** | Merchant Operations | Speech recognition, AI entity extraction, and catalog batching | 6 |
 | **Suite 4** | Safety Guardrail | PerBPOM No. 16/2019 semantic RAG, poison filtering, and time decay | 9 |
 | **Suite 5** | Pricing & Bundling | Algorithmic time-decay discount and multi-item Mystery Bag bundling | 5 |
@@ -59,8 +59,8 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 | **Suite 7** | Order Lifecycle | Atomic inventory transactions, QRIS single-modal, and QR pass generation | 5 |
 | **Suite 8** | Cashier POS | Optical webcam decoding, POS shift summaries, and anti-fraud checks | 6 |
 | **Suite 9** | Image System | Dual-mode upload, canvas compression, inheritance, and adaptive UI | 5 |
-| **Suite 10** | Hardening & UX Polish | Live preview controls, GPS toggle, bookmarks, expiry guards, bilingual RAG, & JWT isolation | 10 |
-| **Total** | | **Comprehensive System Scope** | **58 Cases** |
+| **Suite 10** | Hardening & UX Polish | Live preview controls, GPS toggle, bookmarks, expiry guards, bilingual RAG, Time Simulator, & JWT RBAC isolation | 11 |
+| **Total** | | **Comprehensive System Scope** | **59 Cases** |
 
 ---
 
@@ -77,9 +77,9 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     py -m pytest tests/ -v
     ```
   - **Expected Result:**
-    - All 42 test cases pass (`42 passed`: `33` in `tests/test_unit_core.py` + `9` in `tests/test_production_edge_cases.py`).
+    - All 50 test cases pass (`50 passed`: `35` in `tests/test_unit_core.py` + `15` in `tests/test_production_edge_cases.py`).
     - Exit code: `0`.
-    - Verification includes Guardrail RAG (`100` bilingual BPOM dishes), Dynamic Pricing clamping, Mystery Bag clustering, atomic stock decrement (`409`), expiry guards, optional JWT cross-store isolation (`403`), PBKDF2 hashing, and image URL lifecycle inheritance.
+    - Verification includes Guardrail RAG (`100` bilingual BPOM dishes), Dynamic Pricing server-side lock, Mystery Bag clamping, atomic stock decrement (`409`), expiry guards, `X-Simulated-Time` WIB clock awareness, strict JWT `401`/RBAC `403` isolation, PBKDF2 Email+Password hashing, and image URL lifecycle inheritance.
 
 - [x] **TC-AUTO-02: Frontend Production Build Compilation**
   - **Command:**
@@ -95,7 +95,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
   - **Method / Path:** `GET http://localhost:8000/health`
   - **Expected Result:**
     - HTTP 200 OK.
-    - Response payload: `{"status": "healthy", "service": "NullWasted Backend"}` with latency below 5 ms.
+    - Response payload: `{"status": "ok", "service": "NullWasted API"}` with latency below 5 ms.
 
 ---
 
@@ -106,29 +106,29 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     1. Open `http://localhost:5173`, click `"Ganti Akun"`, select `"Mitra Toko"`, and open sub-tab `"Daftarkan Gerai Baru"`.
     2. Under Category, select `"Lainnya (Tulis Sendiri)..."`.
     3. Input custom category: `Dimsum & Bento Specialist`.
-    4. Input store name: `Kantin Dekanat Baru`.
-    5. Input store address: `Gedung Dekanat FTUI Lantai 1` (must be >= 10 characters).
-    6. Input 4-6 digit PIN: `9999`, then click `"Daftarkan Gerai & Dapatkan Store ID"`.
+    4. Input store name: `Kantin Dekanat Baru`, email `dekanat@nullwasted.id`, and password (min 6 chars, e.g. `nullwasted123`).
+    5. Select store pinpoint coordinates / address label (`Gedung Dekanat FTUI Lantai 1`, `>= 10` characters).
+    6. Click `"Daftarkan Gerai & Dapatkan Store ID"`.
   - **Expected Result:**
-    - Registration completes successfully; system allocates a unique Store ID (`STORE-xxxx`).
+    - Registration completes successfully; system allocates a unique Store ID (`STORE-xxxx`) and salted PBKDF2 password hash.
     - Session initiates automatically as the newly registered merchant.
 
-- [x] **TC-AUTH-02: Merchant Credential Persistence & Quick Selector**
+- [x] **TC-AUTH-02: Merchant Email Persistence & Quick Selector**
   - **Procedure:**
-    1. On the Merchant Login tab, enable the checkbox `"Ingat Kredensial di Perangkat Ini"`.
-    2. Input `Store ID: FTUI-001` and `PIN: 1234`, then click `"Masuk ke Dapur Mitra"`.
+    1. On the Merchant Login tab, enable the checkbox `"Ingat Email di Perangkat Ini"`.
+    2. Input Email `dapurbarokah@nullwasted.id` and Password `nullwasted123`, then click `"Masuk ke Dapur Mitra"`.
     3. Click `"Ganti Akun"` to log out, then return to the Merchant tab.
   - **Expected Result:**
-    - Quick selection card displays stored account chip: `FTUI-001 · Dapur Barokah FTUI`.
-    - Selecting the chip automatically populates Store ID and PIN inputs.
+    - Quick selection card displays stored account chip: `Dapur Barokah FTUI · dapurbarokah@nullwasted.id` (no password or PIN is stored in `localStorage`).
+    - Selecting the chip populates the Email input cleanly so the user only enters their password.
 
-- [x] **TC-AUTH-03: Consumer Phone Authentication**
+- [x] **TC-AUTH-03: Consumer Email + Password Authentication**
   - **Procedure:**
     1. In the account dialog, select the `"Konsumen"` tab.
-    2. Input WhatsApp phone number: `0812-8899-0011`.
+    2. Input Email `budi@nullwasted.id` and Password `nullwasted123`.
     3. Click `"Masuk & Jelajah Surplus"`.
   - **Expected Result:**
-    - Consumer session initializes immediately without requiring external OTP mock gates; navigation directs to the discovery feed.
+    - Consumer session initializes with HS256 JWT token and directs to the discovery feed; optional WhatsApp number can be provided during new account registration.
 
 - [x] **TC-AUTH-04: Stateless Role Transition**
   - **Procedure:**
@@ -183,14 +183,13 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
   - **Expected Result:**
     - Dish is persisted permanently into the store master menu SQLite table (`storemenuitem`).
 
-- [x] **TC-MERCH-05: Routine Catalog Quick Batch Modal (Dual Dropdown 24h & Portion Variants)**
+- [x] **TC-MERCH-05: Routine Catalog Quick Batch Modal (Dual Dropdown 24h & Live Clock Sync)**
   - **Procedure:**
     1. Navigate to tab `"Pilih Menu Rutin Gerai"`.
     2. Select a pre-registered item (e.g., *Ayam Bakar Madu*).
     3. In the batch configuration modal:
        - Adjust portion stepper to `3`.
-       - Select portion variant: `"Besar / Jumbo"`.
-       - Click `"Waktu Sekarang"` to synchronize cooking timestamp with local clock.
+       - Click `"Waktu Sekarang"` to synchronize cooking timestamp with the active WIB / simulated clock.
     4. Click `"Terbitkan Listing Sekarang"`.
   - **Expected Result:**
     - Modal provides separate 24-hour dropdowns for hours (00-23) and minutes (00-55).
@@ -539,7 +538,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 - [x] **TC-HARD-01: Merchant Preview Live Countdown & Photo Replace/Remove Controls**
   - **Procedure:**
-    1. Log in as `FTUI-001` (`PIN: 1234`), open `"Input Suara / Menu Spesial AI"`, analyze a compliant dish (`e.g., "Sisa 3 porsi Ayam Bakar Madu harga 25k baru matang"`).
+    1. Log in as `dapurbarokah@nullwasted.id` (`nullwasted123`), open `"Input Suara / Menu Spesial AI"`, analyze a compliant dish (`e.g., "Sisa 3 porsi Ayam Bakar Madu harga 25k baru matang"`).
     2. On the preview card (`MerchantPreviewScreen`), observe `"Sisa waktu tutup toko:"` for 5 seconds without clicking anything.
     3. Click `"Ganti Foto"`, upload a valid `.jpg`/`.png`/`.webp` image, and observe the preview thumbnail.
     4. Click `"Hapus Foto"`, then publish via `"1-Tap Terbitkan Listing Resmi"`.
@@ -551,21 +550,21 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 - [x] **TC-HARD-02: Merchant Registration Dynamic Coordinates & Validation (`422`)**
   - **Procedure:**
     1. Open `"Ganti Akun"` -> `"Mitra Toko"` -> `"Daftarkan Gerai Baru"`.
-    2. Inspect closing time format validation: via UI or `POST /api/v1/auth/merchant-register`, test invalid `closing_time` (`25:99`) and invalid non-numeric or short PIN (`abc` / `12`).
-    3. Complete a valid store registration with a real physical address (`>= 10` chars) and PIN `1234`, then publish a dish from that new store.
+    2. Inspect closing time & password validation: via UI or `POST /api/v1/auth/merchant-register`, test invalid `closing_time` (`25:99`), invalid `email` (`bukan-email`), or short password (`12`).
+    3. Complete a valid store registration with a real physical address (`>= 10` chars) and password `nullwasted123`, then publish a dish from that new store.
   - **Expected Result:**
-    - Invalid `closing_time` or malformed PIN is rejected cleanly (`HTTP 422 Unprocessable Entity` from API validation).
-    - Published listing binds the newly registered store's `location_name`, `latitude`, and `longitude` dynamically instead of defaulting to `FTUI-001`.
+    - Invalid `closing_time`, malformed email, or short password is rejected cleanly (`HTTP 422 Unprocessable Entity` from API validation).
+    - Published listing binds the newly registered store's `location_name`, `latitude`, and `longitude` dynamically instead of defaulting to `FTUI-001` and persists across restarts.
 
 - [x] **TC-HARD-03: Consumer Account Persistence & 1-Tap Quick Selector**
   - **Procedure:**
     1. Open `"Konsumen"` -> `"Masuk Akun"`.
-    2. Confirm `"Ingat Nomor di Perangkat Ini"` is checked, enter `0812-8899-0011`, and click `"Masuk & Jelajah Surplus"`.
-    3. Test invalid phone format validation via `POST /api/v1/auth/consumer-login` or UI (`12345`).
+    2. Confirm `"Ingat Email di Perangkat Ini"` is checked, enter `budi@nullwasted.id` + password `nullwasted123`, and click `"Masuk & Jelajah Surplus"`.
+    3. Test invalid email / short password validation via `POST /api/v1/auth/consumer-login` or UI.
     4. Click `"Ganti Akun"`, switch back to `"Konsumen"` -> `"Masuk Akun"`.
   - **Expected Result:**
-    - Malformed phone numbers fail validation (`HTTP 422`).
-    - Returning to consumer login displays `"Pilih Cepat Akun Anda"` with chip `Budi Santoso · 0812-8899-0011` persisted in `localStorage` (`nullwasted_saved_consumer`), and clicking it populates the phone field immediately.
+    - Malformed email / short password fails validation (`HTTP 422`); wrong credentials return `HTTP 401`.
+    - Returning to consumer login displays `"Pilih Cepat Akun Anda"` with chip `Budi Santoso · budi@nullwasted.id` persisted in `localStorage` (`nullwasted_saved_consumer`) without storing plaintext password, and clicking it populates the Email field immediately.
 
 - [x] **TC-HARD-04: Persistent Consumer Bookmarks & Priority Top-Sorting**
   - **Procedure:**
@@ -576,14 +575,14 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
     - Bookmark list persists in `localStorage` under `nullwasted_favorite_listings`.
     - Favorited listings automatically sort to the top of the discovery grid ahead of non-favorited closer stores.
 
-- [x] **TC-HARD-05: Beverage Keyword Filter, Bundle Isolation & Live Browser GPS Toggle**
+- [x] **TC-HARD-05: Beverage Keyword Filter, Bundle Isolation & Live Browser GPS Refresh**
   - **Procedure:**
     1. In Consumer feed, click `"Beverages"` filter pill, then `"Meals"`, `"Bakery"`, and `"Mystery Bag"`.
-    2. Inspect header location toggle pills: switch from `"Mode Demo FTUI"` to `"Gunakan Lokasi Saya"`, then switch back to `"Mode Demo FTUI"`.
+    2. Inspect header GPS status button (`"Gunakan Lokasi Saya"` or `"GPS Aktif (Perbarui Lokasi)"`): click it to request/refresh live browser geolocation, then test radius pills (`Semua`, `< 500m`, `< 1.5km`).
   - **Expected Result:**
-    - `"Beverages"` surfaces drinks matching `BEVERAGES` category or beverage keywords (`kopi`, `susu`, `teh`, `jus`, `matcha`, `latte`, `boba`, etc.) while hiding `Mystery Bag` bundles.
+    - `"Beverages"` surfaces drinks matching `BEVERAGE` food type (`food_type === "BEVERAGE"`) while hiding `Mystery Bag` bundles.
     - `"Meals"` and `"Bakery"` exclude `is_bundle` listings (`!item.is_bundle`), while `"Mystery Bag"` displays bundles only.
-    - `"Gunakan Lokasi Saya"` invokes `navigator.geolocation.getCurrentPosition`, updates Haversine distances (showing fallback notice if GPS permission is denied or `> 3km` from campus UI), and `"Mode Demo FTUI"` restores the default anchor (`-6.3626, 106.8240`).
+    - Clicking `"Gunakan Lokasi Saya"` / `"GPS Aktif (Perbarui Lokasi)"` invokes `navigator.geolocation.getCurrentPosition`, updates Haversine distances and sorts nearest stores first (or displays `"Aktifkan izin GPS browser untuk estimasi jarak ke setiap gerai."` if permission is denied).
 
 - [x] **TC-HARD-06: Bilingual Fusion RAG Matching (`100` Dishes) & Bidirectional Slang Stripping**
   - **Procedure:**
@@ -627,13 +626,23 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
   - **Expected Result:**
     - All API preflight (`OPTIONS`) and credentialed `POST`/`GET` requests return valid `Access-Control-Allow-Origin` headers matching `allow_origin_regex` (`^https?://.*`) without W3C wildcard-with-credentials console errors.
 
+- [x] **TC-HARD-11: Interactive WIB Time Simulator (`TimeSimulatorPill` & `X-Simulated-Time` Header Parity)**
+  - **Procedure:**
+    1. Click the WIB clock pill (`TimeSimulatorPill`) in the header navbar and select preset `"09:00 Pagi"`, then `"21:00 Lewat Tutup"`, and click `"Terapkan"`.
+    2. At `"09:00 Pagi"`, attempt voice/text draft or batch catalog publish with cooking time `"14:00"`, then inspect a valid dish `"masak jam 7 pagi tutup jam 9 malam"`.
+    3. Switch to `"21:00 Lewat Tutup"` (for store closing at `20:30`) on `MerchantPreviewScreen`, batch catalog modal, and `ConsumerFeedScreen`.
+  - **Expected Result:**
+    - Frontend injects `X-Simulated-Time` ISO WIB (`+07:00`) header across all `apiFetch` calls when `ENABLE_TIME_SIMULATION=true` in development.
+    - At `09:00 WIB`, future cooking time (`14:00`) is rejected both on UI and backend (`HTTP 400`), while `"masak jam 7 pagi tutup jam 9 malam"` calculates `hours_since_cooked ~ 2.0` and `minutes_until_closing = 720`.
+    - At `21:00 WIB`, Ghost Publish is blocked with `"CLOSED (Toko Tutup)"` banner and `HTTP 400` server-side check, and expired listings disappear immediately from `ConsumerFeedScreen`.
+
 ---
 
 ## 4. Acceptance Sign-Off Matrix
 
 | Suite | Functional Domain | Tester | Date | Verdict |
 | :--- | :--- | :--- | :---: | :---: |
-| **Suite 1** | Automated Suite & Build (`42` pytest + `vite build`) | | | [ ] PASS / [ ] FAIL |
+| **Suite 1** | Automated Suite & Build (`50` pytest + `vite build`) | | | [ ] PASS / [ ] FAIL |
 | **Suite 2** | Multi-Tenant Authentication | | | [ ] PASS / [ ] FAIL |
 | **Suite 3** | Merchant Operations & AI Assistant | | | [ ] PASS / [ ] FAIL |
 | **Suite 4** | BPOM Food Safety Guardrail | | | [ ] PASS / [ ] FAIL |

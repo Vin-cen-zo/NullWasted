@@ -24,6 +24,7 @@ def evaluate_food_safety(
     ai_is_edible: bool | None = None,
     ai_food_type: str | None = None,
     ai_inferred_risk: str | None = None,
+    future_cooking_time: bool = False,
 ) -> dict[str, Any]:
     """Deterministically evaluates food safety compliance against Indonesian BPOM standards.
     Uses semantic vector match + AI contextual classification for regional/novel dishes,
@@ -71,7 +72,7 @@ def evaluate_food_safety(
             }
 
     # 3. Future cooking time defense
-    if re.search(r"\b(besok|nanti malam|akan datang|belum dimasak|akan dimasak|masak besok)\b", query_lower):
+    if future_cooking_time or re.search(r"\b(besok|nanti malam|akan datang|belum dimasak|akan dimasak|masak besok)\b", query_lower):
         return {
             "matched_canonical_dish": "Waktu Masak Tidak Valid (Ditolak)",
             "category": "INVALID_COOKING_TIME",

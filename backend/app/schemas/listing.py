@@ -70,6 +70,19 @@ class PublishRequest(BaseModel):
     is_bundle: bool = False
     bundled_items_json: Optional[str] = None
     image_url: Optional[str] = None
+    cooked_at_hhmm: Optional[str] = None
+
+    @field_validator("cooked_at_hhmm")
+    @classmethod
+    def validate_cooked_at_hhmm(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        cleaned = v.strip()
+        if not cleaned:
+            return None
+        if not re.match(r"^(?:[01]\d|2[0-3]):[0-5]\d$", cleaned):
+            raise ValueError("Format jam masak harus HH:MM (00:00 - 23:59).")
+        return cleaned
 
 
 class ReserveOrderRequest(BaseModel):
@@ -148,35 +161,57 @@ class SmartBundleRequest(BaseModel):
     discount_percent: int = Field(default=65, ge=50, le=70)
 
 
-class MerchantLoginRequest(BaseModel):
-    store_id: str = Field(..., min_length=2)
-    pin: str = Field(..., min_length=4)
+_EMAIL_REGEX = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
 
-    @field_validator("pin")
+
+def _validate_email_value(v: str) -> str:
+    cleaned = v.strip().lower()
+    if not _EMAIL_REGEX.match(cleaned):
+        raise ValueError("Format email tidak valid (contoh: nama@domain.id).")
+    return cleaned
+
+
+def _validate_password_value(v: str) -> str:
+    cleaned = v.strip()
+    if len(cleaned) < 6:
+        raise ValueError("Password minimal 6 karakter.")
+    return cleaned
+
+
+class MerchantLoginRequest(BaseModel):
+    email: str = Field(..., min_length=5)
+    password: str = Field(..., min_length=6)
+
+    @field_validator("email")
     @classmethod
-    def validate_pin(cls, v: str) -> str:
-        cleaned = v.strip()
-        if not re.match(r"^\d{4,6}$", cleaned):
-            raise ValueError("PIN harus berupa 4 hingga 6 digit angka.")
-        return cleaned
+    def validate_email(cls, v: str) -> str:
+        return _validate_email_value(v)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return _validate_password_value(v)
 
 
 class MerchantRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2)
-    pin: str = Field(..., min_length=4)
+    email: str = Field(..., min_length=5)
+    password: str = Field(..., min_length=6)
     location_name: Optional[str] = Field(default="")
     closing_time: str = Field(default="20:30")
     category: Optional[str] = Field(default="Kuliner & Makanan")
     latitude: Optional[float] = Field(default=None)
     longitude: Optional[float] = Field(default=None)
 
-    @field_validator("pin")
+    @field_validator("email")
     @classmethod
-    def validate_pin(cls, v: str) -> str:
-        cleaned = v.strip()
-        if not re.match(r"^\d{4,6}$", cleaned):
-            raise ValueError("PIN harus berupa 4 hingga 6 digit angka.")
-        return cleaned
+    def validate_email(cls, v: str) -> str:
+        return _validate_email_value(v)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return _validate_password_value(v)
 
     @field_validator("closing_time")
     @classmethod
@@ -188,28 +223,45 @@ class MerchantRegisterRequest(BaseModel):
 
 
 class ConsumerLoginRequest(BaseModel):
-    phone: str = Field(..., min_length=8)
-    name: Optional[str] = Field(default=None)
+    email: str = Field(..., min_length=5)
+    password: str = Field(..., min_length=6)
 
-    @field_validator("phone")
+    @field_validator("email")
     @classmethod
-    def validate_phone(cls, v: str) -> str:
-        stripped = v.strip()
-        digits_norm = re.sub(r"[\s\-]+", "", stripped)
-        if not re.match(r"^(?:\+62|62|0)8[1-9][0-9]{7,11}$", digits_norm):
-            raise ValueError("Format nomor WhatsApp Indonesia tidak valid (contoh: 081234567890 atau +6281234567890).")
-        return stripped
+    def validate_email(cls, v: str) -> str:
+        return _validate_email_value(v)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return _validate_password_value(v)
 
 
 class ConsumerRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2)
-    phone: str = Field(..., min_length=8)
+    email: str = Field(..., min_length=5)
+    password: str = Field(..., min_length=6)
+    phone: Optional[str] = Field(default=None)
     address: Optional[str] = Field(default=None)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        return _validate_email_value(v)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return _validate_password_value(v)
 
     @field_validator("phone")
     @classmethod
-    def validate_phone(cls, v: str) -> str:
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
         stripped = v.strip()
+        if not stripped:
+            return None
         digits_norm = re.sub(r"[\s\-]+", "", stripped)
         if not re.match(r"^(?:\+62|62|0)8[1-9][0-9]{7,11}$", digits_norm):
             raise ValueError("Format nomor WhatsApp Indonesia tidak valid (contoh: 081234567890 atau +6281234567890).")
@@ -219,6 +271,7 @@ class ConsumerRegisterRequest(BaseModel):
 class AuthResponse(BaseModel):
     token: str
     role: str  # "merchant" | "consumer"
+    email: Optional[str] = None
     user_id: Optional[str] = None
     store_id: Optional[str] = None
     store_name: Optional[str] = None

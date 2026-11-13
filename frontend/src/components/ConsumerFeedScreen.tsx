@@ -18,7 +18,12 @@ import {
   Utensils,
   Coffee,
 } from "lucide-react";
-import { ClosingCountdownBadge, computeSecondsUntilClosing } from "./ClosingCountdownBadge";
+import { ClosingCountdownBadge } from "./ClosingCountdownBadge";
+import {
+  NW_CLOCK_CHANGE_EVENT,
+  computeEffectiveSecondsUntilClosing,
+  getEffectiveNow,
+} from "../utils/clock";
 import { ConsumerMapModal } from "./ConsumerMapModal";
 
 interface ConsumerFeedScreenProps {
@@ -78,14 +83,17 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   const [gpsNotice, setGpsNotice] = useState<string | null>(null);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
-  const [nowTick, setNowTick] = useState<number>(() => Date.now());
+  const [nowTick, setNowTick] = useState<number>(() => getEffectiveNow().getTime());
 
-  // Tick every 2s so items reaching 0s closing countdown are automatically removed from Jelajah catalog
+  // Tick every 2s and sync immediately with simulated clock changes
   useEffect(() => {
-    const timer = setInterval(() => {
-      setNowTick(Date.now());
-    }, 2000);
-    return () => clearInterval(timer);
+    const syncNow = () => setNowTick(getEffectiveNow().getTime());
+    const timer = setInterval(syncNow, 2000);
+    window.addEventListener(NW_CLOCK_CHANGE_EVENT, syncNow);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener(NW_CLOCK_CHANGE_EVENT, syncNow);
+    };
   }, []);
 
   const toggleBookmark = (id: string, e: React.MouseEvent) => {
@@ -135,7 +143,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   const activeIdsKey = listings
     .filter((item) => {
       void nowTick;
-      return computeSecondsUntilClosing(item.closing_time || "20:30", item.expires_at) > 0;
+      return computeEffectiveSecondsUntilClosing(item.closing_time || "20:30", item.expires_at) > 0;
     })
     .map((item) => item.id)
     .join(",");
@@ -311,7 +319,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
           }`}
         >
           <LayoutGrid className="w-3.5 h-3.5" />
-          <span>All ({listings.length})</span>
+          <span>All ({activeNonExpiredListings.length})</span>
         </button>
 
         {/* Bakery */}

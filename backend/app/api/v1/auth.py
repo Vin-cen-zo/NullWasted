@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from app.core.database import get_session
-from app.core.security import create_access_token, get_optional_user, hash_pin_pbkdf2, verify_pin
+from app.core.security import (
+    create_access_token,
+    get_optional_user,
+    hash_password_pbkdf2,
+    verify_password,
+)
 from app.models.listing import ItemListing, Store, User
 from app.schemas.listing import (
     AuthResponse,
@@ -115,9 +120,10 @@ def update_store_location(
 def merchant_register(
     payload: MerchantRegisterRequest, session: Session = Depends(get_session)
 ) -> AuthResponse:
-    """Registers a new partner store autonomously, hashes PIN, and auto-generates a unique store_id."""
+    """Registers a new partner store autonomously with email + password and auto-generates a unique store_id."""
     name = payload.name.strip()
-    pin = payload.pin.strip()
+    email = payload.email.strip().lower()
+    password = payload.password.strip()
     has_coords = payload.latitude is not None and payload.longitude is not None
     raw_loc = (payload.location_name or "").strip()
     if raw_loc:
@@ -129,10 +135,11 @@ def merchant_register(
 
     closing_time = payload.closing_time.strip() or "20:30"
 
-    if len(pin) < 4:
+    existing_email = session.exec(select(Store).where(Store.email == email)).first()
+    if existing_email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="PIN Kasir / Dapur minimal 4 karakter.",
+            detail="Email gerai sudah terdaftar. Silakan masuk melalui tab Masuk Akun.",
         )
 
     clean_letters = re.sub(r"[^A-Za-z]", "", name).upper()
@@ -152,7 +159,9 @@ def merchant_register(
     new_store = Store(
         store_id=candidate_id,
         name=name,
-        pin_hash=hash_pin_pbkdf2(pin),
+        email=email,
+        password_hash=hash_password_pbkdf2(password),
+        pin_hash="",
         location_name=location_name,
         closing_time=closing_time,
         latitude=payload.latitude if has_coords else None,
@@ -167,6 +176,7 @@ def merchant_register(
     token = create_access_token({
         "sub": new_store.store_id,
         "role": "merchant",
+        "email": new_store.email,
         "store_id": new_store.store_id,
         "store_name": new_store.name,
     })
@@ -174,6 +184,7 @@ def merchant_register(
     return AuthResponse(
         token=token,
         role="merchant",
+        email=new_store.email,
         store_id=new_store.store_id,
         store_name=new_store.name,
         closing_time=new_store.closing_time,
@@ -187,20 +198,21 @@ def merchant_register(
 def merchant_login(
     payload: MerchantLoginRequest, session: Session = Depends(get_session)
 ) -> AuthResponse:
-    """Authenticates store staff using store_id and PIN against SHA-256 hash. Returns stateless JWT token."""
-    target_id = payload.store_id.strip().upper()
-    statement = select(Store).where(Store.store_id == target_id, Store.is_active == True)
+    """Authenticates store staff using email and password against PBKDF2-HMAC-SHA256 hash."""
+    email = payload.email.strip().lower()
+    statement = select(Store).where(Store.email == email, Store.is_active == True)
     store = session.exec(statement).first()
 
-    if not store or not verify_pin(payload.pin.strip(), store.pin_hash):
+    if not store or not store.password_hash or not verify_password(payload.password.strip(), store.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Store ID atau PIN Staf Dapur tidak valid.",
+            detail="Email atau password akun gerai tidak valid.",
         )
 
     token = create_access_token({
         "sub": store.store_id,
         "role": "merchant",
+        "email": store.email,
         "store_id": store.store_id,
         "store_name": store.name,
     })
@@ -208,6 +220,7 @@ def merchant_login(
     return AuthResponse(
         token=token,
         role="merchant",
+        email=store.email,
         store_id=store.store_id,
         store_name=store.name,
         closing_time=store.closing_time,
@@ -221,25 +234,26 @@ def merchant_login(
 def consumer_register(
     payload: ConsumerRegisterRequest, session: Session = Depends(get_session)
 ) -> AuthResponse:
-    """Registers a new consumer using name and phone number. Returns stateless JWT token."""
-    phone = payload.phone.strip()
+    """Registers a new consumer using name, email, password, and optional WhatsApp phone."""
+    email = payload.email.strip().lower()
+    password = payload.password.strip()
+    phone = (payload.phone or "").strip()
     name = payload.name.strip()
 
-    if not phone or not name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nama dan nomor telepon wajib diisi.",
-        )
-
-    statement = select(User).where(User.phone == phone)
-    existing_user = session.exec(statement).first()
+    existing_user = session.exec(select(User).where(User.email == email)).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nomor WhatsApp sudah terdaftar. Silakan masuk melalui tab Masuk Akun.",
+            detail="Email sudah terdaftar. Silakan masuk melalui tab Masuk Akun.",
         )
 
-    user = User(name=name, phone=phone, role="CONSUMER")
+    user = User(
+        name=name,
+        email=email,
+        password_hash=hash_password_pbkdf2(password),
+        phone=phone,
+        role="CONSUMER",
+    )
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -247,6 +261,7 @@ def consumer_register(
     token = create_access_token({
         "sub": user.id,
         "role": "consumer",
+        "email": user.email,
         "name": user.name,
         "phone": user.phone,
     })
@@ -254,6 +269,7 @@ def consumer_register(
     return AuthResponse(
         token=token,
         role="consumer",
+        email=user.email,
         user_id=user.id,
         customer_name=user.name,
         customer_phone=user.phone,
@@ -264,42 +280,20 @@ def consumer_register(
 def consumer_login(
     payload: ConsumerLoginRequest, session: Session = Depends(get_session)
 ) -> AuthResponse:
-    """Registers or logs in a consumer using name and phone number. Returns stateless JWT token."""
-    phone = payload.phone.strip()
+    """Authenticates an existing consumer using email and password against PBKDF2-HMAC-SHA256 hash."""
+    email = payload.email.strip().lower()
+    user = session.exec(select(User).where(User.email == email)).first()
 
-    if not phone:
+    if not user or not user.password_hash or not verify_password(payload.password.strip(), user.password_hash):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nomor telepon wajib diisi.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email atau password akun konsumen tidak valid.",
         )
-
-    statement = select(User).where(User.phone == phone)
-    user = session.exec(statement).first()
-
-    if user:
-        if payload.name and payload.name.strip():
-            req_name = payload.name.strip()
-            if user.name != req_name:
-                user.name = req_name
-                session.add(user)
-                session.commit()
-                session.refresh(user)
-    else:
-        if payload.name and payload.name.strip():
-            req_name = payload.name.strip()
-            user = User(name=req_name, phone=phone, role="CONSUMER")
-            session.add(user)
-            session.commit()
-            session.refresh(user)
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Nomor WhatsApp belum terdaftar. Silakan daftar akun konsumen baru terlebih dahulu.",
-            )
 
     token = create_access_token({
         "sub": user.id,
         "role": "consumer",
+        "email": user.email,
         "name": user.name,
         "phone": user.phone,
     })
@@ -307,6 +301,7 @@ def consumer_login(
     return AuthResponse(
         token=token,
         role="consumer",
+        email=user.email,
         user_id=user.id,
         customer_name=user.name,
         customer_phone=user.phone,

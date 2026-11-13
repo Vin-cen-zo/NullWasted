@@ -168,11 +168,15 @@ def test_api_full_lifecycle(client: TestClient):
     assert draft1_data["recommended_discount_percent"] == 55
     assert draft1_data["discounted_price"] == 9000
 
-    # 3. Draft Pill 2 (Gulai Ayam) -> REJECTED
+    # 3. Draft Pill 2 (Gulai Ayam) -> REJECTED (anchored to 18:00 WIB for 11:00 AM -> 7h elapsed)
     p2_payload = {
         "text": "Ada sisa 3 porsi Gulai Ayam Padang santan kental, harga Rp25.000, selesai masak jam 11 siang (sudah 7 jam suhu ruang)."
     }
-    draft2_res = client.post("/api/v1/listings/draft", json=p2_payload)
+    draft2_res = client.post(
+        "/api/v1/listings/draft",
+        json=p2_payload,
+        headers={"X-Simulated-Time": "2026-11-12T18:00:00+07:00"},
+    )
     assert draft2_res.status_code == 200
     draft2_data = draft2_res.json()
     assert draft2_data["safety_status"] == "REJECTED"
@@ -402,30 +406,58 @@ def test_seed_multi_store_and_menu_catalog(client: TestClient):
 
 
 def test_merchant_and_consumer_jwt_auth(client: TestClient):
-    """Tests merchant PIN verification (success/fail) and consumer phone login with JWT tokens."""
+    """Tests merchant Email+Password verification (success/fail) and consumer Email+Password login with JWT tokens."""
     # Merchant login success
-    res_ok = client.post("/api/v1/auth/merchant-login", json={"store_id": "FTUI-001", "pin": "1234"})
+    res_ok = client.post(
+        "/api/v1/auth/merchant-login",
+        json={"email": "dapurbarokah@nullwasted.id", "password": "nullwasted123"},
+    )
     assert res_ok.status_code == 200
     data_ok = res_ok.json()
     assert data_ok["role"] == "merchant"
     assert "token" in data_ok
     assert data_ok["store_name"] == "Dapur Barokah FTUI"
+    assert data_ok["email"] == "dapurbarokah@nullwasted.id"
 
-    # Merchant login wrong PIN
-    res_fail = client.post("/api/v1/auth/merchant-login", json={"store_id": "FTUI-001", "pin": "9999"})
+    # Merchant login wrong password
+    res_fail = client.post(
+        "/api/v1/auth/merchant-login",
+        json={"email": "dapurbarokah@nullwasted.id", "password": "wrongpassword"},
+    )
     assert res_fail.status_code == 401
 
-    # Merchant login unknown store
-    res_unknown = client.post("/api/v1/auth/merchant-login", json={"store_id": "UNKNOWN-999", "pin": "1234"})
+    # Merchant login unknown email
+    res_unknown = client.post(
+        "/api/v1/auth/merchant-login",
+        json={"email": "unknownstore@nullwasted.id", "password": "nullwasted123"},
+    )
     assert res_unknown.status_code == 401
 
-    # Consumer login
-    res_consumer = client.post("/api/v1/auth/consumer-login", json={"name": "Siti Rahma", "phone": "0812-3456-7890"})
+    # Consumer login success (seeded demo account)
+    res_consumer = client.post(
+        "/api/v1/auth/consumer-login",
+        json={"email": "budi@nullwasted.id", "password": "nullwasted123"},
+    )
     assert res_consumer.status_code == 200
     c_data = res_consumer.json()
     assert "token" in c_data
-    assert c_data["customer_name"] == "Siti Rahma"
+    assert c_data["customer_name"] == "Budi Santoso"
     assert c_data["role"] == "consumer"
+    assert c_data["email"] == "budi@nullwasted.id"
+
+    # Consumer login wrong password
+    res_c_fail = client.post(
+        "/api/v1/auth/consumer-login",
+        json={"email": "budi@nullwasted.id", "password": "wrongpassword"},
+    )
+    assert res_c_fail.status_code == 401
+
+    # Consumer login unknown email
+    res_c_unknown = client.post(
+        "/api/v1/auth/consumer-login",
+        json={"email": "nobody@nullwasted.id", "password": "nullwasted123"},
+    )
+    assert res_c_unknown.status_code == 401
 
 
 def test_store_menu_crud_and_rag_mapping(client: TestClient):
@@ -470,8 +502,12 @@ def test_context_aware_slot_filling_case_a_and_b(client: TestClient):
     assert data_a["bpom_max_hours"] == 4.0
     assert data_a["needs_manual_price"] is False
 
-    # Case B: Time cooked override ('Sisa 3 rendang masak jam 10 -> 6 jam lalu')
-    res_b = client.post("/api/v1/listings/draft", json={"text": "Sisa 3 rendang masak jam 10 (sudah 6 jam suhu ruang)", "store_id": "FTUI-001"})
+    # Case B: Time cooked override ('Sisa 3 rendang masak jam 10 -> 6 jam lalu' anchored to 16:00 WIB)
+    res_b = client.post(
+        "/api/v1/listings/draft",
+        json={"text": "Sisa 3 rendang masak jam 10 (sudah 6 jam suhu ruang)", "store_id": "FTUI-001"},
+        headers={"X-Simulated-Time": "2026-11-12T16:00:00+07:00"},
+    )
     assert res_b.status_code == 200
     data_b = res_b.json()
     assert data_b["hours_since_cooked"] == 6.0
@@ -666,11 +702,12 @@ def test_ai_gateway_timeout_hardening():
 
 
 def test_autonomous_merchant_and_consumer_registration(client: TestClient):
-    """Tests autonomous registration of merchant store and consumer, duplicate rejection, and login."""
+    """Tests autonomous Email+Password registration of merchant store and consumer, duplicate rejection, and login."""
     # 1. Autonomous Merchant Registration
     reg_store_payload = {
         "name": "Kedai Kopi Senja Depok",
-        "pin": "5678",
+        "email": "senja@nullwasted.id",
+        "password": "kopisenja123",
         "location_name": "ukm dekat Stasiun UI · 300m",
         "closing_time": "21:00",
     }
@@ -678,14 +715,19 @@ def test_autonomous_merchant_and_consumer_registration(client: TestClient):
     assert res_reg_store.status_code == 200
     store_data = res_reg_store.json()
     assert store_data["role"] == "merchant"
+    assert store_data["email"] == "senja@nullwasted.id"
     assert "store_id" in store_data and len(store_data["store_id"]) >= 5
     assert store_data["token"] is not None and len(store_data["token"]) > 20
     new_store_id = store_data["store_id"]
 
+    # Duplicate merchant email rejected with HTTP 400
+    res_dup_store = client.post("/api/v1/auth/merchant-register", json=reg_store_payload)
+    assert res_dup_store.status_code == 400
+
     # 2. Login with newly registered merchant
     res_login_store = client.post(
         "/api/v1/auth/merchant-login",
-        json={"store_id": new_store_id, "pin": "5678"},
+        json={"email": "senja@nullwasted.id", "password": "kopisenja123"},
     )
     assert res_login_store.status_code == 200
     assert res_login_store.json()["store_id"] == new_store_id
@@ -693,6 +735,8 @@ def test_autonomous_merchant_and_consumer_registration(client: TestClient):
     # 3. Autonomous Consumer Registration
     reg_consumer_payload = {
         "name": "Andi Pratama",
+        "email": "andi@nullwasted.id",
+        "password": "andi1234",
         "phone": "0813-9988-7766",
         "address": "Kukusan Teknik Depok",
     }
@@ -701,28 +745,154 @@ def test_autonomous_merchant_and_consumer_registration(client: TestClient):
     cons_data = res_reg_cons.json()
     assert cons_data["role"] == "consumer"
     assert cons_data["customer_name"] == "Andi Pratama"
+    assert cons_data["email"] == "andi@nullwasted.id"
     assert cons_data["token"] is not None
 
-    # 4. Duplicate phone registration rejected with HTTP 400
+    # 4. Duplicate email registration rejected with HTTP 400
     res_dup = client.post("/api/v1/auth/consumer-register", json=reg_consumer_payload)
     assert res_dup.status_code == 400
     assert "sudah terdaftar" in res_dup.json()["detail"]
 
-    # 5. Consumer login with phone only (registered)
+    # 5. Consumer login with Email + Password (registered)
     res_login_cons = client.post(
         "/api/v1/auth/consumer-login",
-        json={"phone": "0813-9988-7766"},
+        json={"email": "andi@nullwasted.id", "password": "andi1234"},
     )
     assert res_login_cons.status_code == 200
     assert res_login_cons.json()["customer_name"] == "Andi Pratama"
 
-    # 6. Consumer login with unregistered phone without name returns HTTP 404
+    # 6. Consumer login with wrong password returns HTTP 401
+    res_wrong_pw = client.post(
+        "/api/v1/auth/consumer-login",
+        json={"email": "andi@nullwasted.id", "password": "salahpassword"},
+    )
+    assert res_wrong_pw.status_code == 401
+
+    # 7. Consumer login with unregistered email returns HTTP 401
     res_unknown = client.post(
         "/api/v1/auth/consumer-login",
-        json={"phone": "0899-0000-0000"},
+        json={"email": "belumdaftar@nullwasted.id", "password": "password123"},
     )
-    assert res_unknown.status_code == 404
-    assert "belum terdaftar" in res_unknown.json()["detail"]
+    assert res_unknown.status_code == 401
+
+
+def test_time_awareness_simulated_clock_and_local_extractor():
+    """Verifies dynamic WIB simulated clock parsing for cooking/closing times, future cook rejection, and overnight check."""
+    from app.core.clock import parse_simulated_time_header, reset_simulated_now_wib, set_simulated_now_wib
+
+    sim_dt = parse_simulated_time_header("2026-11-12T08:33:00+07:00")
+    assert sim_dt is not None
+    tok = set_simulated_now_wib(sim_dt)
+    try:
+        # 1. Explicit cooking & closing time at 08:33 WIB
+        res1 = local_rule_based_extract("ada kroisan 5 pcs harga 15rb masak jam 7 pagi tutup jam 9 malam")
+        assert res1["hours_since_cooked"] == pytest.approx(1.55, abs=0.1)
+        assert res1["explicit_closing_mentioned"] is True
+        assert 745 <= res1["minutes_until_closing"] <= 748
+        assert res1["future_cooking_time"] is False
+
+        # 2. Future cooking time at 08:33 WIB -> flagged and rejected by guardrail
+        res2 = local_rule_based_extract("ayam goreng 4 porsi masak jam 14:00 harga 20rb")
+        assert res2["future_cooking_time"] is True
+        safety2 = evaluate_food_safety(
+            food_name="Ayam Goreng",
+            raw_text="ayam goreng 4 porsi masak jam 14:00 harga 20rb",
+            hours_since_cooked=res2["hours_since_cooked"],
+            future_cooking_time=res2["future_cooking_time"],
+        )
+        assert safety2["safety_status"] == "REJECTED"
+        assert safety2["can_publish"] is False
+
+        # 3. Yesterday night cooking remains >= 24h
+        res3 = local_rule_based_extract("nasi uduk 3 porsi masak jam 10 malam kemarin harga 15rb")
+        assert res3["hours_since_cooked"] >= 24.0
+        assert res3["future_cooking_time"] is False
+    finally:
+        reset_simulated_now_wib(tok)
+
+
+def test_extractor_null_gemini_payload_and_simulation_toggle(client: TestClient, monkeypatch):
+    """Verifies safe null coercion on Gemini JSON response and ENABLE_TIME_SIMULATION toggle enforcement."""
+    import json
+    from app.core import config as app_config
+    from app.services import extractor as extractor_mod
+
+    async def fake_generate_content(*args, **kwargs):
+        return json.dumps(
+            {
+                "food_name": "Kroisan Mentega",
+                "is_edible_food": True,
+                "food_type": "BAKERY",
+                "inferred_risk": "LOW_PERISHABILITY",
+                "quantity": None,
+                "original_price": None,
+                "hours_since_cooked": None,
+                "minutes_until_closing": None,
+            }
+        )
+
+    monkeypatch.setattr(extractor_mod.ai_gateway, "generate_content", fake_generate_content)
+
+    # 1. With ENABLE_TIME_SIMULATION=True, draft endpoint obeys X-Simulated-Time (08:33 -> tutup 21:00 = 747m)
+    res_draft = client.post(
+        "/api/v1/listings/draft",
+        json={"text": "ada kroisan 5 pcs harga 15rb masak jam 7 pagi tutup jam 9 malam", "store_id": "FTUI-001"},
+        headers={"X-Simulated-Time": "2026-11-12T08:33:00+07:00"},
+    )
+    assert res_draft.status_code == 200
+    d1 = res_draft.json()
+    assert d1["quantity"] == 5
+    assert d1["original_price"] == 15000
+    assert 745 <= d1["minutes_until_closing"] <= 748
+
+    # 2. Publish with historical simulated year (2020) when enabled vs disabled proves toggle ignores header
+    login_res = client.post(
+        "/api/v1/auth/merchant-login",
+        json={"email": "rotiunyil@nullwasted.id", "password": "nullwasted123"},
+    )
+    token = login_res.json()["token"]
+    pub_payload = {
+        "store_id": "MARGONDA-042",
+        "food_name": "Croissant Mentega",
+        "matched_canonical_dish": "Croissant Mentega",
+        "original_price": 24000,
+        "discounted_price": 12000,
+        "discount_percent": 50,
+        "hours_since_cooked": 1.0,
+        "category": "LOW_PERISHABILITY",
+        "food_type": "BAKERY",
+        "bpom_max_hours": 24.0,
+        "minutes_until_closing": 120,
+        "safety_status": "SAFE",
+        "safety_reason": "Roti layak konsumsi.",
+        "hazard_description": "Sesuai batas suhu ruang PerBPOM.",
+        "regulation_ref": "PerBPOM No. 16 Tahun 2019",
+        "quantity": 2,
+        "closing_time": "20:30",
+    }
+
+    r_sim_on = client.post(
+        "/api/v1/listings/publish",
+        json=pub_payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-Simulated-Time": "2020-05-01T12:00:00+07:00",
+        },
+    )
+    assert r_sim_on.status_code == 200
+    assert r_sim_on.json()["expires_at"].startswith("2020-05-01")
+
+    monkeypatch.setattr(app_config, "ENABLE_TIME_SIMULATION", False)
+    r_sim_off = client.post(
+        "/api/v1/listings/publish",
+        json=pub_payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-Simulated-Time": "2020-05-01T12:00:00+07:00",
+        },
+    )
+    assert r_sim_off.status_code == 200
+    assert not r_sim_off.json()["expires_at"].startswith("2020-")
 
 
 # ============================================================================

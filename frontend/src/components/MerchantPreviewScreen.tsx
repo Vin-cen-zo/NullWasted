@@ -14,6 +14,12 @@ import {
 } from "lucide-react";
 import { createStoreMenuItem, uploadMenuImage } from "../services/api";
 import { compressImageFile } from "../utils/imageCompressor";
+import {
+  computeEffectiveSecondsUntilClosing,
+  getEffectiveNow,
+  getWibComponents,
+  NW_CLOCK_CHANGE_EVENT,
+} from "../utils/clock";
 import { Camera, Loader2, Trash2 } from "lucide-react";
 
 interface MerchantPreviewScreenProps {
@@ -50,23 +56,28 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   );
   const [hasCustomDiscount, setHasCustomDiscount] = useState<boolean>(false);
 
-  // Live countdown ticker state (in seconds)
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(
-    Math.max(0, (draft.minutes_until_closing || 0) * 60)
+  const effectiveClosingTime = draft.closing_time || closingTime || "20:30";
+
+  // Live countdown ticker state synced with WIB clock & time simulator
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(() =>
+    computeEffectiveSecondsUntilClosing(effectiveClosingTime)
   );
 
   useEffect(() => {
-    setRemainingSeconds(Math.max(0, (draft.minutes_until_closing || 0) * 60));
-  }, [draft.minutes_until_closing]);
+    const syncRemaining = () => {
+      setRemainingSeconds(computeEffectiveSecondsUntilClosing(effectiveClosingTime));
+    };
+    syncRemaining();
+    const timer = setInterval(syncRemaining, 1000);
+    window.addEventListener(NW_CLOCK_CHANGE_EVENT, syncRemaining);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener(NW_CLOCK_CHANGE_EVENT, syncRemaining);
+    };
+  }, [effectiveClosingTime]);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setRemainingSeconds((prev) => (prev <= 0 ? 0 : prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const remainingMinutes = Math.ceil(remainingSeconds / 60);
+  const isStoreClosed = remainingSeconds <= 0;
+  const remainingMinutes = Math.max(0, Math.ceil(remainingSeconds / 60));
 
   const computeDynamicDiscount = (minutesLeft: number) => {
     if (minutesLeft <= 30) return 70;
@@ -96,6 +107,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   // Catalog saving state
   const [isSavingToCatalog, setIsSavingToCatalog] = useState(false);
   const [savedToCatalog, setSavedToCatalog] = useState(false);
+  const [catalogErrorMsg, setCatalogErrorMsg] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(draft.image_url ?? null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
@@ -141,15 +153,26 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
     if (!isSafe || !draft.can_publish || isSavingToCatalog || savedToCatalog) return;
     try {
       setIsSavingToCatalog(true);
+      setCatalogErrorMsg(null);
+      const cookedMs =
+        getEffectiveNow().getTime() - (draft.hours_since_cooked || 1) * 3600 * 1000;
+      const cookedWib = getWibComponents(new Date(cookedMs));
+      const typicalCookingTime = `${String(cookedWib.hour).padStart(2, "0")}:${String(
+        cookedWib.minute
+      ).padStart(2, "0")}`;
+
       await createStoreMenuItem(storeId, {
         food_name: foodName.trim() || draft.food_name,
         original_price: Math.max(1000, Math.min(2000000, originalPrice)),
-        typical_cooking_time: "16:00",
-        default_hours_cooked: draft.hours_since_cooked || 2.0,
+        typical_cooking_time: typicalCookingTime,
+        default_hours_cooked: draft.hours_since_cooked || 1.0,
         portion_size: draft.portion_size || "Reguler",
+        image_url: imageUrl,
       });
       setSavedToCatalog(true);
     } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal menyimpan ke buku menu.";
+      setCatalogErrorMsg(msg);
       console.error("Gagal menyimpan ke buku menu:", err);
     } finally {
       setIsSavingToCatalog(false);
@@ -157,7 +180,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   };
 
   const handlePublishClick = async () => {
-    if (!isSafe || !draft.can_publish || isPublishing) return;
+    if (!isSafe || !draft.can_publish || isStoreClosed || isPublishing) return;
 
     const payload: PublishRequest = {
       store_id: storeId,
@@ -248,38 +271,43 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       </div>
 
       {/* Catalog Match Resolution Banner */}
-      <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-stone-200 shadow-sm">
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider">
-            Status Pencocokan Katalog
-          </span>
-          {renderCatalogBadge()}
-        </div>
+      <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider">
+              Status Pencocokan Katalog
+            </span>
+            {renderCatalogBadge()}
+          </div>
 
-        {/* 1-Click Save to Catalog Button for Ad-Hoc dishes: ONLY if safe and can_publish */}
-        {draft.can_save_to_catalog && isSafe && draft.can_publish && (
-          <button
-            type="button"
-            onClick={handleSaveToCatalog}
-            disabled={isSavingToCatalog || savedToCatalog}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm ${
-              savedToCatalog
-                ? "bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default"
-                : "bg-stone-100 hover:bg-emerald-50 text-stone-800 hover:text-emerald-800 border border-stone-300 cursor-pointer"
-            }`}
-          >
-            {savedToCatalog ? (
-              <>
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Tersimpan di Buku Menu</span>
-              </>
-            ) : (
-              <>
-                <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{isSavingToCatalog ? "Menyimpan..." : "Simpan ke Buku Menu"}</span>
-              </>
-            )}
-          </button>
+          {/* 1-Click Save to Catalog Button for Ad-Hoc dishes: ONLY if safe and can_publish */}
+          {draft.can_save_to_catalog && isSafe && draft.can_publish && (
+            <button
+              type="button"
+              onClick={handleSaveToCatalog}
+              disabled={isSavingToCatalog || savedToCatalog}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm ${
+                savedToCatalog
+                  ? "bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default"
+                  : "bg-stone-100 hover:bg-emerald-50 text-stone-800 hover:text-emerald-800 border border-stone-300 cursor-pointer"
+              }`}
+            >
+              {savedToCatalog ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Tersimpan di Buku Menu</span>
+                </>
+              ) : (
+                <>
+                  <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{isSavingToCatalog ? "Menyimpan..." : "Simpan ke Buku Menu"}</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+        {catalogErrorMsg && (
+          <p className="text-[11px] font-semibold text-red-600">{catalogErrorMsg}</p>
         )}
       </div>
 
@@ -542,14 +570,27 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
         </div>
       </div>
 
+      {/* Closed Store Notice Banner */}
+      {isStoreClosed && isSafe && draft.can_publish && (
+        <div className="p-3.5 rounded-2xl bg-red-50 border border-red-300 text-red-950 flex items-center gap-2.5">
+          <ShieldAlert className="w-5 h-5 text-red-600 shrink-0" />
+          <div className="text-xs">
+            <span className="font-bold text-red-800 block">CLOSED (Toko Tutup)</span>
+            <span className="text-[11px] text-red-700">
+              Jam operasional toko (tutup pk {effectiveClosingTime} WIB) sudah terlewati. Listing tidak dapat diterbitkan.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Publish Action Button */}
       <div className="pt-2">
         <button
           type="button"
-          disabled={!isSafe || !draft.can_publish || isPublishing}
+          disabled={!isSafe || !draft.can_publish || isStoreClosed || isPublishing}
           onClick={handlePublishClick}
           className={`w-full py-3.5 px-4 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all ${
-            !isSafe || !draft.can_publish
+            !isSafe || !draft.can_publish || isStoreClosed
               ? "bg-red-200 text-red-600 cursor-not-allowed shadow-none border border-red-300"
               : isPublishing
               ? "bg-gray-300 text-gray-500 cursor-not-allowed shadow-none"
@@ -558,6 +599,8 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
         >
           {!isSafe || !draft.can_publish ? (
             <span>DITOLAK OLEH GUARDRAIL BPOM (TIDAK DAPAT DITERBITKAN)</span>
+          ) : isStoreClosed ? (
+            <span>CLOSED (Toko Tutup)</span>
           ) : isPublishing ? (
             <span>Menerbitkan Listing ke Marketplace...</span>
           ) : (

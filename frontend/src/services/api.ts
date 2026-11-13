@@ -7,8 +7,10 @@ import {
   StoreMenuItem,
   StoreProfile,
 } from "../types/listing";
+import { getSimulatedTimeIsoHeader } from "../utils/clock";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+export const NW_AUTH_EXPIRED_EVENT = "nw-auth-expired";
 
 /**
  * Normalizes Pydantic 422 validation errors, backend string details, or unknown errors
@@ -42,13 +44,39 @@ export function formatApiError(detail: unknown, fallback: string = "Terjadi kesa
   return String(detail);
 }
 
-function getAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const token = localStorage.getItem("nw_session_token");
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers || {});
+  const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
+  if (!isFormData && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
   }
-  return headers;
+
+  const token = localStorage.getItem("nw_session_token");
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const simulatedHeader = getSimulatedTimeIsoHeader();
+  if (simulatedHeader) {
+    headers.set("X-Simulated-Time", simulatedHeader);
+  }
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+  });
+
+  if (
+    res.status === 401 &&
+    !path.startsWith("/auth/merchant-login") &&
+    !path.startsWith("/auth/consumer-login")
+  ) {
+    localStorage.removeItem("nw_user_session");
+    localStorage.removeItem("nw_session_token");
+    window.dispatchEvent(new CustomEvent(NW_AUTH_EXPIRED_EVENT));
+  }
+
+  return res;
 }
 
 // ============================================================================
@@ -56,40 +84,37 @@ function getAuthHeaders(): Record<string, string> {
 // ============================================================================
 
 export async function fetchStores(): Promise<StoreProfile[]> {
-  const res = await fetch(`${API_BASE_URL}/auth/stores`, {
-    headers: getAuthHeaders(),
-  });
+  const res = await apiFetch("/auth/stores");
   if (!res.ok) {
     throw new Error("Gagal mengambil data gerai mitra.");
   }
   return res.json();
 }
 
-export async function loginMerchant(storeId: string, pin: string): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE_URL}/auth/merchant-login`, {
+export async function loginMerchant(email: string, password: string): Promise<AuthResponse> {
+  const res = await apiFetch("/auth/merchant-login", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ store_id: storeId, pin }),
+    body: JSON.stringify({ email, password }),
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(formatApiError(errorData.detail, "Store ID atau PIN Staf Dapur tidak valid."));
+    throw new Error(formatApiError(errorData.detail, "Email atau password gerai tidak valid."));
   }
   return res.json();
 }
 
 export async function registerMerchant(payload: {
   name: string;
-  pin: string;
+  email: string;
+  password: string;
   location_name?: string;
   closing_time: string;
   category?: string;
   latitude?: number | null;
   longitude?: number | null;
 }): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE_URL}/auth/merchant-register`, {
+  const res = await apiFetch("/auth/merchant-register", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -107,12 +132,8 @@ export async function updateStoreLocation(
     location_name?: string | null;
   }
 ): Promise<StoreProfile> {
-  const res = await fetch(`${API_BASE_URL}/auth/stores/${encodeURIComponent(storeId)}/location`, {
+  const res = await apiFetch(`/auth/stores/${encodeURIComponent(storeId)}/location`, {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-    },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -124,12 +145,13 @@ export async function updateStoreLocation(
 
 export async function registerConsumer(payload: {
   name: string;
-  phone: string;
+  email: string;
+  password: string;
+  phone?: string;
   address?: string;
 }): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE_URL}/auth/consumer-register`, {
+  const res = await apiFetch("/auth/consumer-register", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -139,15 +161,14 @@ export async function registerConsumer(payload: {
   return res.json();
 }
 
-export async function loginConsumer(phone: string, name?: string): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE_URL}/auth/consumer-login`, {
+export async function loginConsumer(email: string, password: string): Promise<AuthResponse> {
+  const res = await apiFetch("/auth/consumer-login", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, ...(name ? { name } : {}) }),
+    body: JSON.stringify({ email, password }),
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(formatApiError(errorData.detail, "Gagal masuk sebagai konsumen."));
+    throw new Error(formatApiError(errorData.detail, "Email atau password akun konsumen tidak valid."));
   }
   return res.json();
 }
@@ -157,9 +178,7 @@ export async function loginConsumer(phone: string, name?: string): Promise<AuthR
 // ============================================================================
 
 export async function fetchStoreMenu(storeId: string): Promise<StoreMenuItem[]> {
-  const res = await fetch(`${API_BASE_URL}/menu/${storeId}`, {
-    headers: getAuthHeaders(),
-  });
+  const res = await apiFetch(`/menu/${storeId}`);
   if (!res.ok) {
     throw new Error("Gagal mengambil buku menu gerai.");
   }
@@ -178,9 +197,8 @@ export async function createStoreMenuItem(
     image_url?: string | null;
   }
 ): Promise<StoreMenuItem> {
-  const res = await fetch(`${API_BASE_URL}/menu/${storeId}`, {
+  const res = await apiFetch(`/menu/${storeId}`, {
     method: "POST",
-    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -194,12 +212,12 @@ export async function deleteStoreMenuItem(
   storeId: string,
   menuId: string
 ): Promise<{ status: string; id: string }> {
-  const res = await fetch(`${API_BASE_URL}/menu/${storeId}/${menuId}`, {
+  const res = await apiFetch(`/menu/${storeId}/${menuId}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
   });
   if (!res.ok) {
-    throw new Error("Gagal menghapus item dari buku menu.");
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal menghapus item dari buku menu."));
   }
   return res.json();
 }
@@ -214,15 +232,8 @@ export async function uploadMenuImage(
   const formData = new FormData();
   formData.append("file", file);
 
-  const token = localStorage.getItem("nw_session_token");
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(`${API_BASE_URL}/upload-image`, {
+  const res = await apiFetch("/upload-image", {
     method: "POST",
-    headers,
     body: formData,
   });
 
@@ -243,9 +254,8 @@ export async function createDraft(
   audioBase64?: string,
   storeId: string = "FTUI-001"
 ): Promise<DraftResponse> {
-  const res = await fetch(`${API_BASE_URL}/listings/draft`, {
+  const res = await apiFetch("/listings/draft", {
     method: "POST",
-    headers: getAuthHeaders(),
     body: JSON.stringify({ text, audio_base64: audioBase64 || null, store_id: storeId }),
   });
 
@@ -257,9 +267,8 @@ export async function createDraft(
 }
 
 export async function publishListing(payload: PublishRequest): Promise<ItemListing> {
-  const res = await fetch(`${API_BASE_URL}/listings/publish`, {
+  const res = await apiFetch("/listings/publish", {
     method: "POST",
-    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -275,9 +284,8 @@ export async function createSmartBundle(
   discountPercent: number = 65,
   customName?: string
 ): Promise<ItemListing> {
-  const res = await fetch(`${API_BASE_URL}/listings/smart-bundle`, {
+  const res = await apiFetch("/listings/smart-bundle", {
     method: "POST",
-    headers: getAuthHeaders(),
     body: JSON.stringify({
       store_id: storeId,
       discount_percent: discountPercent,
@@ -293,10 +301,10 @@ export async function createSmartBundle(
 }
 
 export async function fetchActiveListings(storeId?: string): Promise<ItemListing[]> {
-  const url = storeId
-    ? `${API_BASE_URL}/listings/active?store_id=${encodeURIComponent(storeId)}`
-    : `${API_BASE_URL}/listings/active`;
-  const res = await fetch(url, { headers: getAuthHeaders() });
+  const path = storeId
+    ? `/listings/active?store_id=${encodeURIComponent(storeId)}`
+    : "/listings/active";
+  const res = await apiFetch(path);
   if (!res.ok) {
     throw new Error("Gagal mengambil katalog aktif.");
   }
@@ -304,12 +312,12 @@ export async function fetchActiveListings(storeId?: string): Promise<ItemListing
 }
 
 export async function deleteListing(listingId: string): Promise<{ status: string; id: string }> {
-  const res = await fetch(`${API_BASE_URL}/listings/${listingId}`, {
+  const res = await apiFetch(`/listings/${listingId}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
   });
   if (!res.ok) {
-    throw new Error("Gagal menghapus listing.");
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal menghapus listing."));
   }
   return res.json();
 }
@@ -325,9 +333,8 @@ export async function reserveOrder(
   customerPhone: string = "0812-8899-0011",
   paymentMethod: string = "CASH_ON_PICKUP"
 ): Promise<OrderTicket> {
-  const res = await fetch(`${API_BASE_URL}/orders/reserve`, {
+  const res = await apiFetch("/orders/reserve", {
     method: "POST",
-    headers: getAuthHeaders(),
     body: JSON.stringify({
       listing_id: listingId,
       quantity,
@@ -349,16 +356,16 @@ export async function fetchActiveOrders(filters?: {
   customerPhone?: string;
   customerName?: string;
 }): Promise<OrderTicket[]> {
-  let url = `${API_BASE_URL}/orders/active`;
+  let path = "/orders/active";
   const params = new URLSearchParams();
   if (filters?.storeId) params.append("store_id", filters.storeId);
   if (filters?.customerPhone) params.append("customer_phone", filters.customerPhone);
   if (filters?.customerName) params.append("customer_name", filters.customerName);
 
   const query = params.toString();
-  if (query) url += `?${query}`;
+  if (query) path += `?${query}`;
 
-  const res = await fetch(url, { headers: getAuthHeaders() });
+  const res = await apiFetch(path);
   if (!res.ok) {
     throw new Error("Gagal mengambil daftar tiket pesanan.");
   }
@@ -366,9 +373,8 @@ export async function fetchActiveOrders(filters?: {
 }
 
 export async function cancelOrder(orderId: string): Promise<OrderTicket> {
-  const res = await fetch(`${API_BASE_URL}/orders/${orderId}/cancel`, {
+  const res = await apiFetch(`/orders/${orderId}/cancel`, {
     method: "POST",
-    headers: getAuthHeaders(),
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
@@ -381,9 +387,8 @@ export async function completeOrderPickup(
   orderCode: string,
   storeId?: string
 ): Promise<OrderTicket> {
-  const res = await fetch(`${API_BASE_URL}/orders/complete-pickup`, {
+  const res = await apiFetch("/orders/complete-pickup", {
     method: "POST",
-    headers: getAuthHeaders(),
     body: JSON.stringify({ order_code: orderCode, store_id: storeId || null }),
   });
 

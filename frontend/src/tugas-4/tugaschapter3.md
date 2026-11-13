@@ -1,1 +1,0 @@
-Please submit a minimum of 5 UML Diagrams, the Helicopter view of the Design, and  GUI of  your system.

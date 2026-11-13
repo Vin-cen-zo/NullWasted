@@ -20,7 +20,7 @@ The platform eliminates the operational friction of store closing hours using an
 5. **Smart Mystery Bag Automatic Bundling:**  
    Clusters remaining low-stock surplus dishes ($1 \le \text{qty} \le 2$) into themed surprise bags (*"Mystery Bag"*) with aggressive 60%–70% discounts, enforcing the strictest microbiological shelf-life ceiling among constituent items and atomically deactivating individual units.
 6. **Autonomous Multi-Tenant Authentication:**  
-   Full self-service registration and login for both F&B merchants (auto-generated unique `Store ID` and SHA-256 salted PIN hash) and consumers (unique WhatsApp phone verification), issuing stateless HS256 JWT tokens with zero demo shortcuts.
+   Full self-service Email + Password registration and login for both F&B merchants (auto-generated unique `Store ID` and salted PBKDF2 password hash) and consumers (Email + Password with optional WhatsApp contact), issuing stateless HS256 JWT tokens with strict `401`/`403` tenant isolation.
 7. **Transparent Bill Breakdown & Realistic QRIS Settlement Modal:**  
    Consumers view itemized pricing with clear discount savings, selecting between Cash on Pickup or Instant QRIS. QRIS orders render a national-standard QR matrix with a 15-minute countdown timer and payment confirmation handshake.
 8. **ISO/IEC 18004 QR Digital Pass & Camera Scanner:**  
@@ -45,7 +45,7 @@ The platform eliminates the operational friction of store closing hours using an
 - **AI Gateway & LLM Orchestration (`backend/app/core/ai_gateway.py`):**  
   Direct client to Google AI Studio REST API with round-robin key rotation (`GEMINI_API_KEY_1..3`) and hardened 15-second network timeout. Uses **`gemini-3.5-flash-lite`** with auto-failover to `gemini-flash-lite-latest` and instant offline regex heuristic fallback (`local-fallback-parser`).
 - **Semantic Vector Store & RAG (`backend/app/services/vector_store.py`):**  
-  Hybrid semantic retrieval engine using 3072-dimensional embeddings via **`gemini-embedding-001`**, backed by a disk cache (`food_embeddings_cache.json`) covering 70 universal culinary archetypes and PerBPOM No. 16/2019 safety thresholds.
+  Hybrid semantic retrieval engine using 3072-dimensional embeddings via **`gemini-embedding-001`**, backed by a disk cache (`food_embeddings_cache.json`) covering 100 bilingual culinary archetypes and PerBPOM No. 16/2019 safety thresholds.
 - **Database & Persistence (`backend/app/models/`):**  
   Local ACID relational database via SQLite (`nullwasted_local.db`) using SQLModel (SQLAlchemy 2.0 + Pydantic v2). Features atomic stock decrements, transactional cancellations, and automatic SQLite column migrations without Docker overhead.
 
@@ -84,13 +84,12 @@ nullwasted/
 │   ├── app/
 │   │   ├── api/v1/          # REST route handlers (auth, menu, listings, orders)
 │   │   ├── core/            # Config, DB engine, seeder, security, and AI Gateway
-│   │   ├── data/            # 70 BPOM food rules & 3072-dim embeddings cache
+│   │   ├── data/            # 100 bilingual BPOM food rules & 3072-dim embeddings cache
 │   │   ├── models/          # SQLModel table schemas (Store, User, Menu, Listing, Ticket)
 │   │   ├── schemas/         # Pydantic request/response validation schemas
 │   │   ├── services/        # Extractor (LLM), Guardrail (BPOM RAG), Pricing Engine
 │   │   └── main.py          # Application entry point with CORS and lifespan
-│   ├── tests/
-│   │   └── test_unit_core.py # Automated test suite (22 unit & integration tests)
+│   ├── tests/               # Automated test suite (50 unit & edge-case tests)
 │   ├── nullwasted_local.db  # Local SQLite database
 │   ├── pytest.ini           # Pytest async configuration
 │   ├── requirements.txt     # Python dependencies
@@ -125,7 +124,7 @@ nullwasted/
 [ AI Gateway ]       [ Guardrail & RAG ]      [ SQLModel ORM ]
 - gemini-3.5-flash-lite - gemini-embedding-001  - SQLite Local DB
 - Failover Pool         - 3072-dim Cosine Sim   - Atomic Decrement
-- Local Regex Fallback  - 70 BPOM Dishes Cache  - Order Lifecycle
+- Local Regex Fallback  - 100 BPOM Dishes Cache - Order Lifecycle
 ```
 
 ---
@@ -184,7 +183,7 @@ Open `http://localhost:5173` in Google Chrome or Microsoft Edge to enable native
 
 ## Automated & Manual Testing
 
-Run the comprehensive automated test suite (30 unit & integration tests):
+Run the comprehensive automated test suite (50 unit & edge-case tests):
 
 ```bash
 cd backend
@@ -193,20 +192,18 @@ py -m pytest tests/ -v
 
 For the complete end-to-end manual verification procedures, adversarial safety checks, and user flow checklists, refer to **[TEST_CASES.md](TEST_CASES.md)**.
 
-The 30 automated test cases validate:
-- Time-decay dynamic pricing calculations, boundary clamping (50%–70%), and rounding.
-- Deterministic BPOM food safety rejection of spoiled food (> 4 hours room temperature santan/dairy).
-- Semantic vector store integrity (3072-dimensional cosine similarity matching against 70 dishes).
-- Live Gemini 3.5 Flash Lite entity extractor with fallback regex parsing.
-- Multi-store seeder, catalog master menu CRUD, and automated BPOM tagging.
-- Context-Aware Slot Filling (Cases A, B, C, D).
-- Smart Mystery Bag bundling engine and individual item deactivation.
-- Payment method tracking (`CASH_ON_PICKUP` vs `SIMULATED_QRIS`).
-- Atomic order cancellation and inventory stock rollback.
-- Cross-store cashier fraud rejection (HTTP 403).
-- Multi-tenant order isolation across distinct stores.
+The 50 automated test cases validate:
+- Time-decay dynamic pricing calculations, boundary clamping (50%–70%), and server-side price lock against tampering.
+- Deterministic BPOM food safety rejection of spoiled food (> 4 hours room temperature santan/dairy) & preview edit re-evaluation.
+- Semantic vector store integrity (3072-dimensional cosine similarity matching against 100 bilingual culinary archetypes).
+- Live Gemini 3.5 Flash Lite entity extractor with fallback regex parsing, WIB simulated clock awareness, and safe null coercion.
+- Multi-store seeder, catalog master menu CRUD, automated BPOM tagging, and persistent custom coordinates across restarts.
+- Context-Aware Slot Filling (Cases A, B, C, D) and Smart Mystery Bag bundling with strict constituent expiry clamping.
+- Payment method tracking (`CASH_ON_PICKUP` vs `SIMULATED_QRIS`), expired listing checkout blocks, and WIB pickup deadlines.
+- Atomic order cancellation with expiry guard and inventory stock rollback.
+- Cross-store cashier fraud rejection (HTTP 403), invalid/expired Bearer token rejection (HTTP 401), and multi-tenant RBAC isolation.
 - AI Gateway HTTP client timeout hardening ($\ge 15.0\text{s}$).
-- Autonomous merchant and consumer registration, duplicate rejection, and PIN hashing.
+- Autonomous merchant and consumer Email + Password registration, duplicate rejection, and salted PBKDF2 password hashing.
 
 ---
 
