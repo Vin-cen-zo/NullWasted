@@ -22,6 +22,13 @@ import { fetchStoreMenu, publishListing, updateStoreLocation } from "../services
 import { MerchantCatalogModal } from "./MerchantCatalogModal";
 import { StorePinpointPickerModal } from "./StorePinpointPickerModal";
 import { PublishRequest, StoreMenuItem, getFriendlyCategory, resolveImageUrl } from "../types/listing";
+import {
+  computeEffectiveSecondsUntilClosing,
+  getEffectiveNow,
+  getWibComponents,
+  NW_CLOCK_CHANGE_EVENT,
+  parseTimeHHMM,
+} from "../utils/clock";
 
 interface MerchantInputScreenProps {
   onAnalyze: (text: string) => Promise<void>;
@@ -68,6 +75,17 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   const [batchCookMinute, setBatchCookMinute] = useState("00");
   const [batchDiscountPercent, setBatchDiscountPercent] = useState(60);
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
+  const [batchClockTick, setBatchClockTick] = useState<number>(() => getEffectiveNow().getTime());
+
+  useEffect(() => {
+    const syncClock = () => setBatchClockTick(getEffectiveNow().getTime());
+    const timer = setInterval(syncClock, 15000);
+    window.addEventListener(NW_CLOCK_CHANGE_EVENT, syncClock);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener(NW_CLOCK_CHANGE_EVENT, syncClock);
+    };
+  }, []);
 
   // Jalur 2: Voice & AI Ad-Hoc State
   const [inputText, setInputText] = useState(initialText);
@@ -174,15 +192,29 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
     setBatchCookMinute(parts[1] ? parts[1].padStart(2, "0") : "00");
   };
 
-  // Real-Time BPOM Guardrail Evaluation in Modal
+  // Real-Time BPOM Guardrail & Closing Window Evaluation in Modal
+  void batchClockTick;
+  const effectiveNowWib = getWibComponents(getEffectiveNow());
+  const nowMinutesWib = effectiveNowWib.hour * 60 + effectiveNowWib.minute;
+  const remainingClosingSeconds = computeEffectiveSecondsUntilClosing(closingTime || "20:30");
+  const isStoreClosed = remainingClosingSeconds <= 0;
+  const minutesUntilClosing = Math.max(0, Math.round(remainingClosingSeconds / 60));
+
   let diffHours = 2.0;
+  let isFutureCookTime = false;
   let isBpomRejected = false;
+  let cookedAtHHMM = "16:00";
   if (selectedMenuItem) {
-    const [closeH, closeM] = (closingTime || "20:30").split(":").map(Number);
-    const cookH = parseInt(batchCookHour, 10) || 16;
-    const cookM = parseInt(batchCookMinute, 10) || 0;
-    diffHours = Number(Math.max(0.5, ((closeH * 60 + closeM) - (cookH * 60 + cookM)) / 60).toFixed(1));
-    isBpomRejected = diffHours > selectedMenuItem.bpom_max_hours;
+    const { hour: cookH, minute: cookM } = parseTimeHHMM(
+      `${batchCookHour}:${batchCookMinute}`,
+      16,
+      0
+    );
+    cookedAtHHMM = `${String(cookH).padStart(2, "0")}:${String(cookM).padStart(2, "0")}`;
+    const elapsedRawHours = (nowMinutesWib - (cookH * 60 + cookM)) / 60;
+    isFutureCookTime = elapsedRawHours < 0;
+    diffHours = isFutureCookTime ? 0 : Number(Math.max(0.5, elapsedRawHours).toFixed(1));
+    isBpomRejected = !isFutureCookTime && diffHours > selectedMenuItem.bpom_max_hours;
   }
 
   const calculatedDiscountedPrice = selectedMenuItem
@@ -191,7 +223,16 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
 
   // Direct Publish Action from Modal
   const handleBatchPublish = async () => {
-    if (!selectedMenuItem || isBpomRejected || isSubmittingBatch || isPublishing) return;
+    if (
+      !selectedMenuItem ||
+      isFutureCookTime ||
+      isBpomRejected ||
+      isStoreClosed ||
+      isSubmittingBatch ||
+      isPublishing
+    ) {
+      return;
+    }
 
     try {
       setIsSubmittingBatch(true);
@@ -207,8 +248,9 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
         discount_percent: batchDiscountPercent,
         discounted_price: calculatedDiscountedPrice,
         hours_since_cooked: diffHours,
+        cooked_at_hhmm: cookedAtHHMM,
         bpom_max_hours: selectedMenuItem.bpom_max_hours,
-        minutes_until_closing: Math.max(30, Math.round(diffHours * 60)),
+        minutes_until_closing: minutesUntilClosing,
         safety_status: "SAFE",
         safety_reason: `Hidangan rutin tersimpan dalam batas aman suhu ruang (${diffHours} jam dari batas maks ${selectedMenuItem.bpom_max_hours} jam).`,
         hazard_description: "Kepatuhan batas simpan suhu ruang PerBPOM No. 16/2019.",
@@ -631,8 +673,28 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               </div>
             </div>
 
-            {/* Real-time BPOM Guardrail Card */}
-            {isBpomRejected ? (
+            {/* Real-time BPOM & Closing Window Guardrail Card */}
+            {isStoreClosed ? (
+              <div className="p-3.5 rounded-2xl bg-red-50 border border-red-300 text-red-950 space-y-1">
+                <div className="flex items-center gap-2 font-bold text-xs text-red-800">
+                  <ShieldAlert className="w-4 h-4 text-red-600" />
+                  <span>Gerai Tutup (CLOSED): Melewati Jam Tutup pk {closingTime || "20:30"} WIB</span>
+                </div>
+                <p className="text-[11px] text-red-800 leading-relaxed">
+                  Waktu operasional gerai hari ini telah berakhir. Listing surplus baru tidak dapat diterbitkan hingga jendela buka berikutnya.
+                </p>
+              </div>
+            ) : isFutureCookTime ? (
+              <div className="p-3.5 rounded-2xl bg-red-50 border border-red-300 text-red-950 space-y-1">
+                <div className="flex items-center gap-2 font-bold text-xs text-red-800">
+                  <ShieldAlert className="w-4 h-4 text-red-600" />
+                  <span>Jam masak tidak boleh di masa depan</span>
+                </div>
+                <p className="text-[11px] text-red-800 leading-relaxed">
+                  Jam masak yang dipilih (<strong>{cookedAtHHMM} WIB</strong>) melampaui waktu sekarang. Harap pilih jam masak aktual saat hidangan selesai diolah.
+                </p>
+              </div>
+            ) : isBpomRejected ? (
               <div className="p-3.5 rounded-2xl bg-red-50 border border-red-300 text-red-950 space-y-1">
                 <div className="flex items-center gap-2 font-bold text-xs text-red-800">
                   <ShieldAlert className="w-4 h-4 text-red-600" />
@@ -683,7 +745,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               </button>
               <button
                 type="button"
-                disabled={isBpomRejected || isSubmittingBatch || isPublishing}
+                disabled={isStoreClosed || isFutureCookTime || isBpomRejected || isSubmittingBatch || isPublishing}
                 onClick={handleBatchPublish}
                 className="flex-[2] py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >

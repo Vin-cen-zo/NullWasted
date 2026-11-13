@@ -362,6 +362,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
               <ClosingCountdownBadge
                 closingTime={item.closing_time || "20:30"}
                 fallbackMinutes={item.minutes_until_closing}
+                expiresAt={item.expires_at}
               />
             </div>
 

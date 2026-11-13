@@ -118,7 +118,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
         food_name: foodName.trim(),
         original_price: numPrice,
         typical_cooking_time: cookingTime.trim(),
-        default_hours_cooked: 1.5,
+        default_hours_cooked: 1.0,
         ingredients: ingredients.trim(),
         portion_size: "Reguler",
         image_url: uploadedImageUrl,

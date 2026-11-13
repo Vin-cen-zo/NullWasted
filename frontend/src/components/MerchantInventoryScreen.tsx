@@ -144,6 +144,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                       <ClosingCountdownBadge
                         closingTime={item.closing_time || "20:30"}
                         fallbackMinutes={item.minutes_until_closing}
+                        expiresAt={item.expires_at}
                       />
                     </div>
                     <h3 className="text-xs font-bold text-[#1F1D1A] leading-snug">{item.food_name}</h3>
