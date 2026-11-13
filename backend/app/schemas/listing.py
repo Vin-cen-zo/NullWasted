@@ -70,6 +70,19 @@ class PublishRequest(BaseModel):
     is_bundle: bool = False
     bundled_items_json: Optional[str] = None
     image_url: Optional[str] = None
+    cooked_at_hhmm: Optional[str] = None
+
+    @field_validator("cooked_at_hhmm")
+    @classmethod
+    def validate_cooked_at_hhmm(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        cleaned = v.strip()
+        if not cleaned:
+            return None
+        if not re.match(r"^(?:[01]\d|2[0-3]):[0-5]\d$", cleaned):
+            raise ValueError("Format jam masak harus HH:MM (00:00 - 23:59).")
+        return cleaned
 
 
 class ReserveOrderRequest(BaseModel):

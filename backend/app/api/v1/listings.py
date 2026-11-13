@@ -8,9 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlmodel import Session, select
 
+from app.core.clock import WIB_TZ, get_effective_now_utc, get_effective_now_wib
 from app.core.database import get_session
 from app.core.security import compute_minutes_until_closing, get_optional_user
-from app.models.listing import ItemListing, OrderTicket, Store, StoreMenuItem, utc_now_iso
+from app.models.listing import ItemListing, OrderTicket, Store, StoreMenuItem, User, utc_now_iso
 from app.schemas.listing import (
     CompletePickupRequest,
     DraftRequest,
@@ -85,11 +86,34 @@ def get_store_menu(store_id: str, session: Session = Depends(get_session)) -> Li
     ]
 
 
+def _require_merchant_store_access(
+    user_claims: Optional[dict[str, Any]], target_store_id: str
+) -> None:
+    """Enforces merchant role and tenant store_id ownership when JWT claims are provided."""
+    if user_claims is None:
+        return
+    if user_claims.get("role") != "merchant":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hanya akun Mitra Toko yang diizinkan mengakses sumber daya gerai ini.",
+        )
+    token_store_id = user_claims.get("store_id")
+    if token_store_id and target_store_id and token_store_id != target_store_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akses ditolak: Anda tidak berhak mengelola data milik gerai lain.",
+        )
+
+
 @router.post("/menu/{store_id}", response_model=MenuItemResponse)
 async def create_store_menu_item(
-    store_id: str, payload: MenuItemCreateRequest, session: Session = Depends(get_session)
+    store_id: str,
+    payload: MenuItemCreateRequest,
+    session: Session = Depends(get_session),
+    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
 ) -> MenuItemResponse:
     """Adds a new routine dish to the store catalog with automatic AI + BPOM vector mapping."""
+    _require_merchant_store_access(user_claims, store_id)
     ai_cls = await classify_dish_with_ai(payload.food_name, payload.ingredients)
     safety = await asyncio.to_thread(
         evaluate_food_safety,
@@ -150,8 +174,10 @@ async def update_store_menu_item(
     menu_id: str,
     payload: MenuItemUpdateRequest,
     session: Session = Depends(get_session),
+    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
 ) -> MenuItemResponse:
     """Updates an existing StoreMenuItem."""
+    _require_merchant_store_access(user_claims, store_id)
     item = session.get(StoreMenuItem, menu_id)
     if not item or item.store_id != store_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item tidak ditemukan.")
@@ -219,9 +245,13 @@ async def update_store_menu_item(
 
 @router.delete("/menu/{store_id}/{menu_id}")
 def delete_store_menu_item(
-    store_id: str, menu_id: str, session: Session = Depends(get_session)
+    store_id: str,
+    menu_id: str,
+    session: Session = Depends(get_session),
+    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
 ) -> dict[str, Any]:
     """Deactivates a StoreMenuItem from the store's master catalog."""
+    _require_merchant_store_access(user_claims, store_id)
     item = session.get(StoreMenuItem, menu_id)
     if not item or item.store_id != store_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item tidak ditemukan.")
@@ -372,6 +402,7 @@ async def create_draft_listing(
         ai_is_edible=extracted.get("is_edible_food"),
         ai_food_type=extracted.get("food_type"),
         ai_inferred_risk=extracted.get("inferred_risk"),
+        future_cooking_time=bool(extracted.get("future_cooking_time", False)),
     )
 
     can_save_to_catalog = bool(can_save_to_catalog and safety["safety_status"] == "SAFE" and safety["can_publish"])
@@ -417,36 +448,59 @@ async def create_draft_listing(
 
 
 @router.post("/listings/publish", response_model=ItemListing)
-def publish_listing(
+async def publish_listing(
     payload: PublishRequest,
     session: Session = Depends(get_session),
     user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
 ) -> ItemListing:
     """Publishes a validated surplus food listing to the active marketplace catalog.
-    Enforces hard food safety guardrail: raises HTTP 400 if safety_status is REJECTED.
+    Enforces authoritative server BPOM guardrail, dynamic pricing lock, and closing-time guard.
     """
-    if user_claims is not None:
-        if user_claims.get("role") != "merchant":
+    _require_merchant_store_access(user_claims, payload.store_id)
+
+    now_wib = get_effective_now_wib()
+    now_utc = get_effective_now_utc()
+
+    effective_hours_cooked = float(payload.hours_since_cooked)
+    if payload.cooked_at_hhmm:
+        cook_h, cook_m = map(int, payload.cooked_at_hhmm.split(":"))
+        cook_dt_wib = now_wib.replace(hour=cook_h, minute=cook_m, second=0, microsecond=0)
+        if cook_dt_wib > now_wib + timedelta(minutes=5):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Hanya akun Mitra Toko yang dapat menerbitkan katalog surplus.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Jam masak tidak boleh berada di masa depan terhadap waktu saat ini.",
             )
-        token_store_id = user_claims.get("store_id")
-        if token_store_id and payload.store_id and payload.store_id != token_store_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Akses ditolak: store_id tidak sesuai dengan identitas gerai Anda.",
-            )
-    server_eval = evaluate_food_safety(
+        elapsed_hours = max(0.0, round((now_wib - cook_dt_wib).total_seconds() / 3600.0, 2))
+        effective_hours_cooked = max(effective_hours_cooked, elapsed_hours)
+
+    _, sim_score = vector_store.search_similar_dish(payload.food_name)
+    ai_is_edible: Optional[bool] = None
+    ai_food_type: Optional[str] = (
+        payload.food_type if payload.food_type in ("MEAL", "BAKERY", "BEVERAGE") else None
+    )
+    ai_inferred_risk: Optional[str] = None
+
+    if not payload.is_bundle and sim_score < 0.72:
+        ai_cls = await classify_dish_with_ai(payload.food_name, payload.food_name)
+        ai_is_edible = ai_cls.get("is_edible_food")
+        if ai_cls.get("food_type") in ("MEAL", "BAKERY", "BEVERAGE"):
+            ai_food_type = ai_cls.get("food_type")
+        ai_inferred_risk = ai_cls.get("inferred_risk")
+
+    server_eval = await asyncio.to_thread(
+        evaluate_food_safety,
         food_name=payload.food_name,
         raw_text=payload.food_name,
-        hours_since_cooked=payload.hours_since_cooked,
-        ai_food_type=payload.food_type,
-        ai_inferred_risk=payload.category if payload.category in ("HIGH_PERISHABILITY", "MEDIUM_PERISHABILITY", "LOW_PERISHABILITY") else None,
+        hours_since_cooked=effective_hours_cooked,
+        ai_is_edible=ai_is_edible,
+        ai_food_type=ai_food_type,
+        ai_inferred_risk=ai_inferred_risk,
     )
+    server_bpom_max = float(server_eval["bpom_max_hours"])
+
     if (
         payload.safety_status == "REJECTED"
-        or payload.hours_since_cooked > payload.bpom_max_hours
+        or effective_hours_cooked > server_bpom_max
         or server_eval["safety_status"] == "REJECTED"
         or not server_eval["can_publish"]
     ):
@@ -456,32 +510,35 @@ def publish_listing(
         )
 
     discount_percent = max(50, min(70, payload.discount_percent))
-    if payload.discounted_price is not None and payload.discounted_price > 0:
-        discounted_price = payload.discounted_price
-    else:
-        raw_price = payload.original_price * (1.0 - discount_percent / 100.0)
-        discounted_price = int((raw_price // 100) * 100)
+    pricing = calculate_dynamic_pricing(
+        original_price=payload.original_price,
+        minutes_until_closing=max(0, payload.minutes_until_closing),
+        custom_discount_percent=discount_percent,
+    )
+    discounted_price = pricing["discounted_price"]
 
     image_url = payload.image_url
     if payload.is_bundle and not image_url:
         image_url = "/assets/foods/mystery_bag.jpg"
 
     # Dual-condition expiry: min(cooked_time + bpom_max_hours, closing_datetime)
-    now_utc = datetime.now(timezone.utc)
-    now_local = datetime.now().astimezone()
-    remaining_hours = max(0.0, float(payload.bpom_max_hours) - float(payload.hours_since_cooked))
+    remaining_hours = max(0.0, server_bpom_max - effective_hours_cooked)
     food_expiry_dt = now_utc + timedelta(hours=remaining_hours)
 
     parts = payload.closing_time.strip().split(":")
     close_h = int(parts[0])
     close_m = int(parts[1]) if len(parts) > 1 else 0
-    closing_local = now_local.replace(hour=close_h, minute=close_m, second=0, microsecond=0)
-    if closing_local < now_local and now_local.hour >= 18 and close_h < 6:
+    closing_local = now_wib.replace(hour=close_h, minute=close_m, second=0, microsecond=0)
+    if closing_local < now_wib and now_wib.hour >= 18 and close_h < 6:
         closing_local += timedelta(days=1)
-    elif closing_local < now_local and (now_local - closing_local).total_seconds() > 12 * 3600:
-        closing_local += timedelta(days=1)
-    elif closing_local < now_local and payload.minutes_until_closing > 0:
-        closing_local = now_local + timedelta(minutes=payload.minutes_until_closing)
+
+    if closing_local <= now_wib:
+        if payload.minutes_until_closing <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Gerai sudah melewati jam tutup operasional. Tidak dapat menerbitkan listing baru (gunakan jam simulasi atau atur jam tutup).",
+            )
+        closing_local = now_wib + timedelta(minutes=payload.minutes_until_closing)
 
     closing_dt = closing_local.astimezone(timezone.utc)
     expires_at = min(food_expiry_dt, closing_dt)
@@ -496,11 +553,9 @@ def publish_listing(
         if (resolved_lat is not None and resolved_lng is not None)
         else ""
     )
-    resolved_food_type = (
-        payload.food_type
-        if payload.food_type in ("MEAL", "BAKERY", "BEVERAGE")
-        else server_eval.get("food_type", "MEAL")
-    )
+    resolved_food_type = server_eval.get("food_type", "MEAL")
+    if resolved_food_type not in ("MEAL", "BAKERY", "BEVERAGE"):
+        resolved_food_type = "MEAL"
 
     listing = ItemListing(
         store_id=payload.store_id,
@@ -513,22 +568,22 @@ def publish_listing(
         is_bundle=payload.is_bundle,
         bundled_items_json=payload.bundled_items_json,
         food_name=payload.food_name,
-        matched_canonical_dish=payload.matched_canonical_dish,
-        category=payload.category,
+        matched_canonical_dish=server_eval["matched_canonical_dish"],
+        category=server_eval["category"],
         food_type=resolved_food_type,
         quantity=payload.quantity,
         initial_quantity=payload.quantity,
         original_price=payload.original_price,
         discounted_price=discounted_price,
         discount_percent=discount_percent,
-        hours_since_cooked=payload.hours_since_cooked,
-        bpom_max_hours=payload.bpom_max_hours,
+        hours_since_cooked=effective_hours_cooked,
+        bpom_max_hours=server_bpom_max,
         minutes_until_closing=payload.minutes_until_closing,
-        safety_status=payload.safety_status,
-        safety_reason=payload.safety_reason,
-        hazard_description=payload.hazard_description,
-        regulation_ref=payload.regulation_ref,
-        similarity_score=payload.similarity_score,
+        safety_status=server_eval["safety_status"],
+        safety_reason=server_eval["safety_reason"],
+        hazard_description=server_eval["hazard_description"],
+        regulation_ref=server_eval["regulation_ref"],
+        similarity_score=server_eval["similarity_score"],
         portion_size=payload.portion_size or "Reguler",
         image_url=image_url,
         expires_at=expires_at,
@@ -547,12 +602,17 @@ def publish_listing(
 
 @router.post("/listings/smart-bundle", response_model=ItemListing)
 def create_smart_bundle(
-    payload: SmartBundleRequest, session: Session = Depends(get_session)
+    payload: SmartBundleRequest,
+    session: Session = Depends(get_session),
+    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
 ) -> ItemListing:
-    """Combines low-stock (1-2 portions) items into a discounted surprise Mystery Bag listing."""
+    """Combines low-stock (1-2 portions) non-expired items into a discounted surprise Mystery Bag listing."""
     target_store_id = payload.store_id or "FTUI-001"
+    _require_merchant_store_access(user_claims, target_store_id)
 
-    # Query eligible listings: active, not bundle, safe, quantity in [1, 2]
+    now_utc = get_effective_now_utc()
+
+    # Query eligible listings: active, not bundle, safe, quantity in [1, 2], unexpired
     statement = (
         select(ItemListing)
         .where(
@@ -562,9 +622,19 @@ def create_smart_bundle(
             ItemListing.safety_status == "SAFE",
             ItemListing.quantity >= 1,
             ItemListing.quantity <= 2,
+            (ItemListing.expires_at == None) | (ItemListing.expires_at > now_utc),
         )
     )
-    eligible_items = session.exec(statement).all()
+    raw_eligible = session.exec(statement).all()
+    eligible_items = [
+        item
+        for item in raw_eligible
+        if item.expires_at is None
+        or (
+            item.expires_at if item.expires_at.tzinfo else item.expires_at.replace(tzinfo=timezone.utc)
+        )
+        > now_utc
+    ]
 
     if len(eligible_items) < 2:
         raise HTTPException(
@@ -629,12 +699,22 @@ def create_smart_bundle(
         session.add(item)
 
     base = eligible_items[0]
-    now = datetime.now(timezone.utc)
     remaining_bundle_hours = max(0.0, float(bundle_bpom_max) - float(bundle_hours_cooked))
-    bundle_expiry_dt = now + timedelta(hours=remaining_bundle_hours)
-    bundle_closing_minutes = min(item.minutes_until_closing for item in eligible_items)
-    bundle_closing_dt = now + timedelta(minutes=max(1, bundle_closing_minutes))
-    bundle_expires_at = min(bundle_expiry_dt, bundle_closing_dt)
+    bundle_expiry_dt = now_utc + timedelta(hours=remaining_bundle_hours)
+    candidate_expiries = [bundle_expiry_dt]
+    for item in eligible_items:
+        if item.expires_at is not None:
+            exp_dt = item.expires_at if item.expires_at.tzinfo else item.expires_at.replace(tzinfo=timezone.utc)
+            candidate_expiries.append(exp_dt)
+        else:
+            candidate_expiries.append(now_utc + timedelta(minutes=max(1, item.minutes_until_closing)))
+    bundle_expires_at = min(candidate_expiries)
+    if bundle_expires_at <= now_utc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Waktu kedaluwarsa komponen Mystery Bag sudah terlewati.",
+        )
+    bundle_closing_minutes = max(1, int((bundle_expires_at - now_utc).total_seconds() // 60))
 
     bundle_listing = ItemListing(
         store_id=target_store_id,
@@ -683,13 +763,12 @@ def get_active_listings(
     store_id: Optional[str] = None, session: Session = Depends(get_session)
 ) -> List[ItemListing]:
     """Retrieves all active surplus food listings with quantity > 0 and unexpired."""
-    now = datetime.now(timezone.utc)
+    now_utc = get_effective_now_utc()
     statement = (
         select(ItemListing)
         .where(
             ItemListing.is_active == True,
             ItemListing.quantity > 0,
-            (ItemListing.expires_at == None) | (ItemListing.expires_at > now),
         )
     )
     if store_id:
@@ -697,7 +776,15 @@ def get_active_listings(
 
     statement = statement.order_by(ItemListing.created_at.desc())
     results = session.exec(statement).all()
-    return list(results)
+    active_results: List[ItemListing] = []
+    for item in results:
+        if item.expires_at is None:
+            active_results.append(item)
+        else:
+            exp_dt = item.expires_at if item.expires_at.tzinfo else item.expires_at.replace(tzinfo=timezone.utc)
+            if exp_dt > now_utc:
+                active_results.append(item)
+    return active_results
 
 
 @router.post("/orders/reserve", response_model=OrderTicket)
@@ -712,28 +799,64 @@ def reserve_order(
             detail="Listing tidak ditemukan.",
         )
 
-    # Atomic conditional SQL decrement preventing race conditions and overselling
+    now_utc = get_effective_now_utc()
+    if listing.expires_at is not None:
+        exp_dt = listing.expires_at if listing.expires_at.tzinfo else listing.expires_at.replace(tzinfo=timezone.utc)
+        if exp_dt <= now_utc:
+            listing.is_active = False
+            session.add(listing)
+            session.commit()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Maaf, batas waktu aman konsumsi atau jam tutup listing ini sudah terlewati.",
+            )
+
+    # Atomic conditional SQL decrement preventing race conditions, overselling, and expired reservations
     stmt = text(
         "UPDATE item_listings "
         "SET quantity = quantity - :qty, "
         "    is_active = CASE WHEN quantity - :qty <= 0 THEN 0 ELSE 1 END "
-        "WHERE id = :id AND quantity >= :qty AND is_active = 1"
+        "WHERE id = :id AND quantity >= :qty AND is_active = 1 "
+        "AND (expires_at IS NULL OR expires_at > :now_dt)"
     )
-    result = session.execute(stmt, {"qty": payload.quantity, "id": payload.listing_id})
+    result = session.execute(
+        stmt,
+        {
+            "qty": payload.quantity,
+            "id": payload.listing_id,
+            "now_dt": now_utc.replace(tzinfo=None),
+        },
+    )
     if result.rowcount == 0:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Stok porsi tidak mencukupi atau sedang dipesan.",
+            detail="Stok porsi tidak mencukupi, sudah kedaluwarsa, atau sedang dipesan.",
         )
 
     session.refresh(listing)
 
-    order_code = f"#NW-{random.randint(1000, 9999)}"
+    while True:
+        order_code = f"#NW-{random.randint(1000, 9999)}"
+        existing_code = session.exec(
+            select(OrderTicket).where(OrderTicket.order_code == order_code)
+        ).first()
+        if not existing_code:
+            break
+
     total_price = listing.discounted_price * payload.quantity
     customer = payload.customer_name.strip() or "Konsumen NullWasted"
     phone = payload.customer_phone.strip() or "0812-8899-0011"
     payment_method = payload.payment_method or "CASH_ON_PICKUP"
     payment_status = "PAID" if payment_method == "SIMULATED_QRIS" else "UNPAID"
+
+    if listing.expires_at is not None:
+        exp_utc = listing.expires_at if listing.expires_at.tzinfo else listing.expires_at.replace(tzinfo=timezone.utc)
+        exp_wib = exp_utc.astimezone(WIB_TZ)
+        pickup_deadline = f"Sebelum pukul {exp_wib.strftime('%H:%M')} WIB"
+    elif listing.closing_time:
+        pickup_deadline = f"Sebelum pukul {listing.closing_time} WIB"
+    else:
+        pickup_deadline = f"Sebelum toko tutup ({listing.minutes_until_closing} menit lagi)"
 
     qr_payload = f"NULLWASTED|ORDER:{order_code}|STORE:{listing.store_id}|ITEM:{listing.id}|QTY:{payload.quantity}|USER:{customer}"
 
@@ -750,7 +873,7 @@ def reserve_order(
         quantity=payload.quantity,
         unit_price=listing.discounted_price,
         total_price=total_price,
-        pickup_deadline=f"Sebelum toko tutup ({listing.minutes_until_closing} menit lagi)",
+        pickup_deadline=pickup_deadline,
         qr_payload=qr_payload,
         payment_method=payment_method,
         payment_status=payment_status,
@@ -786,7 +909,9 @@ def get_active_orders(
 
 @router.post("/orders/{order_id}/cancel", response_model=OrderTicket)
 def cancel_order(
-    order_id: str, session: Session = Depends(get_session)
+    order_id: str,
+    session: Session = Depends(get_session),
+    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
 ) -> OrderTicket:
     """Cancels a reserved order and atomically rolls back stock to the listing."""
     ticket = session.get(OrderTicket, order_id)
@@ -797,6 +922,33 @@ def cancel_order(
 
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tiket pesanan tidak ditemukan.")
+
+    if user_claims is not None:
+        role = user_claims.get("role")
+        if role == "merchant":
+            if user_claims.get("store_id") != ticket.store_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Akses ditolak: Anda hanya dapat membatalkan pesanan milik gerai Anda.",
+                )
+        elif role == "consumer":
+            user_row = session.get(User, user_claims.get("sub")) if user_claims.get("sub") else None
+            claim_phone = (user_claims.get("phone") or (user_row.phone if user_row else "") or "").strip()
+            claim_name = (user_claims.get("name") or (user_row.name if user_row else "") or "").strip()
+            phone_match = bool(claim_phone and ticket.customer_phone and claim_phone == ticket.customer_phone)
+            name_match = bool(
+                not claim_phone
+                and claim_name
+                and ticket.customer_name
+                and claim_name.lower() == ticket.customer_name.lower()
+            )
+            if not (phone_match or name_match):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Akses ditolak: Tiket pesanan ini bukan milik akun Anda.",
+                )
+        else:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Peran pengguna tidak valid.")
 
     if ticket.status == "CANCELLED":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tiket sudah berstatus DIBATALKAN.")
@@ -818,7 +970,7 @@ def cancel_order(
     listing = session.get(ItemListing, ticket.listing_id)
     if listing:
         listing.quantity += ticket.quantity
-        now = datetime.now(timezone.utc)
+        now = get_effective_now_utc()
         if listing.expires_at is None:
             listing.is_active = True
         else:
