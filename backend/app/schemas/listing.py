@@ -1,5 +1,6 @@
+import re
 from typing import Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DraftRequest(BaseModel):
@@ -13,6 +14,7 @@ class DraftResponse(BaseModel):
     food_name: str
     matched_canonical_dish: str
     category: str
+    food_type: str = "MEAL"
     quantity: int
     original_price: int
     recommended_discount_percent: int
@@ -27,6 +29,7 @@ class DraftResponse(BaseModel):
     similarity_score: float
     extraction_source: str  # "gemini-3.5-flash-lite" | "local-fallback-parser"
     can_publish: bool
+    portion_size: str = "Reguler"
 
     # New Context-Aware Slot Filling & Multi-Tenant metadata
     store_id: str = "FTUI-001"
@@ -35,39 +38,43 @@ class DraftResponse(BaseModel):
     needs_manual_price: bool = False
     can_save_to_catalog: bool = True
     closing_time: str = "20:30"
+    image_url: Optional[str] = None
 
 
 class PublishRequest(BaseModel):
     food_name: str
     matched_canonical_dish: str
     category: str
-    quantity: int = Field(ge=1)
-    original_price: int = Field(gt=0)
+    food_type: str = Field(default="MEAL")
+    quantity: int = Field(ge=1, le=200)
+    original_price: int = Field(ge=1000, le=2000000)
     discount_percent: int = Field(ge=50, le=70)
     discounted_price: Optional[int] = None
     hours_since_cooked: float = Field(ge=0.0)
     bpom_max_hours: float = Field(gt=0.0)
-    minutes_until_closing: int = Field(gt=0)
+    minutes_until_closing: int = Field(ge=0)
     safety_status: str
     safety_reason: str
     hazard_description: str
     regulation_ref: str = "PerBPOM No. 16/2019"
     similarity_score: float = 0.95
     store_name: str = "Dapur Barokah"
-    location_badge: str = "Kantin FTUI · 250m (🚶 3 mnt)"
+    location_badge: Optional[str] = None
+    portion_size: str = Field(default="Reguler")
 
     # Multi-tenant & Bundling extensions
     store_id: str = "FTUI-001"
     closing_time: str = "20:30"
-    latitude: float = -6.3626
-    longitude: float = 106.8240
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     is_bundle: bool = False
     bundled_items_json: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class ReserveOrderRequest(BaseModel):
     listing_id: str
-    quantity: int = Field(default=1, ge=1)
+    quantity: int = Field(default=1, ge=1, le=200)
     customer_name: str = Field(default="Budi Santoso", min_length=1)
     customer_phone: str = Field(default="0812-8899-0011")
     payment_method: str = Field(default="CASH_ON_PICKUP")  # "CASH_ON_PICKUP" | "SIMULATED_QRIS"
@@ -84,19 +91,37 @@ class CancelOrderRequest(BaseModel):
 
 class MenuItemCreateRequest(BaseModel):
     food_name: str = Field(..., min_length=2)
-    original_price: int = Field(..., gt=0)
+    original_price: int = Field(..., ge=1000, le=2000000)
     typical_cooking_time: str = Field(default="16:00")
     default_hours_cooked: float = Field(default=2.0, ge=0.0)
     ingredients: str = Field(default="")
+    portion_size: str = Field(default="Reguler")
+    image_url: Optional[str] = Field(default=None)
+
+    @field_validator("typical_cooking_time")
+    @classmethod
+    def validate_typical_cooking_time(cls, v: str) -> str:
+        if not re.match(r"^([01]\d|2[0-3]):([0-5]\d)$", v.strip()):
+            raise ValueError("Format jam masak harus HH:MM (24 jam), contoh: 16:00")
+        return v.strip()
 
 
 class MenuItemUpdateRequest(BaseModel):
     food_name: Optional[str] = None
-    original_price: Optional[int] = Field(default=None, gt=0)
+    original_price: Optional[int] = Field(default=None, ge=1000, le=2000000)
     typical_cooking_time: Optional[str] = None
     default_hours_cooked: Optional[float] = None
     ingredients: Optional[str] = None
+    portion_size: Optional[str] = None
+    image_url: Optional[str] = None
     is_active: Optional[bool] = None
+
+    @field_validator("typical_cooking_time")
+    @classmethod
+    def validate_update_cooking_time(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not re.match(r"^([01]\d|2[0-3]):([0-5]\d)$", v.strip()):
+            raise ValueError("Format jam masak harus HH:MM (24 jam), contoh: 16:00")
+        return v.strip() if v is not None else None
 
 
 class MenuItemResponse(BaseModel):
@@ -109,7 +134,10 @@ class MenuItemResponse(BaseModel):
     ingredients: str
     canonical_bpom_dish: str
     category: str
+    food_type: str = "MEAL"
     bpom_max_hours: float
+    portion_size: str = "Reguler"
+    image_url: Optional[str] = None
     is_active: bool
     created_at: str
 
@@ -124,26 +152,68 @@ class MerchantLoginRequest(BaseModel):
     store_id: str = Field(..., min_length=2)
     pin: str = Field(..., min_length=4)
 
+    @field_validator("pin")
+    @classmethod
+    def validate_pin(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not re.match(r"^\d{4,6}$", cleaned):
+            raise ValueError("PIN harus berupa 4 hingga 6 digit angka.")
+        return cleaned
+
 
 class MerchantRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2)
     pin: str = Field(..., min_length=4)
-    location_name: str = Field(..., min_length=2)
+    location_name: Optional[str] = Field(default="")
     closing_time: str = Field(default="20:30")
     category: Optional[str] = Field(default="Kuliner & Makanan")
-    latitude: float = Field(default=-6.3621)
-    longitude: float = Field(default=106.8246)
+    latitude: Optional[float] = Field(default=None)
+    longitude: Optional[float] = Field(default=None)
+
+    @field_validator("pin")
+    @classmethod
+    def validate_pin(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not re.match(r"^\d{4,6}$", cleaned):
+            raise ValueError("PIN harus berupa 4 hingga 6 digit angka.")
+        return cleaned
+
+    @field_validator("closing_time")
+    @classmethod
+    def validate_closing_time(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not re.match(r"^(?:[01]\d|2[0-3]):[0-5]\d$", cleaned):
+            raise ValueError("Format jam tutup harus HH:MM (00:00 - 23:59).")
+        return cleaned
 
 
 class ConsumerLoginRequest(BaseModel):
     phone: str = Field(..., min_length=8)
     name: Optional[str] = Field(default=None)
 
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        stripped = v.strip()
+        digits_norm = re.sub(r"[\s\-]+", "", stripped)
+        if not re.match(r"^(?:\+62|62|0)8[1-9][0-9]{7,11}$", digits_norm):
+            raise ValueError("Format nomor WhatsApp Indonesia tidak valid (contoh: 081234567890 atau +6281234567890).")
+        return stripped
+
 
 class ConsumerRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2)
     phone: str = Field(..., min_length=8)
-    address: Optional[str] = Field(default="Kawasan UI Depok")
+    address: Optional[str] = Field(default=None)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        stripped = v.strip()
+        digits_norm = re.sub(r"[\s\-]+", "", stripped)
+        if not re.match(r"^(?:\+62|62|0)8[1-9][0-9]{7,11}$", digits_norm):
+            raise ValueError("Format nomor WhatsApp Indonesia tidak valid (contoh: 081234567890 atau +6281234567890).")
+        return stripped
 
 
 class AuthResponse(BaseModel):
@@ -160,13 +230,19 @@ class AuthResponse(BaseModel):
     longitude: Optional[float] = None
 
 
+class StoreLocationUpdateRequest(BaseModel):
+    latitude: Optional[float] = Field(default=None)
+    longitude: Optional[float] = Field(default=None)
+    location_name: Optional[str] = Field(default=None)
+
+
 class StoreProfileResponse(BaseModel):
     id: str
     store_id: str
     name: str
     location_name: str
-    latitude: float
-    longitude: float
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     closing_time: str
-    maps_url: str
+    maps_url: str = ""
     is_active: bool

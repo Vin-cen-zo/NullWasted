@@ -2,22 +2,43 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
 
-PIN_SALT = "nullwasted-v1-salt"
-JWT_SECRET = "nullwasted-jwt-secret-key-2026"
+from app.core.config import JWT_SECRET, PIN_SALT
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/merchant-login", auto_error=False)
 
 
 def hash_pin(pin: str) -> str:
-    """Hashes a plaintext PIN using SHA-256 with a fixed salt."""
+    """Legacy fixed-salt SHA-256 PIN hashing preserved for backward compatibility."""
     salted = f"{pin}:{PIN_SALT}".encode("utf-8")
     return hashlib.sha256(salted).hexdigest()
 
 
+def hash_pin_pbkdf2(pin: str) -> str:
+    """Hashes a plaintext PIN using salted PBKDF2-HMAC-SHA256 (100,000 iterations)."""
+    salt = os.urandom(16)
+    dk = hashlib.pbkdf2_hmac("sha256", pin.encode("utf-8"), salt, 100_000)
+    return f"pbkdf2_sha256${salt.hex()}${dk.hex()}"
+
+
 def verify_pin(plain_pin: str, pin_hash: str) -> bool:
-    """Verifies a plaintext PIN against a SHA-256 hash securely."""
+    """Verifies a plaintext PIN against PBKDF2-HMAC-SHA256 first, with fallback to legacy SHA-256."""
+    if pin_hash.startswith("pbkdf2_sha256$"):
+        try:
+            _, salt_hex, hash_hex = pin_hash.split("$", 2)
+            salt = bytes.fromhex(salt_hex)
+            expected = bytes.fromhex(hash_hex)
+            computed = hashlib.pbkdf2_hmac("sha256", plain_pin.encode("utf-8"), salt, 100_000)
+            return hmac.compare_digest(computed, expected)
+        except Exception:
+            return False
+
     computed = hash_pin(plain_pin)
     return hmac.compare_digest(computed, pin_hash)
 
@@ -85,10 +106,22 @@ def decode_access_token(token: str) -> Optional[dict[str, Any]]:
     return payload
 
 
-def compute_minutes_until_closing(closing_time_str: str, fallback_minutes: int = 90) -> int:
+def get_optional_user(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[dict[str, Any]]:
+    """Parses optional Bearer JWT token claims without rejecting unauthenticated test clients."""
+    if not token:
+        return None
+    return decode_access_token(token)
+
+
+def compute_minutes_until_closing(
+    closing_time_str: str,
+    open_time_str: Optional[str] = None,
+    fallback_minutes: int = 90,
+) -> int:
     """Computes real minutes remaining until store closing time ('HH:MM').
-    If outside operational hours (delta <= 5 or delta > 300), returns a deterministic active
-    simulation value (between 45 and 120 minutes) based on closing time to ensure tests and UI work 24/7.
+    Accurately calculates true wall-clock delta without artificial simulation branches.
+    Handles midnight-crossing rollover: if closing time is past midnight (e.g. close 01:00 vs open 17:00),
+    advances closing date by 1 calendar day. If closing time has passed (delta <= 0), returns 0.
     """
     try:
         parts = closing_time_str.strip().split(":")
@@ -97,14 +130,21 @@ def compute_minutes_until_closing(closing_time_str: str, fallback_minutes: int =
 
         now = datetime.now()
         closing_dt = now.replace(hour=close_h, minute=close_m, second=0, microsecond=0)
+
+        if open_time_str:
+            open_parts = open_time_str.strip().split(":")
+            open_h = int(open_parts[0])
+            if close_h < open_h and now.hour >= open_h:
+                closing_dt += timedelta(days=1)
+        elif closing_dt < now and now.hour >= 18 and close_h < 6:
+            # Late-night crossing past midnight without explicit open_time
+            closing_dt += timedelta(days=1)
+
         delta = (closing_dt - now).total_seconds() / 60.0
+        if delta <= 0:
+            return 0
 
-        if 5 < delta <= 300:
-            return int(delta)
-
-        # Deterministic simulation fallback for off-hours demo & tests (45 to 120 minutes)
-        simulated = 45 + ((close_h * 60 + close_m) % 76)
-        return max(45, min(120, simulated))
+        return int(delta)
     except Exception:
-        return max(30, fallback_minutes)
+        return max(0, fallback_minutes)
 
