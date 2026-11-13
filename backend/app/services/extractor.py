@@ -4,10 +4,31 @@ import logging
 import re
 from typing import Any, Optional
 from app.core.ai_gateway import ai_gateway
+from app.core.clock import get_effective_now_wib
 from app.core.config import GEMINI_MODEL
 from app.services.vector_store import vector_store
 
 logger = logging.getLogger("extractor")
+
+
+def _safe_int(value: Any, default: int) -> int:
+    """Safely coerces LLM JSON values (including null/strings) to int without TypeError."""
+    if value is None or isinstance(value, bool):
+        return default
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(value: Any, default: float) -> float:
+    """Safely coerces LLM JSON values (including null/strings) to float without TypeError."""
+    if value is None or isinstance(value, bool):
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _parse_idr_amount(digits_str: str, suffix: Optional[str] = None) -> int:
@@ -127,6 +148,13 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
                     pass
 
     # 3. Hours since cooked extraction & detection
+    now_wib = get_effective_now_wib()
+    now_minutes = now_wib.hour * 60 + now_wib.minute
+    has_overnight = bool(re.search(r"\b(kemarin|semalam|tadi malam|kemarin malam)\b", raw_lower))
+    future_cooking_time = bool(
+        re.search(r"\b(besok|nanti malam|akan datang|belum dimasak|akan dimasak|masak besok)\b", raw_lower)
+    )
+
     hours_cooked = 1.0
     cooking_time_mentioned = False
 
@@ -156,11 +184,17 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
                     hours_cooked = round(int(minute_cooked.group(1)) / 60.0, 2)
                     cooking_time_mentioned = True
                 else:
-                    spec_time = re.search(
-                        r"(?:selesai\s+masak|masak|matang)?\s*jam\s*(\d{1,2})(?:[\.:](\d{2}))?\s*(pagi|siang|sore|malam)?",
+                    # Strip explicit closing-time phrases first so "tutup jam ..." never collides with cooking-time regex
+                    cooking_search_text = re.sub(
+                        r"\b(?:toko\s+)?tutup\s*(?:pada\s+)?jam\s*\d{1,2}(?:[\.:]\d{2})?\s*(?:pagi|siang|sore|malam)?",
+                        " ",
                         raw_lower,
                     )
-                    if spec_time and not re.search(r"tutup\s*jam", raw_lower):
+                    spec_time = re.search(
+                        r"(?:selesai\s+masak|masak|matang|dibuat|dibikin)?\s*jam\s*(\d{1,2})(?:[\.:](\d{2}))?\s*(pagi|siang|sore|malam)?",
+                        cooking_search_text,
+                    )
+                    if spec_time:
                         h = int(spec_time.group(1))
                         m = int(spec_time.group(2)) if spec_time.group(2) else 0
                         period = spec_time.group(3)
@@ -168,16 +202,24 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
                             h += 12
                         elif period == "siang" and 1 <= h <= 5:
                             h += 12
+                        elif period == "pagi" and h == 12:
+                            h = 0
 
-                        ref_hour = 18.0
-                        diff = max(0.5, round(ref_hour - (h + m / 60.0), 1))
-                        hours_cooked = diff
-                        cooking_time_mentioned = True
+                        if 0 <= h <= 23 and 0 <= m <= 59:
+                            cook_minutes = h * 60 + m
+                            if cook_minutes > now_minutes + 5 and not has_overnight:
+                                future_cooking_time = True
+                                hours_cooked = 0.0
+                            else:
+                                diff_hours = round((now_minutes - cook_minutes) / 60.0, 2)
+                                hours_cooked = max(0.1, diff_hours) if not has_overnight else max(0.0, diff_hours)
+                            cooking_time_mentioned = True
 
     # Overnight / yesterday cooked check (> 24 hours)
-    if re.search(r"\b(kemarin|semalam|tadi malam|kemarin malam)\b", raw_lower):
+    if has_overnight:
         hours_cooked = max(hours_cooked + 24.0, 25.0)
         cooking_time_mentioned = True
+        future_cooking_time = False
 
     # 4. Minutes until store closing & explicit closing detection
     closing_minutes = 120
@@ -191,6 +233,28 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
         if close_mins:
             closing_minutes = int(close_mins.group(1))
             explicit_closing_mentioned = True
+        else:
+            close_at = re.search(
+                r"tutup\s*(?:pada\s+)?jam\s*(\d{1,2})(?:[\.:](\d{2}))?\s*(pagi|siang|sore|malam)?",
+                raw_lower,
+            )
+            if close_at:
+                ch = int(close_at.group(1))
+                cm = int(close_at.group(2)) if close_at.group(2) else 0
+                c_period = close_at.group(3)
+                if c_period in ("sore", "malam") and ch < 12:
+                    ch += 12
+                elif c_period == "siang" and 1 <= ch <= 5:
+                    ch += 12
+                elif c_period == "pagi" and ch == 12:
+                    ch = 0
+                if 0 <= ch <= 23 and 0 <= cm <= 59:
+                    close_total_mins = ch * 60 + cm
+                    delta_mins = close_total_mins - now_minutes
+                    if delta_mins < 0 and now_wib.hour >= 18 and ch < 6:
+                        delta_mins += 24 * 60
+                    closing_minutes = max(0, delta_mins)
+                    explicit_closing_mentioned = True
 
     # 5. Food Name extraction with bidirectional phrase stripping
     food_name = ""
@@ -331,6 +395,7 @@ def local_rule_based_extract(text: str) -> dict[str, Any]:
         "price_mentioned": price_mentioned,
         "cooking_time_mentioned": cooking_time_mentioned,
         "explicit_closing_mentioned": explicit_closing_mentioned,
+        "future_cooking_time": future_cooking_time,
         "has_negative_value": has_negative,
     }
 
@@ -395,8 +460,11 @@ Keluarkan HANYA JSON objek valid tanpa blok markdown."""
 async def extract_listing_entities(text: str, audio_base64: Optional[str] = None) -> dict[str, Any]:
     """Extracts food listing entities using live Gemini API (gemini-3.5-flash-lite) with deterministic fallback."""
     local_info = await asyncio.to_thread(local_rule_based_extract, text)
+    now_wib = get_effective_now_wib()
+    now_wib_str = now_wib.strftime("%Y-%m-%d %H:%M WIB")
 
     prompt = f"""Anda adalah sistem AI ekstraksi entitas katalog surplus food NullWasted di Indonesia.
+Waktu saat ini: {now_wib_str}
 Tugas Anda adalah mengekstrak informasi dari kalimat staf toko kuliner berikut ke dalam objek JSON murni:
 - "food_name": Nama lengkap hidangan makanan/minuman beserta ciri khasnya (string Title Case, misal "Spageti Carbonara", "Gulai Tunjang Santan Padang", "Roti Sobek Artisan Keju", "Seblak Ceker Pedas", "Es Cendol Durian"). Jangan sertakan kata jumlah porsi, harga, atau keterangan waktu di dalam food_name.
 - "is_edible_food": boolean (true jika merupakan makanan/minuman/kue manusia yang sah termasuk kuliner daerah seperti Seblak, Cilok, Cireng, Es Cendol, Kombucha; false jika bukan makanan/minuman seperti racun, kimia, baterai, sepatu, barang non-pangan, atau kata acak).
@@ -408,10 +476,14 @@ Tugas Anda adalah mengekstrak informasi dari kalimat staf toko kuliner berikut k
   * "HIGH_PERISHABILITY" (maks 4 jam): santan, susu segar, krim/vla/mayones, telur setengah matang, makanan laut/daging mentah.
   * "MEDIUM_PERISHABILITY" (maks 8 jam): makanan matang siap saji, tumis, goreng, rebus, kuah non-santan (seperti seblak/bakso/soto bening), atau minuman kopi/teh tanpa susu.
   * "LOW_PERISHABILITY" (maks 24 jam): roti panggang, pastry kering tanpa krim susu basah, kue kering, keripik.
-- "quantity": Jumlah porsi/bungkus/kotak/cup/loyang/potong yang tersisa (integer >= 1, default 1).
-- "original_price": Harga normal per porsi sebelum diskon dalam Rupiah utuh (integer, misal "25 ribu" / "25k" / "25rb" -> 25000, default 20000).
-- "hours_since_cooked": Lama waktu (dalam jam desimal float) sejak makanan selesai dimasak/matang/dibuat hingga saat ini (misal "dibuat 6 jam yang lalu" -> 6.0, "5 jam lalu" -> 5.0, "30 menit lalu" -> 0.5, "sudah 7 jam suhu ruang" -> 7.0, default 1.0).
-- "minutes_until_closing": Sisa waktu (dalam menit integer) hingga toko tutup (misal "2 jam lagi" -> 120, "30 menit lagi" -> 30, default 120).
+- "quantity": Jumlah porsi/bungkus/kotak/cup/loyang/potong yang tersisa (integer >= 1, atau null jika tidak disebut).
+- "original_price": Harga normal per porsi sebelum diskon dalam Rupiah utuh (integer, misal "25 ribu" / "25k" / "25rb" / "dua puluh lima ribu" -> 25000, atau null jika tidak disebut).
+- "hours_since_cooked": Lama waktu (dalam jam desimal float) sejak makanan selesai dimasak/matang/dibuat hingga waktu saat ini ({now_wib_str}). Jika staf menyebut jam masak (misal "masak jam 7 pagi" dan sekarang 08:33 WIB -> 1.55), hitung selisihnya terhadap waktu saat ini. Jika "kemarin/semalam", pastikan >= 24.0. Kembalikan null jika waktu masak tidak disebut.
+- "minutes_until_closing": Sisa waktu (dalam menit integer) hingga toko tutup relatif terhadap waktu saat ini ({now_wib_str}), misal "2 jam lagi" -> 120, atau "tutup jam 9 malam" pada pukul 08:33 -> 747. Kembalikan null jika waktu tutup tidak disebut.
+- "price_mentioned": boolean (true jika harga disebut dengan angka maupun kata lisan, false jika tidak disebut).
+- "cooking_time_mentioned": boolean (true jika jam masak/usia matang disebut, false jika tidak disebut).
+- "closing_time_mentioned": boolean (true jika jam tutup/sisa waktu tutup disebut, false jika tidak disebut).
+- "future_cooking_time": boolean (true HANYA jika jam masak yang disebut berada di masa depan terhadap waktu saat ini tanpa kata kemarin/semalam, atau menggunakan kata seperti "besok"/"akan dimasak").
 
 Kalimat input penjual: "{text}"
 
@@ -426,7 +498,7 @@ Keluarkan HANYA JSON objek valid tanpa teks pengantar dan tanpa blok markdown.""
                 cleaned = json_match.group(0)
             data = json.loads(cleaned)
 
-            raw_price = int(float(data.get("original_price", 20000)))
+            raw_price = _safe_int(data.get("original_price"), local_info["original_price"])
             if 0 < raw_price < 500:
                 raw_price *= 1000
 
@@ -434,39 +506,58 @@ Keluarkan HANYA JSON objek valid tanpa teks pengantar dan tanpa blok markdown.""
             if local_info["price_mentioned"] and re.search(r"\b\d+[\.,]\d{1,2}\s*(?:ribu|rb|k)\b", text.lower()):
                 raw_price = local_info["original_price"]
 
-            food_name = str(data.get("food_name", "")).strip()
+            food_name = str(data.get("food_name") or "").strip()
             if not food_name or len(food_name) < 2:
                 food_name = local_info["food_name"]
 
-            hours_cooked = max(0.0, float(data.get("hours_since_cooked", 1.0)))
-            # Enforce overnight / yesterday rule (> 24 hours) deterministically on LLM output
-            if re.search(r"\b(kemarin|semalam|tadi malam|kemarin malam)\b", text.lower()):
-                hours_cooked = max(hours_cooked + 24.0, 25.0)
+            hours_cooked = max(0.0, _safe_float(data.get("hours_since_cooked"), local_info["hours_since_cooked"]))
+            has_overnight = bool(re.search(r"\b(kemarin|semalam|tadi malam|kemarin malam)\b", text.lower()))
+            future_cooking_time = bool(local_info["future_cooking_time"] or data.get("future_cooking_time"))
 
-            ft = str(data.get("food_type", local_info["food_type"])).upper().strip()
+            # Enforce overnight / yesterday rule (> 24 hours) deterministically on LLM output
+            if has_overnight:
+                hours_cooked = max(hours_cooked + 24.0, 25.0)
+                future_cooking_time = False
+
+            ft = str(data.get("food_type") or local_info["food_type"]).upper().strip()
             if ft not in ("MEAL", "BAKERY", "BEVERAGE"):
                 ft = local_info["food_type"]
 
-            inferred_risk = str(data.get("inferred_risk", "")).upper().strip()
+            inferred_risk = str(data.get("inferred_risk") or "").upper().strip()
             if inferred_risk not in ("HIGH_PERISHABILITY", "MEDIUM_PERISHABILITY", "LOW_PERISHABILITY"):
                 inferred_risk = None
 
             is_edible_raw = data.get("is_edible_food")
             is_edible = is_edible_raw if isinstance(is_edible_raw, bool) else None
 
+            price_mentioned = bool(local_info["price_mentioned"] or data.get("price_mentioned"))
+            cooking_time_mentioned = bool(
+                local_info["cooking_time_mentioned"] or data.get("cooking_time_mentioned")
+            )
+            explicit_closing_mentioned = bool(
+                local_info["explicit_closing_mentioned"]
+                or data.get("closing_time_mentioned")
+                or data.get("explicit_closing_mentioned")
+            )
+            closing_minutes = max(
+                0,
+                _safe_int(data.get("minutes_until_closing"), local_info["minutes_until_closing"]),
+            )
+
             return {
                 "food_name": food_name.title(),
-                "quantity": max(1, int(data.get("quantity", 1))),
+                "quantity": max(1, _safe_int(data.get("quantity"), local_info["quantity"])),
                 "original_price": max(1000, raw_price),
                 "hours_since_cooked": hours_cooked,
-                "minutes_until_closing": max(1, int(float(data.get("minutes_until_closing", 120)))),
+                "minutes_until_closing": closing_minutes,
                 "food_type": ft,
                 "inferred_risk": inferred_risk,
                 "is_edible_food": is_edible,
                 "extraction_source": GEMINI_MODEL,
-                "price_mentioned": local_info["price_mentioned"],
-                "cooking_time_mentioned": local_info["cooking_time_mentioned"],
-                "explicit_closing_mentioned": local_info["explicit_closing_mentioned"],
+                "price_mentioned": price_mentioned,
+                "cooking_time_mentioned": cooking_time_mentioned,
+                "explicit_closing_mentioned": explicit_closing_mentioned,
+                "future_cooking_time": future_cooking_time,
                 "has_negative_value": local_info["has_negative_value"],
             }
     except Exception as e:
