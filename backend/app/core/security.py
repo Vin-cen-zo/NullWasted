@@ -4,11 +4,12 @@ import hmac
 import json
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, Optional
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
+from app.core.clock import get_effective_now_wib
 from app.core.config import JWT_SECRET, PIN_SALT
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/merchant-login", auto_error=False)
@@ -20,27 +21,39 @@ def hash_pin(pin: str) -> str:
     return hashlib.sha256(salted).hexdigest()
 
 
-def hash_pin_pbkdf2(pin: str) -> str:
-    """Hashes a plaintext PIN using salted PBKDF2-HMAC-SHA256 (100,000 iterations)."""
+def hash_password_pbkdf2(password: str) -> str:
+    """Hashes a plaintext password using salted PBKDF2-HMAC-SHA256 (100,000 iterations)."""
     salt = os.urandom(16)
-    dk = hashlib.pbkdf2_hmac("sha256", pin.encode("utf-8"), salt, 100_000)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100_000)
     return f"pbkdf2_sha256${salt.hex()}${dk.hex()}"
 
 
-def verify_pin(plain_pin: str, pin_hash: str) -> bool:
-    """Verifies a plaintext PIN against PBKDF2-HMAC-SHA256 first, with fallback to legacy SHA-256."""
-    if pin_hash.startswith("pbkdf2_sha256$"):
+def verify_password(plain_password: str, password_hash: str) -> bool:
+    """Verifies a plaintext password against PBKDF2-HMAC-SHA256 first, with fallback to legacy SHA-256."""
+    if not password_hash:
+        return False
+    if password_hash.startswith("pbkdf2_sha256$"):
         try:
-            _, salt_hex, hash_hex = pin_hash.split("$", 2)
+            _, salt_hex, hash_hex = password_hash.split("$", 2)
             salt = bytes.fromhex(salt_hex)
             expected = bytes.fromhex(hash_hex)
-            computed = hashlib.pbkdf2_hmac("sha256", plain_pin.encode("utf-8"), salt, 100_000)
+            computed = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), salt, 100_000)
             return hmac.compare_digest(computed, expected)
         except Exception:
             return False
 
-    computed = hash_pin(plain_pin)
-    return hmac.compare_digest(computed, pin_hash)
+    computed = hash_pin(plain_password)
+    return hmac.compare_digest(computed, password_hash)
+
+
+def hash_pin_pbkdf2(pin: str) -> str:
+    """Backward-compatible alias for salted PBKDF2-HMAC-SHA256 hashing."""
+    return hash_password_pbkdf2(pin)
+
+
+def verify_pin(plain_pin: str, pin_hash: str) -> bool:
+    """Verifies a plaintext PIN against PBKDF2-HMAC-SHA256 first, with fallback to legacy SHA-256."""
+    return verify_password(plain_pin, pin_hash)
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -107,10 +120,19 @@ def decode_access_token(token: str) -> Optional[dict[str, Any]]:
 
 
 def get_optional_user(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[dict[str, Any]]:
-    """Parses optional Bearer JWT token claims without rejecting unauthenticated test clients."""
+    """Parses optional Bearer JWT token claims without rejecting unauthenticated test clients.
+    Raises HTTP 401 when an explicit Bearer token is provided but invalid or expired.
+    """
     if not token:
         return None
-    return decode_access_token(token)
+    claims = decode_access_token(token)
+    if claims is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token sesi tidak valid atau telah kedaluwarsa.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return claims
 
 
 def compute_minutes_until_closing(
@@ -118,8 +140,7 @@ def compute_minutes_until_closing(
     open_time_str: Optional[str] = None,
     fallback_minutes: int = 90,
 ) -> int:
-    """Computes real minutes remaining until store closing time ('HH:MM').
-    Accurately calculates true wall-clock delta without artificial simulation branches.
+    """Computes minutes remaining until store closing time ('HH:MM') using effective WIB clock.
     Handles midnight-crossing rollover: if closing time is past midnight (e.g. close 01:00 vs open 17:00),
     advances closing date by 1 calendar day. If closing time has passed (delta <= 0), returns 0.
     """
@@ -128,7 +149,7 @@ def compute_minutes_until_closing(
         close_h = int(parts[0])
         close_m = int(parts[1]) if len(parts) > 1 else 0
 
-        now = datetime.now()
+        now = get_effective_now_wib()
         closing_dt = now.replace(hour=close_h, minute=close_m, second=0, microsecond=0)
 
         if open_time_str:

@@ -12,6 +12,17 @@ else:
     load_dotenv()
 
 APP_NAME = os.getenv("APP_NAME", "NullWasted API")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
+_raw_time_simulation = os.getenv("ENABLE_TIME_SIMULATION", "").strip().lower()
+if ENVIRONMENT == "production":
+    ENABLE_TIME_SIMULATION = False
+elif _raw_time_simulation in {"false", "0", "no", "off"}:
+    ENABLE_TIME_SIMULATION = False
+elif _raw_time_simulation in {"true", "1", "yes", "on"}:
+    ENABLE_TIME_SIMULATION = True
+else:
+    ENABLE_TIME_SIMULATION = ENVIRONMENT != "production"
+
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./nullwasted_local.db")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
