@@ -14,7 +14,9 @@ class Store(SQLModel, table=True):
     id: str = Field(default_factory=lambda: f"str-{uuid4().hex[:8]}", primary_key=True)
     store_id: str = Field(unique=True, index=True)  # "FTUI-001" | "MARGONDA-042" | "KUTEK-007"
     name: str = Field(default="Gerai Mitra NullWasted")
-    pin_hash: str
+    email: Optional[str] = Field(default=None, unique=True, index=True)
+    password_hash: Optional[str] = Field(default=None)
+    pin_hash: str = Field(default="")
     location_name: str = Field(default="Lokasi belum diatur")
     latitude: Optional[float] = Field(default=None)
     longitude: Optional[float] = Field(default=None)
@@ -29,7 +31,9 @@ class User(SQLModel, table=True):
 
     id: str = Field(default_factory=lambda: f"usr-{uuid4().hex[:8]}", primary_key=True)
     name: str
-    phone: str = Field(index=True)
+    email: Optional[str] = Field(default=None, unique=True, index=True)
+    password_hash: Optional[str] = Field(default=None)
+    phone: str = Field(default="", index=True)
     role: str = Field(default="CONSUMER")  # "CONSUMER" | "MERCHANT"
     store_id: Optional[str] = Field(default=None)
     created_at: str = Field(default_factory=utc_now_iso)

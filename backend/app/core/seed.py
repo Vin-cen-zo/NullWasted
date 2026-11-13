@@ -1,14 +1,20 @@
 import logging
 from sqlmodel import Session, select
-from app.core.security import hash_pin
+from app.core.security import hash_password_pbkdf2
 from app.models.listing import ItemListing, Store, StoreMenuItem, User
 
 logger = logging.getLogger("seed")
 
+DEMO_STORE_EMAILS = {
+    "FTUI-001": "dapurbarokah@nullwasted.id",
+    "MARGONDA-042": "rotiunyil@nullwasted.id",
+    "KUTEK-007": "warkopkutek@nullwasted.id",
+}
+
 
 def seed_initial_data(session: Session) -> None:
     """Seeds realistic multi-store demo data idempotently across 3 partner stores near UI Depok."""
-    default_pin_hash = hash_pin("1234")
+    default_pw_hash = hash_password_pbkdf2("nullwasted123")
 
     # ========================================================================
     # 1. THREE PARTNER STORES (Store)
@@ -16,11 +22,28 @@ def seed_initial_data(session: Session) -> None:
     existing_stores = session.exec(select(Store)).all()
     store_map: dict[str, Store] = {s.store_id: s for s in existing_stores}
 
+    # Backfill email and password_hash for existing legacy stores safely
+    for existing_store in existing_stores:
+        changed = False
+        if not existing_store.email:
+            existing_store.email = DEMO_STORE_EMAILS.get(
+                existing_store.store_id,
+                f"{existing_store.store_id.lower()}@store.nullwasted.id",
+            )
+            changed = True
+        if not existing_store.password_hash:
+            existing_store.password_hash = default_pw_hash
+            changed = True
+        if changed:
+            session.add(existing_store)
+
     stores_to_seed = [
         Store(
             store_id="FTUI-001",
             name="Dapur Barokah FTUI",
-            pin_hash=default_pin_hash,
+            email=DEMO_STORE_EMAILS["FTUI-001"],
+            password_hash=default_pw_hash,
+            pin_hash="",
             location_name="Kantin FTUI · 110m (🚶 2 mnt)",
             latitude=-6.3621,
             longitude=106.8246,
@@ -31,7 +54,9 @@ def seed_initial_data(session: Session) -> None:
         Store(
             store_id="MARGONDA-042",
             name="Roti Unyil & Pastry Margonda",
-            pin_hash=default_pin_hash,
+            email=DEMO_STORE_EMAILS["MARGONDA-042"],
+            password_hash=default_pw_hash,
+            pin_hash="",
             location_name="Jl. Margonda Raya · 1.8km (🛵 5 mnt)",
             latitude=-6.3685,
             longitude=106.8375,
@@ -42,7 +67,9 @@ def seed_initial_data(session: Session) -> None:
         Store(
             store_id="KUTEK-007",
             name="Warkop & Snack Kutek",
-            pin_hash=default_pin_hash,
+            email=DEMO_STORE_EMAILS["KUTEK-007"],
+            password_hash=default_pw_hash,
+            pin_hash="",
             location_name="Kukusan Teknik (Kutek) · 780m (🚶 9 mnt)",
             latitude=-6.3575,
             longitude=106.8195,
@@ -382,11 +409,36 @@ def seed_initial_data(session: Session) -> None:
         session.commit()
 
     # ========================================================================
-    # 4. DEFAULT CONSUMER USER (User)
+    # 4. DEFAULT CONSUMER USER (User) & LEGACY USER BACKFILL
     # ========================================================================
-    budi_user = session.exec(select(User).where(User.phone == "0812-8899-0011")).first()
+    budi_user = session.exec(
+        select(User).where((User.email == "budi@nullwasted.id") | (User.phone == "0812-8899-0011"))
+    ).first()
     if not budi_user:
-        budi_user = User(name="Budi Santoso", phone="0812-8899-0011", role="CONSUMER")
+        budi_user = User(
+            name="Budi Santoso",
+            email="budi@nullwasted.id",
+            password_hash=default_pw_hash,
+            phone="0812-8899-0011",
+            role="CONSUMER",
+        )
         session.add(budi_user)
-        session.commit()
+    else:
+        changed = False
+        if not budi_user.email:
+            budi_user.email = "budi@nullwasted.id"
+            changed = True
+        if not budi_user.password_hash:
+            budi_user.password_hash = default_pw_hash
+            changed = True
+        if changed:
+            session.add(budi_user)
+
+    for legacy_user in session.exec(select(User).where(User.email == None)).all():
+        legacy_user.email = f"{legacy_user.id}@consumer.nullwasted.id"
+        if not legacy_user.password_hash:
+            legacy_user.password_hash = default_pw_hash
+        session.add(legacy_user)
+
+    session.commit()
 

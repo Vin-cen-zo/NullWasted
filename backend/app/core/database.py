@@ -81,13 +81,30 @@ def init_db() -> None:
                     if "image_url" not in order_cols:
                         conn.execute(text("ALTER TABLE order_tickets ADD COLUMN image_url TEXT DEFAULT NULL"))
 
-                # 4. Synchronize 3-zone store & listing coordinates for responsive radius filtering
-                conn.execute(text("UPDATE stores SET latitude = -6.3621, longitude = 106.8246, location_name = 'Kantin FTUI · 110m (🚶 2 mnt)' WHERE store_id = 'FTUI-001'"))
-                conn.execute(text("UPDATE stores SET latitude = -6.3575, longitude = 106.8195, location_name = 'Kukusan Teknik (Kutek) · 780m (🚶 9 mnt)' WHERE store_id = 'KUTEK-007'"))
-                conn.execute(text("UPDATE stores SET latitude = -6.3685, longitude = 106.8375, location_name = 'Jl. Margonda Raya · 1.8km (🛵 5 mnt)' WHERE store_id = 'MARGONDA-042'"))
-                conn.execute(text("UPDATE item_listings SET latitude = -6.3621, longitude = 106.8246, location_badge = 'Kantin FTUI · 110m (🚶 2 mnt)' WHERE store_id = 'FTUI-001'"))
-                conn.execute(text("UPDATE item_listings SET latitude = -6.3575, longitude = 106.8195, location_badge = 'Kukusan Teknik (Kutek) · 780m (🚶 9 mnt)' WHERE store_id = 'KUTEK-007'"))
-                conn.execute(text("UPDATE item_listings SET latitude = -6.3685, longitude = 106.8375, location_badge = 'Jl. Margonda Raya · 1.8km (🛵 5 mnt)' WHERE store_id = 'MARGONDA-042'"))
+                # 3b. stores & users auth migrations (Email + PBKDF2 Password)
+                store_cols = [c[1] for c in conn.execute(text("PRAGMA table_info(stores)")).fetchall()]
+                if store_cols:
+                    if "email" not in store_cols:
+                        conn.execute(text("ALTER TABLE stores ADD COLUMN email TEXT DEFAULT NULL"))
+                    if "password_hash" not in store_cols:
+                        conn.execute(text("ALTER TABLE stores ADD COLUMN password_hash TEXT DEFAULT NULL"))
+                    conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_stores_email ON stores (email) WHERE email IS NOT NULL"))
+
+                user_cols = [c[1] for c in conn.execute(text("PRAGMA table_info(users)")).fetchall()]
+                if user_cols:
+                    if "email" not in user_cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN email TEXT DEFAULT NULL"))
+                    if "password_hash" not in user_cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN password_hash TEXT DEFAULT NULL"))
+                    conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email) WHERE email IS NOT NULL"))
+
+                # 4. Backfill 3-zone coordinates ONLY when coordinates are missing (never overwrite custom UI pins)
+                conn.execute(text("UPDATE stores SET latitude = -6.3621, longitude = 106.8246, location_name = 'Kantin FTUI · 110m (🚶 2 mnt)' WHERE store_id = 'FTUI-001' AND (latitude IS NULL OR longitude IS NULL) AND location_name != 'Lokasi peta belum dipasang'"))
+                conn.execute(text("UPDATE stores SET latitude = -6.3575, longitude = 106.8195, location_name = 'Kukusan Teknik (Kutek) · 780m (🚶 9 mnt)' WHERE store_id = 'KUTEK-007' AND (latitude IS NULL OR longitude IS NULL) AND location_name != 'Lokasi peta belum dipasang'"))
+                conn.execute(text("UPDATE stores SET latitude = -6.3685, longitude = 106.8375, location_name = 'Jl. Margonda Raya · 1.8km (🛵 5 mnt)' WHERE store_id = 'MARGONDA-042' AND (latitude IS NULL OR longitude IS NULL) AND location_name != 'Lokasi peta belum dipasang'"))
+                conn.execute(text("UPDATE item_listings SET latitude = -6.3621, longitude = 106.8246, location_badge = 'Kantin FTUI · 110m (🚶 2 mnt)' WHERE store_id = 'FTUI-001' AND (latitude IS NULL OR longitude IS NULL)"))
+                conn.execute(text("UPDATE item_listings SET latitude = -6.3575, longitude = 106.8195, location_badge = 'Kukusan Teknik (Kutek) · 780m (🚶 9 mnt)' WHERE store_id = 'KUTEK-007' AND (latitude IS NULL OR longitude IS NULL)"))
+                conn.execute(text("UPDATE item_listings SET latitude = -6.3685, longitude = 106.8375, location_badge = 'Jl. Margonda Raya · 1.8km (🛵 5 mnt)' WHERE store_id = 'MARGONDA-042' AND (latitude IS NULL OR longitude IS NULL)"))
 
                 # 5. Backfill demo image_url if null
                 conn.execute(text("UPDATE store_menu_items SET image_url = '/assets/foods/rendang.jpg' WHERE food_name LIKE '%Rendang%' AND image_url IS NULL"))
