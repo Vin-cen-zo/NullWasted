@@ -878,9 +878,11 @@ def test_reserve_expired_rejected_wib_deadline_and_init_db_pinpoint(
     assert "WIB" in r_ok.json()["pickup_deadline"]
 
     # C5: Custom store pinpoint must survive init_db()
+    from sqlmodel import select
     from app.models.listing import Store
 
-    ftui_store = session.get(Store, "FTUI-001")
+    ftui_store = session.exec(select(Store).where(Store.store_id == "FTUI-001")).first()
+    assert ftui_store is not None
     ftui_store.latitude = -6.3111
     ftui_store.longitude = 106.8222
     ftui_store.location_name = "Pinpoint Custom Persisten"
@@ -891,7 +893,8 @@ def test_reserve_expired_rejected_wib_deadline_and_init_db_pinpoint(
     db_mod.init_db()
 
     session.expire_all()
-    ftui_after = session.get(Store, "FTUI-001")
+    ftui_after = session.exec(select(Store).where(Store.store_id == "FTUI-001")).first()
+    assert ftui_after is not None
     assert ftui_after.latitude == pytest.approx(-6.3111)
     assert ftui_after.longitude == pytest.approx(106.8222)
 
