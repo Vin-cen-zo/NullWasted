@@ -1,14 +1,20 @@
 import logging
 from sqlmodel import Session, select
-from app.core.security import hash_pin
+from app.core.security import hash_password_pbkdf2
 from app.models.listing import ItemListing, Store, StoreMenuItem, User
 
 logger = logging.getLogger("seed")
 
+DEMO_STORE_EMAILS = {
+    "FTUI-001": "dapurbarokah@nullwasted.id",
+    "MARGONDA-042": "rotiunyil@nullwasted.id",
+    "KUTEK-007": "warkopkutek@nullwasted.id",
+}
+
 
 def seed_initial_data(session: Session) -> None:
     """Seeds realistic multi-store demo data idempotently across 3 partner stores near UI Depok."""
-    default_pin_hash = hash_pin("1234")
+    default_pw_hash = hash_password_pbkdf2("nullwasted123")
 
     # ========================================================================
     # 1. THREE PARTNER STORES (Store)
@@ -16,12 +22,29 @@ def seed_initial_data(session: Session) -> None:
     existing_stores = session.exec(select(Store)).all()
     store_map: dict[str, Store] = {s.store_id: s for s in existing_stores}
 
+    # Backfill email and password_hash for existing legacy stores safely
+    for existing_store in existing_stores:
+        changed = False
+        if not existing_store.email:
+            existing_store.email = DEMO_STORE_EMAILS.get(
+                existing_store.store_id,
+                f"{existing_store.store_id.lower()}@store.nullwasted.id",
+            )
+            changed = True
+        if not existing_store.password_hash:
+            existing_store.password_hash = default_pw_hash
+            changed = True
+        if changed:
+            session.add(existing_store)
+
     stores_to_seed = [
         Store(
             store_id="FTUI-001",
             name="Dapur Barokah FTUI",
-            pin_hash=default_pin_hash,
-            location_name="Kantin FTUI · 200m (🚶 3 mnt)",
+            email=DEMO_STORE_EMAILS["FTUI-001"],
+            password_hash=default_pw_hash,
+            pin_hash="",
+            location_name="Kantin FTUI · 110m (🚶 2 mnt)",
             latitude=-6.3621,
             longitude=106.8246,
             closing_time="20:30",
@@ -31,23 +54,27 @@ def seed_initial_data(session: Session) -> None:
         Store(
             store_id="MARGONDA-042",
             name="Roti Unyil & Pastry Margonda",
-            pin_hash=default_pin_hash,
-            location_name="Jl. Margonda Raya · 950m (🛵 4 mnt)",
-            latitude=-6.3645,
-            longitude=106.8325,
+            email=DEMO_STORE_EMAILS["MARGONDA-042"],
+            password_hash=default_pw_hash,
+            pin_hash="",
+            location_name="Jl. Margonda Raya · 1.8km (🛵 5 mnt)",
+            latitude=-6.3685,
+            longitude=106.8375,
             closing_time="21:30",
-            maps_url="https://maps.google.com/?q=-6.3645,106.8325",
+            maps_url="https://maps.google.com/?q=-6.3685,106.8375",
             is_active=True,
         ),
         Store(
             store_id="KUTEK-007",
             name="Warkop & Snack Kutek",
-            pin_hash=default_pin_hash,
-            location_name="Kukusan Teknik (Kutek) · 400m (🚶 5 mnt)",
-            latitude=-6.3598,
-            longitude=106.8215,
+            email=DEMO_STORE_EMAILS["KUTEK-007"],
+            password_hash=default_pw_hash,
+            pin_hash="",
+            location_name="Kukusan Teknik (Kutek) · 780m (🚶 9 mnt)",
+            latitude=-6.3575,
+            longitude=106.8195,
             closing_time="22:00",
-            maps_url="https://maps.google.com/?q=-6.3598,106.8215",
+            maps_url="https://maps.google.com/?q=-6.3575,106.8195",
             is_active=True,
         ),
     ]
@@ -76,6 +103,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Rendang Daging Sapi Padang",
                 category="HIGH_PERISHABILITY",
                 bpom_max_hours=4.0,
+                image_url="/assets/foods/rendang.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -88,6 +116,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Ayam Bakar Bumbu Madu",
                 category="MEDIUM_PERISHABILITY",
                 bpom_max_hours=8.0,
+                image_url="/assets/foods/ayam_bakar.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -100,6 +129,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Lontong Sayur Padang Santan",
                 category="HIGH_PERISHABILITY",
                 bpom_max_hours=4.0,
+                image_url="/assets/foods/ayam_bakar.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -112,6 +142,7 @@ def seed_initial_data(session: Session) -> None:
                 canonical_bpom_dish="Tahu Tempe Bacem Manis",
                 category="MEDIUM_PERISHABILITY",
                 bpom_max_hours=8.0,
+                image_url="/assets/foods/tahu_tempe.jpg",
                 is_active=True,
             ),
             # MARGONDA-042 (Roti Unyil & Pastry Margonda)
@@ -124,7 +155,9 @@ def seed_initial_data(session: Session) -> None:
                 ingredients="Tepung terigu, mentega, cokelat pasta",
                 canonical_bpom_dish="Croissant Pastry Cokelat",
                 category="LOW_PERISHABILITY",
+                food_type="BAKERY",
                 bpom_max_hours=24.0,
+                image_url="/assets/foods/croissant.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -136,7 +169,9 @@ def seed_initial_data(session: Session) -> None:
                 ingredients="Tepung terigu, keju cheddar, ragi",
                 canonical_bpom_dish="Roti Sobek Manis",
                 category="LOW_PERISHABILITY",
+                food_type="BAKERY",
                 bpom_max_hours=24.0,
+                image_url="/assets/foods/roti_unyil.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -148,7 +183,9 @@ def seed_initial_data(session: Session) -> None:
                 ingredients="Tepung kentang, gula halus, minyak nabati",
                 canonical_bpom_dish="Donat Kentang Gula Halus",
                 category="LOW_PERISHABILITY",
+                food_type="BAKERY",
                 bpom_max_hours=24.0,
+                image_url="/assets/foods/donat_klasik.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -160,7 +197,9 @@ def seed_initial_data(session: Session) -> None:
                 ingredients="Pastry puff, selai apel, kayu manis bubuk",
                 canonical_bpom_dish="Danish Pastry Buah",
                 category="LOW_PERISHABILITY",
+                food_type="BAKERY",
                 bpom_max_hours=24.0,
+                image_url="/assets/foods/roti_unyil.jpg",
                 is_active=True,
             ),
             # KUTEK-007 (Warkop & Snack Kutek)
@@ -173,7 +212,9 @@ def seed_initial_data(session: Session) -> None:
                 ingredients="Mie telur, sawi, telur mata sapi, bawang goreng",
                 canonical_bpom_dish="Mie Goreng Telur Spesial",
                 category="MEDIUM_PERISHABILITY",
+                food_type="MEAL",
                 bpom_max_hours=8.0,
+                image_url="/assets/foods/indomie.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -185,7 +226,9 @@ def seed_initial_data(session: Session) -> None:
                 ingredients="Pisang uli, meses cokelat, parutan keju cheddar",
                 canonical_bpom_dish="Pisang Bakar Cokelat Keju",
                 category="MEDIUM_PERISHABILITY",
+                food_type="MEAL",
                 bpom_max_hours=8.0,
+                image_url="/assets/foods/pisang_bakar.jpg",
                 is_active=True,
             ),
             StoreMenuItem(
@@ -197,7 +240,9 @@ def seed_initial_data(session: Session) -> None:
                 ingredients="Kopi espresso, susu sapi segar, gula aren cair",
                 canonical_bpom_dish="Kopi Susu Gula Aren Botolan",
                 category="HIGH_PERISHABILITY",
+                food_type="BEVERAGE",
                 bpom_max_hours=4.0,
+                image_url="/assets/foods/kopi_susu.jpg",
                 is_active=True,
             ),
         ]
@@ -216,7 +261,7 @@ def seed_initial_data(session: Session) -> None:
             ItemListing(
                 store_id="FTUI-001",
                 store_name="Dapur Barokah FTUI",
-                location_badge="Kantin FTUI · 200m (🚶 3 mnt)",
+                location_badge="Kantin FTUI · 110m (🚶 2 mnt)",
                 maps_url="https://maps.google.com/?q=-6.3621,106.8246",
                 latitude=-6.3621,
                 longitude=106.8246,
@@ -237,13 +282,14 @@ def seed_initial_data(session: Session) -> None:
                 hazard_description="Olahan unggas matang aman pada suhu ruang dalam batas toleransi.",
                 regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 08.0",
                 similarity_score=0.96,
+                image_url="/assets/foods/ayam_bakar.jpg",
                 is_bundle=False,
                 is_active=True,
             ),
             ItemListing(
                 store_id="FTUI-001",
                 store_name="Dapur Barokah FTUI",
-                location_badge="Kantin FTUI · 200m (🚶 3 mnt)",
+                location_badge="Kantin FTUI · 110m (🚶 2 mnt)",
                 maps_url="https://maps.google.com/?q=-6.3621,106.8246",
                 latitude=-6.3621,
                 longitude=106.8246,
@@ -264,6 +310,7 @@ def seed_initial_data(session: Session) -> None:
                 hazard_description="Olahan kedelai manis memiliki stabilitas mikrobiologis baik.",
                 regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 06.0",
                 similarity_score=0.95,
+                image_url="/assets/foods/tahu_tempe.jpg",
                 is_bundle=False,
                 is_active=True,
             ),
@@ -271,14 +318,15 @@ def seed_initial_data(session: Session) -> None:
             ItemListing(
                 store_id="MARGONDA-042",
                 store_name="Roti Unyil & Pastry Margonda",
-                location_badge="Jl. Margonda Raya · 950m (🛵 4 mnt)",
-                maps_url="https://maps.google.com/?q=-6.3645,106.8325",
-                latitude=-6.3645,
-                longitude=106.8325,
+                location_badge="Jl. Margonda Raya · 1.8km (🛵 5 mnt)",
+                maps_url="https://maps.google.com/?q=-6.3685,106.8375",
+                latitude=-6.3685,
+                longitude=106.8375,
                 closing_time="21:30",
                 food_name="Croissant Cokelat Lumer",
                 matched_canonical_dish="Croissant Pastry Cokelat",
                 category="LOW_PERISHABILITY",
+                food_type="BAKERY",
                 quantity=2,  # Low stock
                 initial_quantity=5,
                 original_price=20000,
@@ -292,20 +340,22 @@ def seed_initial_data(session: Session) -> None:
                 hazard_description="Produk bakery aman pada suhu ruang.",
                 regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 07.0",
                 similarity_score=0.97,
+                image_url="/assets/foods/croissant.jpg",
                 is_bundle=False,
                 is_active=True,
             ),
             ItemListing(
                 store_id="MARGONDA-042",
                 store_name="Roti Unyil & Pastry Margonda",
-                location_badge="Jl. Margonda Raya · 950m (🛵 4 mnt)",
-                maps_url="https://maps.google.com/?q=-6.3645,106.8325",
-                latitude=-6.3645,
-                longitude=106.8325,
+                location_badge="Jl. Margonda Raya · 1.8km (🛵 5 mnt)",
+                maps_url="https://maps.google.com/?q=-6.3685,106.8375",
+                latitude=-6.3685,
+                longitude=106.8375,
                 closing_time="21:30",
                 food_name="Donat Gula Klasik Isi 4",
                 matched_canonical_dish="Donat Kentang Gula Halus",
                 category="LOW_PERISHABILITY",
+                food_type="BAKERY",
                 quantity=1,  # Low stock
                 initial_quantity=3,
                 original_price=16000,
@@ -319,6 +369,7 @@ def seed_initial_data(session: Session) -> None:
                 hazard_description="Produk bakery berkadar air rendah aman.",
                 regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 07.0",
                 similarity_score=0.96,
+                image_url="/assets/foods/donat_klasik.jpg",
                 is_bundle=False,
                 is_active=True,
             ),
@@ -326,10 +377,10 @@ def seed_initial_data(session: Session) -> None:
             ItemListing(
                 store_id="KUTEK-007",
                 store_name="Warkop & Snack Kutek",
-                location_badge="Kukusan Teknik (Kutek) · 400m (🚶 5 mnt)",
-                maps_url="https://maps.google.com/?q=-6.3598,106.8215",
-                latitude=-6.3598,
-                longitude=106.8215,
+                location_badge="Kukusan Teknik (Kutek) · 780m (🚶 9 mnt)",
+                maps_url="https://maps.google.com/?q=-6.3575,106.8195",
+                latitude=-6.3575,
+                longitude=106.8195,
                 closing_time="22:00",
                 food_name="Pisang Bakar Cokelat Keju",
                 matched_canonical_dish="Pisang Bakar Cokelat Keju",
@@ -347,6 +398,7 @@ def seed_initial_data(session: Session) -> None:
                 hazard_description="Cemilan matang stabil pada suhu ruang.",
                 regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 04.0",
                 similarity_score=0.95,
+                image_url="/assets/foods/pisang_bakar.jpg",
                 is_bundle=False,
                 is_active=True,
             ),
@@ -357,11 +409,36 @@ def seed_initial_data(session: Session) -> None:
         session.commit()
 
     # ========================================================================
-    # 4. DEFAULT CONSUMER USER (User)
+    # 4. DEFAULT CONSUMER USER (User) & LEGACY USER BACKFILL
     # ========================================================================
-    budi_user = session.exec(select(User).where(User.phone == "0812-8899-0011")).first()
+    budi_user = session.exec(
+        select(User).where((User.email == "budi@nullwasted.id") | (User.phone == "0812-8899-0011"))
+    ).first()
     if not budi_user:
-        budi_user = User(name="Budi Santoso", phone="0812-8899-0011", role="CONSUMER")
+        budi_user = User(
+            name="Budi Santoso",
+            email="budi@nullwasted.id",
+            password_hash=default_pw_hash,
+            phone="0812-8899-0011",
+            role="CONSUMER",
+        )
         session.add(budi_user)
-        session.commit()
+    else:
+        changed = False
+        if not budi_user.email:
+            budi_user.email = "budi@nullwasted.id"
+            changed = True
+        if not budi_user.password_hash:
+            budi_user.password_hash = default_pw_hash
+            changed = True
+        if changed:
+            session.add(budi_user)
+
+    for legacy_user in session.exec(select(User).where(User.email == None)).all():
+        legacy_user.email = f"{legacy_user.id}@consumer.nullwasted.id"
+        if not legacy_user.password_hash:
+            legacy_user.password_hash = default_pw_hash
+        session.add(legacy_user)
+
+    session.commit()
 

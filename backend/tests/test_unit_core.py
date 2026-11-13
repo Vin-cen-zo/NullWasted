@@ -168,11 +168,15 @@ def test_api_full_lifecycle(client: TestClient):
     assert draft1_data["recommended_discount_percent"] == 55
     assert draft1_data["discounted_price"] == 9000
 
-    # 3. Draft Pill 2 (Gulai Ayam) -> REJECTED
+    # 3. Draft Pill 2 (Gulai Ayam) -> REJECTED (anchored to 18:00 WIB for 11:00 AM -> 7h elapsed)
     p2_payload = {
         "text": "Ada sisa 3 porsi Gulai Ayam Padang santan kental, harga Rp25.000, selesai masak jam 11 siang (sudah 7 jam suhu ruang)."
     }
-    draft2_res = client.post("/api/v1/listings/draft", json=p2_payload)
+    draft2_res = client.post(
+        "/api/v1/listings/draft",
+        json=p2_payload,
+        headers={"X-Simulated-Time": "2026-11-12T18:00:00+07:00"},
+    )
     assert draft2_res.status_code == 200
     draft2_data = draft2_res.json()
     assert draft2_data["safety_status"] == "REJECTED"
@@ -402,30 +406,58 @@ def test_seed_multi_store_and_menu_catalog(client: TestClient):
 
 
 def test_merchant_and_consumer_jwt_auth(client: TestClient):
-    """Tests merchant PIN verification (success/fail) and consumer phone login with JWT tokens."""
+    """Tests merchant Email+Password verification (success/fail) and consumer Email+Password login with JWT tokens."""
     # Merchant login success
-    res_ok = client.post("/api/v1/auth/merchant-login", json={"store_id": "FTUI-001", "pin": "1234"})
+    res_ok = client.post(
+        "/api/v1/auth/merchant-login",
+        json={"email": "dapurbarokah@nullwasted.id", "password": "nullwasted123"},
+    )
     assert res_ok.status_code == 200
     data_ok = res_ok.json()
     assert data_ok["role"] == "merchant"
     assert "token" in data_ok
     assert data_ok["store_name"] == "Dapur Barokah FTUI"
+    assert data_ok["email"] == "dapurbarokah@nullwasted.id"
 
-    # Merchant login wrong PIN
-    res_fail = client.post("/api/v1/auth/merchant-login", json={"store_id": "FTUI-001", "pin": "9999"})
+    # Merchant login wrong password
+    res_fail = client.post(
+        "/api/v1/auth/merchant-login",
+        json={"email": "dapurbarokah@nullwasted.id", "password": "wrongpassword"},
+    )
     assert res_fail.status_code == 401
 
-    # Merchant login unknown store
-    res_unknown = client.post("/api/v1/auth/merchant-login", json={"store_id": "UNKNOWN-999", "pin": "1234"})
+    # Merchant login unknown email
+    res_unknown = client.post(
+        "/api/v1/auth/merchant-login",
+        json={"email": "unknownstore@nullwasted.id", "password": "nullwasted123"},
+    )
     assert res_unknown.status_code == 401
 
-    # Consumer login
-    res_consumer = client.post("/api/v1/auth/consumer-login", json={"name": "Siti Rahma", "phone": "0812-3456-7890"})
+    # Consumer login success (seeded demo account)
+    res_consumer = client.post(
+        "/api/v1/auth/consumer-login",
+        json={"email": "budi@nullwasted.id", "password": "nullwasted123"},
+    )
     assert res_consumer.status_code == 200
     c_data = res_consumer.json()
     assert "token" in c_data
-    assert c_data["customer_name"] == "Siti Rahma"
+    assert c_data["customer_name"] == "Budi Santoso"
     assert c_data["role"] == "consumer"
+    assert c_data["email"] == "budi@nullwasted.id"
+
+    # Consumer login wrong password
+    res_c_fail = client.post(
+        "/api/v1/auth/consumer-login",
+        json={"email": "budi@nullwasted.id", "password": "wrongpassword"},
+    )
+    assert res_c_fail.status_code == 401
+
+    # Consumer login unknown email
+    res_c_unknown = client.post(
+        "/api/v1/auth/consumer-login",
+        json={"email": "nobody@nullwasted.id", "password": "nullwasted123"},
+    )
+    assert res_c_unknown.status_code == 401
 
 
 def test_store_menu_crud_and_rag_mapping(client: TestClient):
@@ -470,8 +502,12 @@ def test_context_aware_slot_filling_case_a_and_b(client: TestClient):
     assert data_a["bpom_max_hours"] == 4.0
     assert data_a["needs_manual_price"] is False
 
-    # Case B: Time cooked override ('Sisa 3 rendang masak jam 10 -> 6 jam lalu')
-    res_b = client.post("/api/v1/listings/draft", json={"text": "Sisa 3 rendang masak jam 10 (sudah 6 jam suhu ruang)", "store_id": "FTUI-001"})
+    # Case B: Time cooked override ('Sisa 3 rendang masak jam 10 -> 6 jam lalu' anchored to 16:00 WIB)
+    res_b = client.post(
+        "/api/v1/listings/draft",
+        json={"text": "Sisa 3 rendang masak jam 10 (sudah 6 jam suhu ruang)", "store_id": "FTUI-001"},
+        headers={"X-Simulated-Time": "2026-11-12T16:00:00+07:00"},
+    )
     assert res_b.status_code == 200
     data_b = res_b.json()
     assert data_b["hours_since_cooked"] == 6.0
@@ -533,7 +569,7 @@ def test_smart_mystery_bag_bundling_engine(client: TestClient):
 def test_payment_methods_cash_vs_simulated_qris(client: TestClient):
     """Tests reservation with CASH_ON_PICKUP (UNPAID) vs SIMULATED_QRIS (PAID)."""
     listings = client.get("/api/v1/listings/active").json()
-    listing = listings[0]
+    listing = next(i for i in listings if i["quantity"] >= 2 and not i.get("is_bundle"))
     l_id = listing["id"]
 
     # 1. CASH_ON_PICKUP
@@ -666,11 +702,12 @@ def test_ai_gateway_timeout_hardening():
 
 
 def test_autonomous_merchant_and_consumer_registration(client: TestClient):
-    """Tests autonomous registration of merchant store and consumer, duplicate rejection, and login."""
+    """Tests autonomous Email+Password registration of merchant store and consumer, duplicate rejection, and login."""
     # 1. Autonomous Merchant Registration
     reg_store_payload = {
         "name": "Kedai Kopi Senja Depok",
-        "pin": "5678",
+        "email": "senja@nullwasted.id",
+        "password": "kopisenja123",
         "location_name": "ukm dekat Stasiun UI · 300m",
         "closing_time": "21:00",
     }
@@ -678,14 +715,19 @@ def test_autonomous_merchant_and_consumer_registration(client: TestClient):
     assert res_reg_store.status_code == 200
     store_data = res_reg_store.json()
     assert store_data["role"] == "merchant"
+    assert store_data["email"] == "senja@nullwasted.id"
     assert "store_id" in store_data and len(store_data["store_id"]) >= 5
     assert store_data["token"] is not None and len(store_data["token"]) > 20
     new_store_id = store_data["store_id"]
 
+    # Duplicate merchant email rejected with HTTP 400
+    res_dup_store = client.post("/api/v1/auth/merchant-register", json=reg_store_payload)
+    assert res_dup_store.status_code == 400
+
     # 2. Login with newly registered merchant
     res_login_store = client.post(
         "/api/v1/auth/merchant-login",
-        json={"store_id": new_store_id, "pin": "5678"},
+        json={"email": "senja@nullwasted.id", "password": "kopisenja123"},
     )
     assert res_login_store.status_code == 200
     assert res_login_store.json()["store_id"] == new_store_id
@@ -693,6 +735,8 @@ def test_autonomous_merchant_and_consumer_registration(client: TestClient):
     # 3. Autonomous Consumer Registration
     reg_consumer_payload = {
         "name": "Andi Pratama",
+        "email": "andi@nullwasted.id",
+        "password": "andi1234",
         "phone": "0813-9988-7766",
         "address": "Kukusan Teknik Depok",
     }
@@ -701,26 +745,526 @@ def test_autonomous_merchant_and_consumer_registration(client: TestClient):
     cons_data = res_reg_cons.json()
     assert cons_data["role"] == "consumer"
     assert cons_data["customer_name"] == "Andi Pratama"
+    assert cons_data["email"] == "andi@nullwasted.id"
     assert cons_data["token"] is not None
 
-    # 4. Duplicate phone registration rejected with HTTP 400
+    # 4. Duplicate email registration rejected with HTTP 400
     res_dup = client.post("/api/v1/auth/consumer-register", json=reg_consumer_payload)
     assert res_dup.status_code == 400
     assert "sudah terdaftar" in res_dup.json()["detail"]
 
-    # 5. Consumer login with phone only (registered)
+    # 5. Consumer login with Email + Password (registered)
     res_login_cons = client.post(
         "/api/v1/auth/consumer-login",
-        json={"phone": "0813-9988-7766"},
+        json={"email": "andi@nullwasted.id", "password": "andi1234"},
     )
     assert res_login_cons.status_code == 200
     assert res_login_cons.json()["customer_name"] == "Andi Pratama"
 
-    # 6. Consumer login with unregistered phone without name returns HTTP 404
+    # 6. Consumer login with wrong password returns HTTP 401
+    res_wrong_pw = client.post(
+        "/api/v1/auth/consumer-login",
+        json={"email": "andi@nullwasted.id", "password": "salahpassword"},
+    )
+    assert res_wrong_pw.status_code == 401
+
+    # 7. Consumer login with unregistered email returns HTTP 401
     res_unknown = client.post(
         "/api/v1/auth/consumer-login",
-        json={"phone": "0899-0000-0000"},
+        json={"email": "belumdaftar@nullwasted.id", "password": "password123"},
     )
-    assert res_unknown.status_code == 404
-    assert "belum terdaftar" in res_unknown.json()["detail"]
+    assert res_unknown.status_code == 401
+
+
+def test_time_awareness_simulated_clock_and_local_extractor():
+    """Verifies dynamic WIB simulated clock parsing for cooking/closing times, future cook rejection, and overnight check."""
+    from app.core.clock import parse_simulated_time_header, reset_simulated_now_wib, set_simulated_now_wib
+
+    sim_dt = parse_simulated_time_header("2026-11-12T08:33:00+07:00")
+    assert sim_dt is not None
+    tok = set_simulated_now_wib(sim_dt)
+    try:
+        # 1. Explicit cooking & closing time at 08:33 WIB
+        res1 = local_rule_based_extract("ada kroisan 5 pcs harga 15rb masak jam 7 pagi tutup jam 9 malam")
+        assert res1["hours_since_cooked"] == pytest.approx(1.55, abs=0.1)
+        assert res1["explicit_closing_mentioned"] is True
+        assert 745 <= res1["minutes_until_closing"] <= 748
+        assert res1["future_cooking_time"] is False
+
+        # 2. Future cooking time at 08:33 WIB -> flagged and rejected by guardrail
+        res2 = local_rule_based_extract("ayam goreng 4 porsi masak jam 14:00 harga 20rb")
+        assert res2["future_cooking_time"] is True
+        safety2 = evaluate_food_safety(
+            food_name="Ayam Goreng",
+            raw_text="ayam goreng 4 porsi masak jam 14:00 harga 20rb",
+            hours_since_cooked=res2["hours_since_cooked"],
+            future_cooking_time=res2["future_cooking_time"],
+        )
+        assert safety2["safety_status"] == "REJECTED"
+        assert safety2["can_publish"] is False
+
+        # 3. Yesterday night cooking remains >= 24h
+        res3 = local_rule_based_extract("nasi uduk 3 porsi masak jam 10 malam kemarin harga 15rb")
+        assert res3["hours_since_cooked"] >= 24.0
+        assert res3["future_cooking_time"] is False
+    finally:
+        reset_simulated_now_wib(tok)
+
+
+def test_extractor_null_gemini_payload_and_simulation_toggle(client: TestClient, monkeypatch):
+    """Verifies safe null coercion on Gemini JSON response and ENABLE_TIME_SIMULATION toggle enforcement."""
+    import json
+    from app.core import config as app_config
+    from app.services import extractor as extractor_mod
+
+    async def fake_generate_content(*args, **kwargs):
+        return json.dumps(
+            {
+                "food_name": "Kroisan Mentega",
+                "is_edible_food": True,
+                "food_type": "BAKERY",
+                "inferred_risk": "LOW_PERISHABILITY",
+                "quantity": None,
+                "original_price": None,
+                "hours_since_cooked": None,
+                "minutes_until_closing": None,
+            }
+        )
+
+    monkeypatch.setattr(extractor_mod.ai_gateway, "generate_content", fake_generate_content)
+
+    # 1. With ENABLE_TIME_SIMULATION=True, draft endpoint obeys X-Simulated-Time (08:33 -> tutup 21:00 = 747m)
+    res_draft = client.post(
+        "/api/v1/listings/draft",
+        json={"text": "ada kroisan 5 pcs harga 15rb masak jam 7 pagi tutup jam 9 malam", "store_id": "FTUI-001"},
+        headers={"X-Simulated-Time": "2026-11-12T08:33:00+07:00"},
+    )
+    assert res_draft.status_code == 200
+    d1 = res_draft.json()
+    assert d1["quantity"] == 5
+    assert d1["original_price"] == 15000
+    assert 745 <= d1["minutes_until_closing"] <= 748
+
+    # 2. Publish with historical simulated year (2020) when enabled vs disabled proves toggle ignores header
+    login_res = client.post(
+        "/api/v1/auth/merchant-login",
+        json={"email": "rotiunyil@nullwasted.id", "password": "nullwasted123"},
+    )
+    token = login_res.json()["token"]
+    pub_payload = {
+        "store_id": "MARGONDA-042",
+        "food_name": "Croissant Mentega",
+        "matched_canonical_dish": "Croissant Mentega",
+        "original_price": 24000,
+        "discounted_price": 12000,
+        "discount_percent": 50,
+        "hours_since_cooked": 1.0,
+        "category": "LOW_PERISHABILITY",
+        "food_type": "BAKERY",
+        "bpom_max_hours": 24.0,
+        "minutes_until_closing": 120,
+        "safety_status": "SAFE",
+        "safety_reason": "Roti layak konsumsi.",
+        "hazard_description": "Sesuai batas suhu ruang PerBPOM.",
+        "regulation_ref": "PerBPOM No. 16 Tahun 2019",
+        "quantity": 2,
+        "closing_time": "20:30",
+    }
+
+    r_sim_on = client.post(
+        "/api/v1/listings/publish",
+        json=pub_payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-Simulated-Time": "2020-05-01T12:00:00+07:00",
+        },
+    )
+    assert r_sim_on.status_code == 200
+    assert r_sim_on.json()["expires_at"].startswith("2020-05-01")
+
+    monkeypatch.setattr(app_config, "ENABLE_TIME_SIMULATION", False)
+    r_sim_off = client.post(
+        "/api/v1/listings/publish",
+        json=pub_payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-Simulated-Time": "2020-05-01T12:00:00+07:00",
+        },
+    )
+    assert r_sim_off.status_code == 200
+    assert not r_sim_off.json()["expires_at"].startswith("2020-")
+
+
+# ============================================================================
+# 8. SPRINT 3 SYSTEM HARDENING & ADVERSARIAL TEST SUITE
+# ============================================================================
+
+def test_sprint3_non_food_poison_and_battery_rejection(client: TestClient):
+    """Verifies that non-food poison and battery queries are strictly rejected,
+    while valid dishes containing 'oli' (e.g. Aglio Olio, Tumis Brokoli) remain SAFE."""
+    # 1. Poison item rejected
+    eval_poison = evaluate_food_safety("Racun tikus arsenik", hours_since_cooked=1.0)
+    assert eval_poison["safety_status"] == "REJECTED"
+    assert eval_poison["can_publish"] is False
+    assert "racun" in eval_poison["safety_reason"].lower() or "bahaya" in eval_poison["safety_reason"].lower()
+
+    # 2. Battery item rejected
+    eval_battery = evaluate_food_safety("Baterai Panasonic bekas", hours_since_cooked=1.0)
+    assert eval_battery["safety_status"] == "REJECTED"
+    assert eval_battery["can_publish"] is False
+
+    # 3. Direct publish rejected with HTTP 400
+    res_pub = client.post(
+        "/api/v1/listings/publish",
+        json={
+            "store_id": "FTUI-001",
+            "food_name": "Racun tikus arsenik",
+            "matched_canonical_dish": "Racun tikus arsenik",
+            "quantity": 2,
+            "original_price": 20000,
+            "discount_percent": 50,
+            "discounted_price": 10000,
+            "hours_since_cooked": 1.0,
+            "bpom_max_hours": 4.0,
+            "minutes_until_closing": 60,
+            "safety_status": "SAFE",
+            "safety_reason": "Bahan aman",
+            "hazard_description": "Tidak ada bahaya",
+            "category": "HIGH_PERISHABILITY",
+        },
+    )
+    assert res_pub.status_code == 400
+    assert "bahaya" in res_pub.json()["detail"].lower() or "ditolak" in res_pub.json()["detail"].lower() or "racun" in res_pub.json()["detail"].lower()
+
+    # 4. Legitimate dishes with substring 'oli' are NOT rejected by oil/oli keyword
+    eval_olio = evaluate_food_safety("Spaghetti Aglio Olio", hours_since_cooked=1.5)
+    assert eval_olio["safety_status"] == "SAFE"
+    assert eval_olio["can_publish"] is True
+
+    eval_brokoli = evaluate_food_safety("Tumis Brokoli Bawang Putih", hours_since_cooked=2.0)
+    assert eval_brokoli["safety_status"] == "SAFE"
+    assert eval_brokoli["can_publish"] is True
+
+
+def test_sprint3_wildlife_meat_rejection(client: TestClient):
+    """Verifies that protected wildlife and non-food meat listings are rejected."""
+    eval_dog = evaluate_food_safety("Sate daging anjing bumbu kacang", hours_since_cooked=1.0)
+    assert eval_dog["safety_status"] == "REJECTED"
+    assert eval_dog["can_publish"] is False
+    assert "satwa" in eval_dog["safety_reason"].lower() or "terlarang" in eval_dog["safety_reason"].lower() or "hewani" in eval_dog["safety_reason"].lower()
+
+    eval_bat = evaluate_food_safety("Rica-rica kelelawar pedas", hours_since_cooked=1.0)
+    assert eval_bat["safety_status"] == "REJECTED"
+    assert eval_bat["can_publish"] is False
+
+
+def test_sprint3_menu_catalog_bypass_blocked(client: TestClient):
+    """Verifies that spoiled or hazardous dishes cannot bypass safety checks when saving to menu catalog."""
+    # 1. High perishability dish exceeding BPOM limit (7h > 4h) rejected from store menu
+    res_spoiled = client.post(
+        "/api/v1/menu/FTUI-001",
+        json={
+            "food_name": "Gulai Ayam Santan",
+            "category": "HIGH_PERISHABILITY",
+            "default_hours_cooked": 7.0,
+            "typical_cooking_time": "08:00",
+            "original_price": 25000,
+        },
+    )
+    assert res_spoiled.status_code == 400
+    assert "ditolak bpom" in res_spoiled.json()["detail"].lower()
+
+    # 2. Poisonous non-food item rejected from store menu
+    res_poison = client.post(
+        "/api/v1/menu/FTUI-001",
+        json={
+            "food_name": "Racun Tikus",
+            "category": "HIGH_PERISHABILITY",
+            "default_hours_cooked": 1.0,
+            "typical_cooking_time": "08:00",
+            "original_price": 25000,
+        },
+    )
+    assert res_poison.status_code == 400
+
+    # 3. Draft endpoint sets can_save_to_catalog to False for rejected items
+    res_draft = client.post(
+        "/api/v1/listings/draft",
+        json={
+            "store_id": "FTUI-001",
+            "text": "Ada racun tikus sisa 2 bungkus harga 10000",
+        },
+    )
+    assert res_draft.status_code == 200
+    draft_data = res_draft.json()
+    assert draft_data["can_save_to_catalog"] is False
+    assert draft_data["safety_status"] == "REJECTED"
+
+
+def test_sprint3_overnight_and_future_time_rejection(client: TestClient):
+    """Verifies that overnight ('kemarin') dishes receive >=24h cooked time and are rejected,
+    and future cooking times ('besok') are rejected immediately."""
+    # 1. Overnight cooked time parsed to >= 24h
+    extracted_overnight = local_rule_based_extract("Sisa 3 porsi Ayam Bakar masak jam 10 malam kemarin")
+    assert extracted_overnight["hours_since_cooked"] >= 24.0
+    eval_overnight = evaluate_food_safety(
+        extracted_overnight["food_name"],
+        hours_since_cooked=extracted_overnight["hours_since_cooked"],
+    )
+    assert eval_overnight["safety_status"] == "REJECTED"
+
+    # 2. Future cooking time rejected
+    eval_future = evaluate_food_safety(
+        "Rendang",
+        hours_since_cooked=1.0,
+        raw_text="Ada 4 porsi Rendang masak besok pagi",
+    )
+    assert eval_future["safety_status"] == "REJECTED"
+    assert "masa depan" in eval_future["safety_reason"].lower()
+
+
+def test_sprint3_decimal_currency_and_jaksel_slang_extraction():
+    """Verifies that decimal IDR like '17.5k' is accurately parsed to 17500 and slang is cleaned."""
+    extracted = local_rule_based_extract("Ada roasted chicken sisa 3 packs gila sih ini harga 17.5k")
+    assert extracted["food_name"].lower() == "roasted chicken"
+    assert extracted["quantity"] == 3
+    assert extracted["original_price"] == 17500
+
+
+def test_sprint3_klappertaart_high_perishability_4h_limit():
+    """Verifies that canonical Klappertaart matches HIGH_PERISHABILITY with a 4.0h BPOM limit."""
+    # 1. Cooked 5.0h (> 4.0h) -> REJECTED
+    eval_late = evaluate_food_safety("Klappertaart Panggang Fla Susu", hours_since_cooked=5.0)
+    assert eval_late["category"] == "HIGH_PERISHABILITY"
+    assert eval_late["bpom_max_hours"] == 4.0
+    assert eval_late["safety_status"] == "REJECTED"
+
+    # 2. Cooked 2.0h (<= 4.0h) -> SAFE
+    eval_fresh = evaluate_food_safety("Klappertaart Panggang Fla Susu", hours_since_cooked=2.0)
+    assert eval_fresh["safety_status"] == "SAFE"
+    assert eval_fresh["can_publish"] is True
+
+
+def test_sprint3_pydantic_upper_bounds_and_time_validator(client: TestClient):
+    """Verifies that Pydantic bounds reject absurd quantities, prices, or invalid 24h cooking times."""
+    # 1. Absurd quantity rejected (HTTP 422)
+    res_qty = client.post(
+        "/api/v1/listings/publish",
+        json={
+            "store_id": "FTUI-001",
+            "food_name": "Nasi Goreng",
+            "quantity": 50000,
+            "original_price": 20000,
+            "discounted_price": 10000,
+            "hours_since_cooked": 1.0,
+            "category": "MEDIUM_PERISHABILITY",
+            "pickup_closing_time": "21:00",
+        },
+    )
+    assert res_qty.status_code == 422
+
+    # 2. Absurd price rejected (HTTP 422)
+    res_price = client.post(
+        "/api/v1/listings/publish",
+        json={
+            "store_id": "FTUI-001",
+            "food_name": "Nasi Goreng",
+            "quantity": 5,
+            "original_price": 1000000000,
+            "discounted_price": 10000,
+            "hours_since_cooked": 1.0,
+            "category": "MEDIUM_PERISHABILITY",
+            "pickup_closing_time": "21:00",
+        },
+    )
+    assert res_price.status_code == 422
+
+    # 3. Invalid cooking time format rejected (HTTP 422)
+    res_time = client.post(
+        "/api/v1/menu/FTUI-001",
+        json={
+            "food_name": "Nasi Uduk Gurih",
+            "category": "HIGH_PERISHABILITY",
+            "default_hours_cooked": 2.0,
+            "typical_cooking_time": "gibberish",
+            "original_price": 15000,
+        },
+    )
+    assert res_time.status_code == 422
+
+
+def test_sprint3_smart_bundle_includes_ingredients_and_allergens(client: TestClient):
+    """Verifies that generated smart bundle items include ingredients and allergen tags."""
+    import json
+
+    res_bundle = client.post(
+        "/api/v1/listings/smart-bundle",
+        json={
+            "store_id": "FTUI-001",
+            "bundle_type": "MYSTERY_BAG_HEAVY",
+        },
+    )
+    assert res_bundle.status_code == 200
+    bundle_data = res_bundle.json()
+    assert "bundled_items_json" in bundle_data
+
+    items = json.loads(bundle_data["bundled_items_json"])
+    assert len(items) > 0
+    for item in items:
+        assert "ingredients" in item
+        assert "allergen_tags" in item
+        assert isinstance(item["ingredients"], list)
+        assert isinstance(item["allergen_tags"], list)
+
+
+# ============================================================================
+# 8. DYNAMIC MENU IMAGE UPLOAD & INHERITANCE TESTS
+# ============================================================================
+
+def test_image_upload_success_and_static_serving(client: TestClient):
+    """Verifies that valid WebP/PNG images can be uploaded and retrieved via the mounted /static endpoint."""
+    from pathlib import Path
+    from app.core.config import STATIC_UPLOADS_DIR
+
+    # Valid 1x1 WebP binary payload
+    valid_webp = (
+        b"RIFF\x1a\x00\x00\x00WEBPVP8 "
+        b"\x0e\x00\x00\x00\x01\x00\x01\x00\x00\x00\x00\x00\x00\x00"
+    )
+
+    res = client.post(
+        "/api/v1/upload-image",
+        files={"file": ("test_sample.webp", valid_webp, "image/webp")},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert "image_url" in data
+    assert data["storage_mode"] in ("local", "cloudinary")
+
+    # If saved to local static storage, verify it's fetchable via GET /static/uploads/...
+    if data["storage_mode"] == "local":
+        assert data["image_url"].startswith("/static/uploads/")
+        file_res = client.get(data["image_url"])
+        assert file_res.status_code == 200
+        assert len(file_res.content) == len(valid_webp)
+
+        # Clean up test file to keep workspace pristine
+        filename = data["image_url"].replace("/static/uploads/", "")
+        created_file = STATIC_UPLOADS_DIR / filename
+        if created_file.exists():
+            created_file.unlink()
+
+
+def test_image_upload_invalid_mime_and_magic_bytes_rejection(client: TestClient):
+    """Verifies HTTP 400 rejection for unsupported MIME types, fake magic bytes, and empty files."""
+    # 1. Non-image mime type
+    res_txt = client.post(
+        "/api/v1/upload-image",
+        files={"file": ("danger.txt", b"hello world malicious script", "text/plain")},
+    )
+    assert res_txt.status_code == 400
+    assert "tidak didukung" in res_txt.json()["detail"].lower()
+
+    # 2. Fake magic bytes (Declared as image/png but content is plain text)
+    res_fake = client.post(
+        "/api/v1/upload-image",
+        files={"file": ("fake.png", b"fake binary data disguised as png", "image/png")},
+    )
+    assert res_fake.status_code == 400
+    assert "tidak cocok" in res_fake.json()["detail"].lower()
+
+    # 3. Empty file
+    res_empty = client.post(
+        "/api/v1/upload-image",
+        files={"file": ("empty.jpg", b"", "image/jpeg")},
+    )
+    assert res_empty.status_code == 400
+    assert "tidak boleh kosong" in res_empty.json()["detail"].lower()
+
+
+def test_image_url_lifecycle_inheritance_and_adhoc_none(client: TestClient):
+    """Verifies end-to-end image_url lifecycle:
+    StoreMenuItem -> DraftResponse match -> ItemListing publish -> OrderTicket snapshot.
+    Also verifies that purely ad-hoc items have image_url = None without fake image guessing.
+    """
+    # 1. Create a routine catalog item with an official image_url
+    create_cat_res = client.post(
+        "/api/v1/menu/FTUI-001",
+        json={
+            "food_name": "Sate Ayam Bumbu Madura",
+            "original_price": 25000,
+            "typical_cooking_time": "16:00",
+            "default_hours_cooked": 1.5,
+            "ingredients": "Daging ayam, kecap manis, bumbu kacang gurih",
+            "portion_size": "10 Tusuk",
+            "image_url": "/assets/foods/ayam_bakar.jpg",
+        },
+    )
+    assert create_cat_res.status_code == 200
+    cat_item = create_cat_res.json()
+    assert cat_item["image_url"] == "/assets/foods/ayam_bakar.jpg"
+
+    # 2. Merchant speaks/types matching prompt -> Draft inherits catalog image_url
+    draft_res = client.post(
+        "/api/v1/listings/draft",
+        json={
+            "text": "Ada sate ayam bumbu madura sisa 3 porsi harga 25000",
+            "store_id": "FTUI-001",
+        },
+    )
+    assert draft_res.status_code == 200
+    draft_data = draft_res.json()
+    assert draft_data["image_url"] == "/assets/foods/ayam_bakar.jpg"
+
+    # 3. Publish listing passing the inherited image_url
+    pub_res = client.post(
+        "/api/v1/listings/publish",
+        json={
+            "store_id": "FTUI-001",
+            "food_name": draft_data["food_name"],
+            "matched_canonical_dish": draft_data["matched_canonical_dish"],
+            "category": draft_data["category"],
+            "quantity": draft_data["quantity"],
+            "original_price": draft_data["original_price"],
+            "discount_percent": 55,
+            "hours_since_cooked": draft_data["hours_since_cooked"],
+            "bpom_max_hours": draft_data["bpom_max_hours"],
+            "minutes_until_closing": 90,
+            "safety_status": "SAFE",
+            "safety_reason": "Waktu simpan aman",
+            "hazard_description": "Aman",
+            "image_url": draft_data["image_url"],
+        },
+    )
+    assert pub_res.status_code == 200
+    pub_item = pub_res.json()
+    assert pub_item["image_url"] == "/assets/foods/ayam_bakar.jpg"
+
+    # 4. Reserve order -> OrderTicket snapshots listing image_url
+    res_order = client.post(
+        "/api/v1/orders/reserve",
+        json={
+            "listing_id": pub_item["id"],
+            "quantity": 1,
+            "customer_name": "Tester Image Snapshot",
+        },
+    )
+    assert res_order.status_code == 200
+    ticket = res_order.json()
+    assert ticket["image_url"] == "/assets/foods/ayam_bakar.jpg"
+
+    # 5. Ad-hoc menu draft without catalog match MUST result in image_url = None
+    adhoc_res = client.post(
+        "/api/v1/listings/draft",
+        json={
+            "text": "Ada Nasi Rawon sisa 2, harga 30 ribu, baru matang 1 jam lalu",
+            "store_id": "FTUI-001",
+        },
+    )
+    assert adhoc_res.status_code == 200
+    adhoc_data = adhoc_res.json()
+    assert adhoc_data["catalog_match_status"] == "ADHOC_COMPLETE"
+    assert adhoc_data["image_url"] is None
+
+
 

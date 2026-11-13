@@ -14,12 +14,14 @@ class Store(SQLModel, table=True):
     id: str = Field(default_factory=lambda: f"str-{uuid4().hex[:8]}", primary_key=True)
     store_id: str = Field(unique=True, index=True)  # "FTUI-001" | "MARGONDA-042" | "KUTEK-007"
     name: str = Field(default="Gerai Mitra NullWasted")
-    pin_hash: str
-    location_name: str = Field(default="Kantin FTUI · 250m (🚶 3 mnt)")
-    latitude: float = Field(default=-6.3621)
-    longitude: float = Field(default=106.8246)
+    email: Optional[str] = Field(default=None, unique=True, index=True)
+    password_hash: Optional[str] = Field(default=None)
+    pin_hash: str = Field(default="")
+    location_name: str = Field(default="Lokasi belum diatur")
+    latitude: Optional[float] = Field(default=None)
+    longitude: Optional[float] = Field(default=None)
     closing_time: str = Field(default="20:30")
-    maps_url: str = Field(default="https://maps.google.com/?q=Fakultas+Teknik+Universitas+Indonesia")
+    maps_url: str = Field(default="")
     is_active: bool = Field(default=True)
     created_at: str = Field(default_factory=utc_now_iso)
 
@@ -29,7 +31,9 @@ class User(SQLModel, table=True):
 
     id: str = Field(default_factory=lambda: f"usr-{uuid4().hex[:8]}", primary_key=True)
     name: str
-    phone: str = Field(index=True)
+    email: Optional[str] = Field(default=None, unique=True, index=True)
+    password_hash: Optional[str] = Field(default=None)
+    phone: str = Field(default="", index=True)
     role: str = Field(default="CONSUMER")  # "CONSUMER" | "MERCHANT"
     store_id: Optional[str] = Field(default=None)
     created_at: str = Field(default_factory=utc_now_iso)
@@ -47,7 +51,10 @@ class StoreMenuItem(SQLModel, table=True):
     ingredients: str = Field(default="")
     canonical_bpom_dish: str = Field(default="")
     category: str = Field(default="MEDIUM_PERISHABILITY")
+    food_type: str = Field(default="MEAL")
     bpom_max_hours: float = Field(default=8.0)
+    portion_size: str = Field(default="Reguler")
+    image_url: Optional[str] = Field(default=None)
     is_active: bool = Field(default=True)
     created_at: str = Field(default_factory=utc_now_iso)
 
@@ -58,10 +65,10 @@ class ItemListing(SQLModel, table=True):
     id: str = Field(default_factory=lambda: f"lst-{uuid4().hex[:8]}", primary_key=True)
     store_id: str = Field(default="FTUI-001", index=True)
     store_name: str = Field(default="Dapur Barokah")
-    location_badge: str = Field(default="Kantin FTUI · 250m (🚶 3 mnt)")
-    maps_url: str = Field(default="https://maps.google.com/?q=Fakultas+Teknik+Universitas+Indonesia")
-    latitude: float = Field(default=-6.3626)
-    longitude: float = Field(default=106.8240)
+    location_badge: str = Field(default="")
+    maps_url: str = Field(default="")
+    latitude: Optional[float] = Field(default=None)
+    longitude: Optional[float] = Field(default=None)
     closing_time: str = Field(default="20:30")
     is_bundle: bool = Field(default=False)
     bundled_items_json: Optional[str] = Field(default=None)
@@ -69,6 +76,7 @@ class ItemListing(SQLModel, table=True):
     food_name: str = Field(index=True)
     matched_canonical_dish: str
     category: str  # HIGH_PERISHABILITY | MEDIUM_PERISHABILITY | LOW_PERISHABILITY
+    food_type: str = Field(default="MEAL")  # MEAL | BAKERY | BEVERAGE
     quantity: int = Field(ge=0)
     initial_quantity: int = Field(ge=1)
     original_price: int = Field(gt=0)
@@ -76,13 +84,16 @@ class ItemListing(SQLModel, table=True):
     discount_percent: int = Field(ge=50, le=70)
     hours_since_cooked: float = Field(ge=0.0)
     bpom_max_hours: float = Field(gt=0.0)
-    minutes_until_closing: int = Field(gt=0)
+    minutes_until_closing: int = Field(ge=0)
     safety_status: str  # SAFE | REJECTED
     safety_reason: str
     hazard_description: str
     regulation_ref: str
     similarity_score: float = Field(default=0.95)
+    portion_size: str = Field(default="Reguler")
+    image_url: Optional[str] = Field(default=None)
     is_active: bool = Field(default=True, index=True)
+    expires_at: Optional[datetime] = Field(default=None, index=True)
     created_at: str = Field(default_factory=utc_now_iso)
 
 
@@ -98,6 +109,7 @@ class OrderTicket(SQLModel, table=True):
     food_name: str
     store_name: str
     location_badge: str
+    image_url: Optional[str] = Field(default=None)
     quantity: int = Field(ge=1)
     unit_price: int = Field(gt=0)
     total_price: int = Field(gt=0)
