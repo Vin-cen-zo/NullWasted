@@ -12,7 +12,13 @@ export interface WibComponents {
   second: number;
 }
 
+export function isTimeSimulationFeatureEnabled(): boolean {
+  const raw = String(import.meta.env.VITE_ENABLE_TIME_SIMULATION ?? "true").trim().toLowerCase();
+  return !["false", "0", "no", "off"].includes(raw);
+}
+
 export function getSimulatedOffsetMs(): number {
+  if (!isTimeSimulationFeatureEnabled()) return 0;
   try {
     const raw = localStorage.getItem(SIM_OFFSET_KEY);
     if (raw === null) return 0;
@@ -24,6 +30,7 @@ export function getSimulatedOffsetMs(): number {
 }
 
 export function isTimeSimulated(): boolean {
+  if (!isTimeSimulationFeatureEnabled()) return false;
   try {
     const raw = localStorage.getItem(SIM_OFFSET_KEY);
     return raw !== null && Number.isFinite(Number(raw));

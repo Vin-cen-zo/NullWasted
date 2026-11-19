@@ -25,6 +25,7 @@ import {
   NW_CLOCK_CHANGE_EVENT,
   computeEffectiveSecondsUntilClosing,
   getEffectiveNow,
+  isTimeSimulationFeatureEnabled,
 } from "./utils/clock";
 import {
   PlusCircle,
@@ -409,7 +410,7 @@ export const App: React.FC = () => {
 
           {/* Sisi Kanan: Time Simulator + Logout / Switch Role */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <TimeSimulatorPill />
+            {isTimeSimulationFeatureEnabled() && <TimeSimulatorPill />}
             {session ? (
               <button
                 type="button"

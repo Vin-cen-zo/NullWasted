@@ -5,7 +5,7 @@ import random
 import re
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import text
+from sqlalchemy import case, or_, update
 from sqlmodel import Session, select
 
 from app.core.clock import WIB_TZ, get_effective_now_utc, get_effective_now_wib
@@ -812,21 +812,27 @@ def reserve_order(
             )
 
     # Atomic conditional SQL decrement preventing race conditions, overselling, and expired reservations
-    stmt = text(
-        "UPDATE item_listings "
-        "SET quantity = quantity - :qty, "
-        "    is_active = CASE WHEN quantity - :qty <= 0 THEN 0 ELSE 1 END "
-        "WHERE id = :id AND quantity >= :qty AND is_active = 1 "
-        "AND (expires_at IS NULL OR expires_at > :now_dt)"
+    # Dialect-agnostic SQLAlchemy Core UPDATE (compatible with both SQLite and PostgreSQL BOOLEAN)
+    stmt = (
+        update(ItemListing)
+        .where(
+            ItemListing.id == payload.listing_id,
+            ItemListing.quantity >= payload.quantity,
+            ItemListing.is_active == True,
+            or_(
+                ItemListing.expires_at.is_(None),
+                ItemListing.expires_at > now_utc,
+            ),
+        )
+        .values(
+            quantity=ItemListing.quantity - payload.quantity,
+            is_active=case(
+                (ItemListing.quantity - payload.quantity <= 0, False),
+                else_=True,
+            ),
+        )
     )
-    result = session.execute(
-        stmt,
-        {
-            "qty": payload.quantity,
-            "id": payload.listing_id,
-            "now_dt": now_utc.replace(tzinfo=None),
-        },
-    )
+    result = session.execute(stmt)
     if result.rowcount == 0:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
