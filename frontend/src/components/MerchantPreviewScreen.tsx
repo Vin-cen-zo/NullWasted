@@ -50,7 +50,11 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   // Interactive editable fields (Human-in-the-Loop)
   const [foodName, setFoodName] = useState(draft.food_name);
   const [quantity, setQuantity] = useState<number>(draft.quantity || 1);
+  const [quantityInput, setQuantityInput] = useState<string>(String(draft.quantity || 1));
   const [originalPrice, setOriginalPrice] = useState<number>(draft.original_price || 20000);
+  const [originalPriceInput, setOriginalPriceInput] = useState<string>(
+    String(draft.original_price || 20000)
+  );
   const [discountPercent, setDiscountPercent] = useState<number>(
     draft.recommended_discount_percent || 50
   );
@@ -147,6 +151,43 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   ) * 100;
 
   const isSafe = draft.safety_status === "SAFE";
+
+  const getRejectionTitle = (): string => {
+    const reasonUpper = (draft.safety_reason || "").toUpperCase();
+    const dishLower = (draft.food_name || "").toLowerCase();
+
+    if (reasonUpper.includes("BAHAN HEWANI TERLARANG")) {
+      return "Ditolak: Bahan Hewani Terlarang";
+    }
+    if (reasonUpper.includes("WAKTU MASA DEPAN")) {
+      return "Ditolak: Waktu Masak Tidak Valid";
+    }
+    if (reasonUpper.includes("BUKAN PANGAN KONSUMSI")) {
+      return "Ditolak: Bukan Pangan Konsumsi";
+    }
+    if (reasonUpper.includes("BAHAYA FATAL (NON-PANGAN)")) {
+      const toxicKeywords = [
+        "racun",
+        "arsenik",
+        "sianida",
+        "pestisida",
+        "formalin",
+        "boraks",
+        "deterjen",
+        "baygon",
+        "pemutih",
+        "bensin",
+        "solar",
+        "tiner",
+        "kimia",
+      ];
+      if (toxicKeywords.some((kw) => dishLower.includes(kw))) {
+        return "Ditolak: Terdeteksi Zat Berbahaya / Racun";
+      }
+      return "Ditolak: Bukan Pangan Konsumsi";
+    }
+    return "Ditolak: Pelanggaran Batas Suhu Ruang";
+  };
 
   const handleSaveToCatalog = async () => {
     // Hardening: strictly prevent spoiled / rejected items from entering catalog
@@ -341,7 +382,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
               </span>
             </div>
             <h3 className="text-sm font-bold mt-1.5">
-              {isSafe ? "Lolos Verifikasi Keamanan Pangan" : "Ditolak: Pelanggaran Batas Suhu Ruang"}
+              {isSafe ? "Lolos Verifikasi Keamanan Pangan" : getRejectionTitle()}
             </h3>
             <p className="text-xs mt-1 leading-relaxed opacity-90">{humanizeBpomText(draft.safety_reason)}</p>
 
@@ -464,8 +505,21 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                     type="number"
                     min={1}
                     max={200}
-                    value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, Math.min(200, parseInt(e.target.value, 10) || 1)))}
+                    value={quantityInput}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setQuantityInput(raw);
+                      const parsed = parseInt(raw, 10);
+                      if (!Number.isNaN(parsed)) {
+                        setQuantity(Math.max(1, Math.min(200, parsed)));
+                      }
+                    }}
+                    onBlur={() => {
+                      const parsed = parseInt(quantityInput, 10);
+                      const clamped = Math.max(1, Math.min(200, Number.isNaN(parsed) ? 1 : parsed));
+                      setQuantity(clamped);
+                      setQuantityInput(String(clamped));
+                    }}
                     className="w-full px-3 py-2 rounded-xl border border-stone-200 font-bold text-stone-800 bg-[#F4F3F7] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs transition-colors"
                   />
                 </div>
@@ -485,8 +539,24 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                     step={500}
                     min={1000}
                     max={2000000}
-                    value={originalPrice}
-                    onChange={(e) => setOriginalPrice(Math.max(1000, Math.min(2000000, parseInt(e.target.value, 10) || 1000)))}
+                    value={originalPriceInput}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setOriginalPriceInput(raw);
+                      const parsed = parseInt(raw, 10);
+                      if (!Number.isNaN(parsed) && parsed > 0) {
+                        setOriginalPrice(Math.min(2000000, parsed));
+                      }
+                    }}
+                    onBlur={() => {
+                      const parsed = parseInt(originalPriceInput, 10);
+                      const clamped = Math.max(
+                        1000,
+                        Math.min(2000000, Number.isNaN(parsed) ? 1000 : parsed)
+                      );
+                      setOriginalPrice(clamped);
+                      setOriginalPriceInput(String(clamped));
+                    }}
                     className={`w-full px-3 py-2 rounded-xl font-bold text-xs focus:outline-none focus:ring-2 ${
                       draft.needs_manual_price
                         ? "border-2 border-amber-400 bg-amber-50 text-amber-950 focus:ring-amber-500"

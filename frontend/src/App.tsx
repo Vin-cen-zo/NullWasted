@@ -21,7 +21,11 @@ import {
   cancelOrder,
   deleteListing,
 } from "./services/api";
-import { NW_CLOCK_CHANGE_EVENT, getEffectiveNow, parseBackendUtcMs } from "./utils/clock";
+import {
+  NW_CLOCK_CHANGE_EVENT,
+  computeEffectiveSecondsUntilClosing,
+  getEffectiveNow,
+} from "./utils/clock";
 import {
   PlusCircle,
   ClipboardList,
@@ -63,6 +67,7 @@ export const App: React.FC = () => {
 
   // Toast feedback state
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
   const [clockTick, setClockTick] = useState<number>(() => getEffectiveNow().getTime());
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
@@ -130,9 +135,8 @@ export const App: React.FC = () => {
   }, [session, consumerTab]);
 
   const nonExpiredListingsCount = activeListings.filter((item) => {
-    if (!item.expires_at) return true;
-    const expMs = parseBackendUtcMs(item.expires_at);
-    return Number.isNaN(expMs) || expMs > clockTick;
+    void clockTick;
+    return computeEffectiveSecondsUntilClosing(item.closing_time || "20:30", item.expires_at) > 0;
   }).length;
 
   // Auth Handler
@@ -172,6 +176,7 @@ export const App: React.FC = () => {
   // Merchant Actions
   const handleAnalyzeText = async (text: string) => {
     setIsLoadingDraft(true);
+    setDraftError(null);
     setLastInputText(text);
     try {
       const storeId = session?.storeId || "FTUI-001";
@@ -183,7 +188,9 @@ export const App: React.FC = () => {
         showToast("Analisis AI sukses. Periksa hasil audit BPOM.", "success");
       }
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Gagal menganalisis.", "error");
+      const msg = err instanceof Error ? err.message : "Gagal menganalisis.";
+      setDraftError(msg);
+      showToast(msg, "error");
     } finally {
       setIsLoadingDraft(false);
     }
@@ -464,7 +471,12 @@ export const App: React.FC = () => {
                     showToast(lat != null ? "Pin lokasi gerai diperbarui." : "Pin lokasi gerai dihapus.");
                   }}
                   initialText={lastInputText}
-                  onTextChange={(val) => setLastInputText(val)}
+                  onTextChange={(val) => {
+                    setLastInputText(val);
+                    if (draftError) setDraftError(null);
+                  }}
+                  analyzeError={draftError}
+                  onClearAnalyzeError={() => setDraftError(null)}
                 />
               ))}
 

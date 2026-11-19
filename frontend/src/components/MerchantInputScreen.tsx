@@ -44,6 +44,8 @@ interface MerchantInputScreenProps {
   onStoreLocationUpdated?: (lat: number | null, lng: number | null, label?: string) => void;
   initialText?: string;
   onTextChange?: (text: string) => void;
+  analyzeError?: string | null;
+  onClearAnalyzeError?: () => void;
 }
 
 export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
@@ -60,6 +62,8 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   onStoreLocationUpdated,
   initialText = "",
   onTextChange,
+  analyzeError = null,
+  onClearAnalyzeError,
 }) => {
   // Navigation: Dual-Mode Tabs (Default to AI if initialText provided)
   const [inputMode, setInputMode] = useState<"catalog" | "ai">(() =>
@@ -522,6 +526,28 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <span>{speechError}</span>
+              </div>
+            )}
+
+            {analyzeError && (
+              <div
+                role="alert"
+                className="flex items-start justify-between gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 font-medium"
+              >
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <span>{analyzeError}</span>
+                </div>
+                {onClearAnalyzeError && (
+                  <button
+                    type="button"
+                    onClick={onClearAnalyzeError}
+                    className="text-red-500 hover:text-red-700 shrink-0 cursor-pointer"
+                    aria-label="Tutup pesan error"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             )}
 

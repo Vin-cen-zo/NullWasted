@@ -560,7 +560,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   {/* Quick-fill Demo Store Emails (fills email only, no secret persisted) */}
                   <div className="p-2.5 rounded-xl bg-[#F8F6F0] border border-[#E2DDD3]">
                     <p className="text-[10px] font-bold text-[#5C574F] uppercase tracking-wider mb-1.5">
-                      Isi Cepat Email Gerai Demo (Password uji: <code className="font-mono text-[#1F1D1A]">nullwasted123</code>)
+                      Isi Cepat Email Gerai Demo (Password uji: <code className="font-mono normal-case text-[#1F1D1A]">nullwasted123</code>)
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {DEMO_MERCHANT_EMAILS.map((demo) => (
