@@ -1029,3 +1029,61 @@ def test_auth_401_expired_token_and_rbac_403_isolation(client: TestClient, sessi
         headers={"Authorization": f"Bearer {margonda_token}"},
     )
     assert r_cancel_other_merch.status_code == 403
+
+
+def test_sqlite_legacy_stores_notnull_migration_allows_pin_removal(tmp_path, monkeypatch):
+    """Verifies legacy SQLite stores table with NOT NULL lat/lng migrates cleanly and accepts NULL pin removal."""
+    import sqlite3
+    from sqlmodel import create_engine
+    import app.core.database as db_mod
+
+    db_file = tmp_path / "legacy_notnull.db"
+    raw_conn = sqlite3.connect(db_file)
+    raw_conn.execute(
+        """
+        CREATE TABLE stores (
+            id VARCHAR NOT NULL PRIMARY KEY,
+            store_id VARCHAR NOT NULL,
+            name VARCHAR NOT NULL,
+            pin_hash VARCHAR NOT NULL,
+            location_name VARCHAR NOT NULL,
+            latitude FLOAT NOT NULL,
+            longitude FLOAT NOT NULL,
+            closing_time VARCHAR NOT NULL,
+            maps_url VARCHAR NOT NULL,
+            is_active BOOLEAN NOT NULL,
+            created_at VARCHAR NOT NULL
+        )
+        """
+    )
+    raw_conn.execute(
+        """
+        INSERT INTO stores (
+            id, store_id, name, pin_hash, location_name,
+            latitude, longitude, closing_time, maps_url, is_active, created_at
+        ) VALUES (
+            'str-legacy1', 'FTUI-001', 'Dapur Legacy', '', 'Kantin FTUI',
+            -6.3621, 106.8246, '20:30', 'https://maps.google.com/?q=-6.3621,106.8246', 1, '2026-01-01T00:00:00Z'
+        )
+        """
+    )
+    raw_conn.commit()
+    raw_conn.close()
+
+    test_url = f"sqlite:///{db_file.as_posix()}"
+    test_engine = create_engine(test_url, connect_args={"check_same_thread": False})
+    monkeypatch.setattr(db_mod, "DATABASE_URL", test_url)
+    monkeypatch.setattr(db_mod, "engine", test_engine)
+
+    db_mod.init_db()
+
+    check_conn = sqlite3.connect(db_file)
+    cols = {c[1]: c[3] for c in check_conn.execute("PRAGMA table_info(stores)").fetchall()}
+    assert cols["latitude"] == 0, "latitude must be migrated to nullable"
+    assert cols["longitude"] == 0, "longitude must be migrated to nullable"
+    check_conn.execute("UPDATE stores SET latitude = NULL, longitude = NULL WHERE store_id = 'FTUI-001'")
+    check_conn.commit()
+    row = check_conn.execute("SELECT latitude, longitude FROM stores WHERE store_id = 'FTUI-001'").fetchone()
+    check_conn.close()
+    test_engine.dispose()
+    assert row == (None, None)

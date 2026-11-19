@@ -81,13 +81,53 @@ def init_db() -> None:
                     if "image_url" not in order_cols:
                         conn.execute(text("ALTER TABLE order_tickets ADD COLUMN image_url TEXT DEFAULT NULL"))
 
-                # 3b. stores & users auth migrations (Email + PBKDF2 Password)
-                store_cols = [c[1] for c in conn.execute(text("PRAGMA table_info(stores)")).fetchall()]
+                # 3b. stores & users auth migrations (Email + PBKDF2 Password) + nullable lat/lng
+                store_info = conn.execute(text("PRAGMA table_info(stores)")).fetchall()
+                store_cols = [c[1] for c in store_info]
                 if store_cols:
                     if "email" not in store_cols:
                         conn.execute(text("ALTER TABLE stores ADD COLUMN email TEXT DEFAULT NULL"))
                     if "password_hash" not in store_cols:
                         conn.execute(text("ALTER TABLE stores ADD COLUMN password_hash TEXT DEFAULT NULL"))
+
+                    # Rebuild legacy SQLite stores table if latitude/longitude still have NOT NULL constraints
+                    lat_col = next((c for c in store_info if c[1] == "latitude"), None)
+                    lng_col = next((c for c in store_info if c[1] == "longitude"), None)
+                    if (lat_col and lat_col[3] == 1) or (lng_col and lng_col[3] == 1):
+                        conn.execute(text("DROP TABLE IF EXISTS stores_migrated"))
+                        conn.execute(text("""
+                            CREATE TABLE stores_migrated (
+                                id VARCHAR NOT NULL PRIMARY KEY,
+                                store_id VARCHAR NOT NULL,
+                                name VARCHAR NOT NULL,
+                                email VARCHAR DEFAULT NULL,
+                                password_hash VARCHAR DEFAULT NULL,
+                                pin_hash VARCHAR NOT NULL DEFAULT '',
+                                location_name VARCHAR NOT NULL DEFAULT 'Lokasi belum diatur',
+                                latitude FLOAT DEFAULT NULL,
+                                longitude FLOAT DEFAULT NULL,
+                                closing_time VARCHAR NOT NULL DEFAULT '20:30',
+                                maps_url VARCHAR NOT NULL DEFAULT '',
+                                is_active BOOLEAN NOT NULL DEFAULT 1,
+                                created_at VARCHAR NOT NULL
+                            )
+                        """))
+                        conn.execute(text("""
+                            INSERT INTO stores_migrated (
+                                id, store_id, name, email, password_hash, pin_hash,
+                                location_name, latitude, longitude, closing_time, maps_url,
+                                is_active, created_at
+                            )
+                            SELECT
+                                id, store_id, name, email, password_hash, pin_hash,
+                                location_name, latitude, longitude, closing_time, maps_url,
+                                is_active, created_at
+                            FROM stores
+                        """))
+                        conn.execute(text("DROP TABLE stores"))
+                        conn.execute(text("ALTER TABLE stores_migrated RENAME TO stores"))
+                        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_stores_store_id ON stores (store_id)"))
+
                     conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_stores_email ON stores (email) WHERE email IS NOT NULL"))
 
                 user_cols = [c[1] for c in conn.execute(text("PRAGMA table_info(users)")).fetchall()]
