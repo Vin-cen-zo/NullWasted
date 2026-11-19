@@ -1,0 +1,27 @@
+services:
+  nullwasted-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nullwasted-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=staging
+      - ENABLE_TIME_SIMULATION=true
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: nullwasted-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://nullwasted-api:8000
+    depends_on:
+      - nullwasted-api
