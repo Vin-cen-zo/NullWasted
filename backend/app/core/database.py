@@ -4,11 +4,24 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from app.core.config import DATABASE_URL
 from app.core.seed import seed_initial_data
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
-    echo=False,
-)
+_is_sqlite = DATABASE_URL.startswith("sqlite")
+
+_engine_kwargs: dict = {
+    "echo": False,
+}
+if _is_sqlite:
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    _engine_kwargs.update(
+        {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+            "pool_size": 5,
+            "max_overflow": 10,
+        }
+    )
+
+engine = create_engine(DATABASE_URL, **_engine_kwargs)
 
 
 def init_db() -> None:

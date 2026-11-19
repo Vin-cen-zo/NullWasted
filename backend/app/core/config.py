@@ -24,19 +24,29 @@ else:
     ENABLE_TIME_SIMULATION = ENVIRONMENT != "production"
 
 _DEFAULT_SQLITE_URL = f"sqlite:///{(BASE_DIR / 'nullwasted_local.db').as_posix()}"
-_raw_db_url = os.getenv("DATABASE_URL", "").strip()
-if not _raw_db_url or _raw_db_url in {"sqlite:///./nullwasted_local.db", "sqlite:///nullwasted_local.db"}:
-    DATABASE_URL = _DEFAULT_SQLITE_URL
-elif _raw_db_url.startswith("sqlite:///./"):
-    _rel_sqlite_path = _raw_db_url[len("sqlite:///./"):]
-    DATABASE_URL = f"sqlite:///{(BASE_DIR / _rel_sqlite_path).as_posix()}"
-else:
-    DATABASE_URL = _raw_db_url
+
+
+def normalize_database_url(raw_url: str) -> str:
+    """Normalizes SQLite relative paths and PostgreSQL schemes for SQLAlchemy 2.0 + psycopg3."""
+    cleaned = (raw_url or "").strip()
+    if not cleaned or cleaned in {"sqlite:///./nullwasted_local.db", "sqlite:///nullwasted_local.db"}:
+        return _DEFAULT_SQLITE_URL
+    if cleaned.startswith("sqlite:///./"):
+        rel_sqlite_path = cleaned[len("sqlite:///./"):]
+        return f"sqlite:///{(BASE_DIR / rel_sqlite_path).as_posix()}"
+    if cleaned.startswith("postgres://"):
+        return cleaned.replace("postgres://", "postgresql+psycopg://", 1)
+    if cleaned.startswith("postgresql://"):
+        return cleaned.replace("postgresql://", "postgresql+psycopg://", 1)
+    return cleaned
+
+
+DATABASE_URL = normalize_database_url(os.getenv("DATABASE_URL", ""))
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
 CORS_ORIGIN_REGEX = os.getenv(
     "CORS_ORIGIN_REGEX",
-    r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|.*\.vercel\.app)(:\d+)?$",
+    r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|.*\.pages\.dev|.*\.vercel\.app)(:\d+)?$",
 )
 PIN_SALT = os.getenv("PIN_SALT", "nullwasted-v1-salt")
 JWT_SECRET = os.getenv("JWT_SECRET", "nullwasted-jwt-secret-key-2026")
