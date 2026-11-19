@@ -98,6 +98,7 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
     setSelectedLat(initialLat ?? null);
     setSelectedLng(initialLng ?? null);
     setLocationLabel(initialLabel || "");
+    setSearchQuery("");
     setStatusError(null);
     setSearchResults([]);
   }, [isOpen, initialLat, initialLng, initialLabel]);
@@ -245,8 +246,8 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
         const firstLng = parseFloat(first.lon);
         if (Number.isFinite(firstLat) && Number.isFinite(firstLng)) {
           placeMarker(firstLat, firstLng, { pan: true, zoom: 16 });
-          if (!locationLabel.trim()) {
-            const shortName = first.display_name.split(",").slice(0, 2).join(", ").trim();
+          const shortName = first.display_name.split(",").slice(0, 2).join(", ").trim();
+          if (shortName) {
             setLocationLabel(shortName);
           }
         }
@@ -393,8 +394,8 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
                     const lat = parseFloat(item.lat);
                     const lng = parseFloat(item.lon);
                     placeMarker(lat, lng, { pan: true, zoom: 16 });
-                    if (!locationLabel.trim()) {
-                      const shortName = item.display_name.split(",").slice(0, 2).join(", ").trim();
+                    const shortName = item.display_name.split(",").slice(0, 2).join(", ").trim();
+                    if (shortName) {
                       setLocationLabel(shortName);
                     }
                     setSearchResults([]);
