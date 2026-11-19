@@ -21,7 +21,11 @@ import {
   cancelOrder,
   deleteListing,
 } from "./services/api";
-import { NW_CLOCK_CHANGE_EVENT, getEffectiveNow, parseBackendUtcMs } from "./utils/clock";
+import {
+  NW_CLOCK_CHANGE_EVENT,
+  computeEffectiveSecondsUntilClosing,
+  getEffectiveNow,
+} from "./utils/clock";
 import {
   PlusCircle,
   ClipboardList,
@@ -63,6 +67,7 @@ export const App: React.FC = () => {
 
   // Toast feedback state
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
   const [clockTick, setClockTick] = useState<number>(() => getEffectiveNow().getTime());
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
@@ -130,9 +135,8 @@ export const App: React.FC = () => {
   }, [session, consumerTab]);
 
   const nonExpiredListingsCount = activeListings.filter((item) => {
-    if (!item.expires_at) return true;
-    const expMs = parseBackendUtcMs(item.expires_at);
-    return Number.isNaN(expMs) || expMs > clockTick;
+    void clockTick;
+    return computeEffectiveSecondsUntilClosing(item.closing_time || "20:30", item.expires_at) > 0;
   }).length;
 
   // Auth Handler
@@ -148,6 +152,8 @@ export const App: React.FC = () => {
     }
 
     setActiveDraft(null);
+    setLastInputText("");
+    setDraftError(null);
     setSelectedFeedItem(null);
     if (newSession.role === "merchant") {
       setMerchantTab("create");
@@ -166,12 +172,15 @@ export const App: React.FC = () => {
       console.error("Failed to clear session:", e);
     }
     setActiveDraft(null);
+    setLastInputText("");
+    setDraftError(null);
     setSelectedFeedItem(null);
   };
 
   // Merchant Actions
   const handleAnalyzeText = async (text: string) => {
     setIsLoadingDraft(true);
+    setDraftError(null);
     setLastInputText(text);
     try {
       const storeId = session?.storeId || "FTUI-001";
@@ -183,7 +192,9 @@ export const App: React.FC = () => {
         showToast("Analisis AI sukses. Periksa hasil audit BPOM.", "success");
       }
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Gagal menganalisis.", "error");
+      const msg = err instanceof Error ? err.message : "Gagal menganalisis.";
+      setDraftError(msg);
+      showToast(msg, "error");
     } finally {
       setIsLoadingDraft(false);
     }
@@ -289,30 +300,30 @@ export const App: React.FC = () => {
 
       {/* Sticky Top Navbar */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E2DDD3] shadow-sm shrink-0">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4 w-full">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4 w-full">
           {/* Sisi Kiri: Brand & Identity */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
               NW
             </div>
-            <div>
-              <h1 className="text-xs font-black tracking-tight text-[#1F1D1A]">NullWasted</h1>
+            <div className="min-w-0">
+              <h1 className="text-xs font-black tracking-tight text-[#1F1D1A] truncate">NullWasted</h1>
               {session ? (
-                <div className="flex items-center gap-1 text-[10px] text-[#6B655B]">
+                <div className="flex items-center gap-1 text-[10px] text-[#6B655B] min-w-0">
                   {session.role === "merchant" ? (
                     <>
                       <Store className="w-3 h-3 text-emerald-600 shrink-0" />
-                      <span className="truncate max-w-[140px] sm:max-w-xs">{session.storeName}</span>
+                      <span className="truncate max-w-[96px] sm:max-w-[160px] md:max-w-xs">{session.storeName}</span>
                     </>
                   ) : (
                     <>
                       <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                      <span className="truncate max-w-[140px] sm:max-w-xs">{session.customerName}</span>
+                      <span className="truncate max-w-[96px] sm:max-w-[160px] md:max-w-xs">{session.customerName}</span>
                     </>
                   )}
                 </div>
               ) : (
-                <p className="text-[10px] text-[#6B655B]">Zero-Waste Food PWA</p>
+                <p className="text-[10px] text-[#6B655B] truncate">Zero-Waste Food PWA</p>
               )}
             </div>
           </div>
@@ -397,17 +408,19 @@ export const App: React.FC = () => {
           )}
 
           {/* Sisi Kanan: Time Simulator + Logout / Switch Role */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <TimeSimulatorPill />
             {session ? (
               <button
                 type="button"
                 onClick={handleLogout}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700 transition-colors shrink-0 cursor-pointer"
+                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-[11px] sm:text-xs font-bold text-gray-700 transition-colors shrink-0 cursor-pointer"
                 title="Ganti Peran / Logout"
+                aria-label="Ganti Akun"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Ganti Akun</span>
+                <span className="hidden sm:inline">Ganti Akun</span>
+                <span className="sm:hidden">Keluar</span>
               </button>
             ) : null}
           </div>
@@ -464,7 +477,12 @@ export const App: React.FC = () => {
                     showToast(lat != null ? "Pin lokasi gerai diperbarui." : "Pin lokasi gerai dihapus.");
                   }}
                   initialText={lastInputText}
-                  onTextChange={(val) => setLastInputText(val)}
+                  onTextChange={(val) => {
+                    setLastInputText(val);
+                    if (draftError) setDraftError(null);
+                  }}
+                  analyzeError={draftError}
+                  onClearAnalyzeError={() => setDraftError(null)}
                 />
               ))}
 

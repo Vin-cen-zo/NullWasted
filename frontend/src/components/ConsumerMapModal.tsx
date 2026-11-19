@@ -38,6 +38,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const hasInitialFitRef = useRef<boolean>(false);
+  const lastMarkersSignatureRef = useRef<string>("");
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [registeredStores, setRegisteredStores] = useState<StoreProfile[]>([]);
 
@@ -149,16 +150,32 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
       clearTimeout(timeout);
       resizeObserver.disconnect();
       markersLayerRef.current = null;
+      lastMarkersSignatureRef.current = "";
       map.remove();
       mapInstanceRef.current = null;
     };
   }, [isOpen]);
 
-  // 2. Update markers in-place without destroying the map or resetting user pan/zoom
+  // Stable signature so periodic polling does not destroy/recreate identical Leaflet markers
+  const markersSignature = useMemo(() => {
+    const userSig = userCoords ? `${userCoords[0].toFixed(5)},${userCoords[1].toFixed(5)}` : "none";
+    const storeSigs = Array.from(storeMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([sId, s]) => `${sId}|${s.storeName}|${s.lat.toFixed(5)}|${s.lng.toFixed(5)}|${s.items.length}`)
+      .join(";");
+    return `${userSig}::${storeSigs}`;
+  }, [storeMap, userCoords]);
+
+  // 2. Update markers in-place ONLY when store/GPS signature actually changes
   useEffect(() => {
     const map = mapInstanceRef.current;
     const markersLayer = markersLayerRef.current;
     if (!isOpen || !map || !markersLayer) return;
+
+    if (lastMarkersSignatureRef.current === markersSignature) {
+      return;
+    }
+    lastMarkersSignatureRef.current = markersSignature;
 
     markersLayer.clearLayers();
 
@@ -195,16 +212,19 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
 
     storeMap.forEach((storeData, sId) => {
       const hasSurplus = storeData.items.length > 0;
+      const shortName = `${storeData.storeName.slice(0, 14)}${storeData.storeName.length > 14 ? "…" : ""}`;
+      const labelText = `${shortName}: ${storeData.items.length} Surplus`;
+      const approxWidth = Math.max(115, Math.min(240, labelText.length * 7 + 26));
       const storeIcon = L.divIcon({
         className: "custom-store-marker",
         html: `
-          <div style="background-color: ${hasSurplus ? "#059669" : "#57534E"}; color: white; padding: 4px 8px; border-radius: 12px; font-weight: bold; font-size: 11px; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.25); border: 2px solid white; cursor: pointer; white-space: nowrap;">
-            <span>${storeData.storeName.slice(0, 14)}${storeData.storeName.length > 14 ? "…" : ""}:</span>
+          <div style="min-width: 100%; width: max-content; background-color: ${hasSurplus ? "#059669" : "#57534E"}; color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.25); border: 2px solid white; cursor: pointer; white-space: nowrap;">
+            <span>${shortName}:</span>
             <span>${storeData.items.length} Surplus</span>
           </div>
         `,
-        iconSize: [130, 28],
-        iconAnchor: [65, 14],
+        iconSize: [approxWidth, 28],
+        iconAnchor: [Math.round(approxWidth / 2), 14],
       });
 
       const marker = L.marker([storeData.lat, storeData.lng], { icon: storeIcon }).addTo(markersLayer);
@@ -224,7 +244,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
         map.fitBounds(L.latLngBounds(storePoints), { padding: [48, 48], maxZoom: 15 });
       }
     }
-  }, [isOpen, storeMap, userCoords]);
+  }, [isOpen, markersSignature, storeMap, userCoords]);
 
   // Leaflet map invalidation on store panel toggle and responsive window resize
   useEffect(() => {
