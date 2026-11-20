@@ -252,12 +252,13 @@ def seed_initial_data(session: Session) -> None:
         session.commit()
 
     # ========================================================================
-    # 3. INITIAL ACTIVE SURPLUS LISTINGS (>= 5 Items with Low-Stock Bundling)
+    # 3. INITIAL ACTIVE SURPLUS LISTINGS (9 Items: 75 Portions + Mystery Bag)
     # ========================================================================
     existing_listings = session.exec(select(ItemListing).where(ItemListing.is_active == True)).all()
     if len(existing_listings) < 4:
+        existing_keys = {(item.store_id, item.food_name) for item in existing_listings}
         listings_to_seed = [
-            # FTUI-001 (Dapur Barokah)
+            # FTUI-001 (Dapur Barokah FTUI - 32 Portions)
             ItemListing(
                 store_id="FTUI-001",
                 store_name="Dapur Barokah FTUI",
@@ -269,8 +270,8 @@ def seed_initial_data(session: Session) -> None:
                 food_name="Ayam Bakar Madu",
                 matched_canonical_dish="Ayam Bakar Bumbu Madu",
                 category="MEDIUM_PERISHABILITY",
-                quantity=2,  # Low-stock for Mystery Bag bundling demo!
-                initial_quantity=4,
+                quantity=12,
+                initial_quantity=12,
                 original_price=22000,
                 discounted_price=9900,
                 discount_percent=55,
@@ -294,11 +295,39 @@ def seed_initial_data(session: Session) -> None:
                 latitude=-6.3621,
                 longitude=106.8246,
                 closing_time="20:30",
+                food_name="Rendang Daging Sapi",
+                matched_canonical_dish="Rendang Daging Sapi Padang",
+                category="HIGH_PERISHABILITY",
+                quantity=10,
+                initial_quantity=10,
+                original_price=24000,
+                discounted_price=10800,
+                discount_percent=55,
+                hours_since_cooked=1.5,
+                bpom_max_hours=4.0,
+                minutes_until_closing=90,
+                safety_status="SAFE",
+                safety_reason="Waktu simpan (1.5 jam) aman dari batas maksimal BPOM (4.0 jam).",
+                hazard_description="Olahan santan kental matang aman selama di bawah 4.0 jam suhu ruang.",
+                regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 08.0",
+                similarity_score=0.98,
+                image_url="/assets/foods/rendang.jpg",
+                is_bundle=False,
+                is_active=True,
+            ),
+            ItemListing(
+                store_id="FTUI-001",
+                store_name="Dapur Barokah FTUI",
+                location_badge="Kantin FTUI · 110m (🚶 2 mnt)",
+                maps_url="https://maps.google.com/?q=-6.3621,106.8246",
+                latitude=-6.3621,
+                longitude=106.8246,
+                closing_time="20:30",
                 food_name="Tahu Tempe Bacem Paket",
                 matched_canonical_dish="Tahu Tempe Bacem Manis",
                 category="MEDIUM_PERISHABILITY",
-                quantity=1,  # Low-stock for Mystery Bag bundling demo!
-                initial_quantity=3,
+                quantity=10,
+                initial_quantity=10,
                 original_price=12000,
                 discounted_price=6000,
                 discount_percent=50,
@@ -314,7 +343,7 @@ def seed_initial_data(session: Session) -> None:
                 is_bundle=False,
                 is_active=True,
             ),
-            # MARGONDA-042 (Roti Unyil & Pastry Margonda)
+            # MARGONDA-042 (Roti Unyil & Pastry Margonda - 13 Portions incl. 2 Mystery Bag candidates)
             ItemListing(
                 store_id="MARGONDA-042",
                 store_name="Roti Unyil & Pastry Margonda",
@@ -327,7 +356,7 @@ def seed_initial_data(session: Session) -> None:
                 matched_canonical_dish="Croissant Pastry Cokelat",
                 category="LOW_PERISHABILITY",
                 food_type="BAKERY",
-                quantity=2,  # Low stock
+                quantity=2,  # Low stock for Mystery Bag bundling demo
                 initial_quantity=5,
                 original_price=20000,
                 discounted_price=9000,
@@ -356,7 +385,7 @@ def seed_initial_data(session: Session) -> None:
                 matched_canonical_dish="Donat Kentang Gula Halus",
                 category="LOW_PERISHABILITY",
                 food_type="BAKERY",
-                quantity=1,  # Low stock
+                quantity=1,  # Low stock for Mystery Bag bundling demo
                 initial_quantity=3,
                 original_price=16000,
                 discounted_price=6400,
@@ -373,7 +402,36 @@ def seed_initial_data(session: Session) -> None:
                 is_bundle=False,
                 is_active=True,
             ),
-            # KUTEK-007 (Warkop & Snack Kutek)
+            ItemListing(
+                store_id="MARGONDA-042",
+                store_name="Roti Unyil & Pastry Margonda",
+                location_badge="Jl. Margonda Raya · 1.8km (🛵 5 mnt)",
+                maps_url="https://maps.google.com/?q=-6.3685,106.8375",
+                latitude=-6.3685,
+                longitude=106.8375,
+                closing_time="21:30",
+                food_name="Roti Sobek Keju Artisan",
+                matched_canonical_dish="Roti Sobek Manis",
+                category="LOW_PERISHABILITY",
+                food_type="BAKERY",
+                quantity=10,
+                initial_quantity=10,
+                original_price=24000,
+                discounted_price=10800,
+                discount_percent=55,
+                hours_since_cooked=3.0,
+                bpom_max_hours=24.0,
+                minutes_until_closing=120,
+                safety_status="SAFE",
+                safety_reason="Produk bakery berkadar air rendah aman hingga 24.0 jam.",
+                hazard_description="Produk roti panggang aman pada suhu ruang.",
+                regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 07.0",
+                similarity_score=0.97,
+                image_url="/assets/foods/roti_unyil.jpg",
+                is_bundle=False,
+                is_active=True,
+            ),
+            # KUTEK-007 (Warkop & Snack Kutek - 30 Portions)
             ItemListing(
                 store_id="KUTEK-007",
                 store_name="Warkop & Snack Kutek",
@@ -385,8 +443,8 @@ def seed_initial_data(session: Session) -> None:
                 food_name="Pisang Bakar Cokelat Keju",
                 matched_canonical_dish="Pisang Bakar Cokelat Keju",
                 category="MEDIUM_PERISHABILITY",
-                quantity=4,
-                initial_quantity=6,
+                quantity=10,
+                initial_quantity=10,
                 original_price=15000,
                 discounted_price=7500,
                 discount_percent=50,
@@ -402,10 +460,69 @@ def seed_initial_data(session: Session) -> None:
                 is_bundle=False,
                 is_active=True,
             ),
+            ItemListing(
+                store_id="KUTEK-007",
+                store_name="Warkop & Snack Kutek",
+                location_badge="Kukusan Teknik (Kutek) · 780m (🚶 9 mnt)",
+                maps_url="https://maps.google.com/?q=-6.3575,106.8195",
+                latitude=-6.3575,
+                longitude=106.8195,
+                closing_time="22:00",
+                food_name="Mie Goreng Spesial Telur",
+                matched_canonical_dish="Mie Goreng Telur Spesial",
+                category="MEDIUM_PERISHABILITY",
+                food_type="MEAL",
+                quantity=10,
+                initial_quantity=10,
+                original_price=18000,
+                discounted_price=8100,
+                discount_percent=55,
+                hours_since_cooked=1.5,
+                bpom_max_hours=8.0,
+                minutes_until_closing=150,
+                safety_status="SAFE",
+                safety_reason="Waktu simpan (1.5 jam) aman dari batas maksimal BPOM (8.0 jam).",
+                hazard_description="Hidangan mie goreng matang aman pada suhu ruang.",
+                regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 06.0",
+                similarity_score=0.95,
+                image_url="/assets/foods/indomie.jpg",
+                is_bundle=False,
+                is_active=True,
+            ),
+            ItemListing(
+                store_id="KUTEK-007",
+                store_name="Warkop & Snack Kutek",
+                location_badge="Kukusan Teknik (Kutek) · 780m (🚶 9 mnt)",
+                maps_url="https://maps.google.com/?q=-6.3575,106.8195",
+                latitude=-6.3575,
+                longitude=106.8195,
+                closing_time="22:00",
+                food_name="Kopi Susu Aren Botol 250ml",
+                matched_canonical_dish="Kopi Susu Gula Aren Botolan",
+                category="HIGH_PERISHABILITY",
+                food_type="BEVERAGE",
+                quantity=10,
+                initial_quantity=10,
+                original_price=18000,
+                discounted_price=7200,
+                discount_percent=60,
+                hours_since_cooked=1.0,
+                bpom_max_hours=4.0,
+                minutes_until_closing=150,
+                safety_status="SAFE",
+                safety_reason="Minuman susu botol aman di bawah batas 4.0 jam suhu ruang.",
+                hazard_description="Minuman berbahan susu wajib dikonsumsi segera.",
+                regulation_ref="PerBPOM No. 16/2019 Kategori Pangan 01.0",
+                similarity_score=0.96,
+                image_url="/assets/foods/kopi_susu.jpg",
+                is_bundle=False,
+                is_active=True,
+            ),
         ]
 
         for item in listings_to_seed:
-            session.add(item)
+            if (item.store_id, item.food_name) not in existing_keys:
+                session.add(item)
         session.commit()
 
     # ========================================================================
