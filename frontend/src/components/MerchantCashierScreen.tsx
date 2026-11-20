@@ -257,7 +257,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
         <div className="md:col-span-5 space-y-4">
           {/* Hardware Camera & Visual Scanner Viewfinder Header */}
           <div
-            className={`bg-white p-4 rounded-2xl border shadow-sm text-center transition-all ${
+            className={`bg-white p-4 rounded-xl border shadow-sm text-center transition-all ${
               scanFlash
                 ? "border-emerald-500 ring-4 ring-emerald-500/30 bg-emerald-50/30"
                 : "border-[#EEF0F4]"
@@ -268,22 +268,22 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
               id={QR_READER_ELEMENT_ID}
               className={
                 isCameraActive || isStartingCamera
-                  ? "w-full max-w-[260px] mx-auto mb-3 rounded-2xl overflow-hidden border-2 border-emerald-500 bg-black shadow-inner"
+                  ? "w-full max-w-[260px] mx-auto mb-3 rounded-xl overflow-hidden border-2 border-emerald-500 bg-black shadow-inner"
                   : "hidden"
               }
             />
 
             {/* Idle Viewfinder Placeholder when Camera is Off */}
             {!isCameraActive && !isStartingCamera && (
-              <div className="relative w-28 h-28 mx-auto mb-3 rounded-2xl border-2 border-dashed border-emerald-500 bg-emerald-50/40 flex flex-col items-center justify-center overflow-hidden">
+              <div className="relative w-28 h-28 mx-auto mb-3 rounded-xl border-2 border-dashed border-emerald-500 bg-emerald-50/40 flex flex-col items-center justify-center overflow-hidden">
                 <QrCode className="w-12 h-12 text-emerald-600 opacity-80" />
                 <div className="absolute inset-x-0 h-0.5 bg-emerald-500 animate-[bounce_2s_infinite]"></div>
               </div>
             )}
 
-            <h2 className="text-sm font-bold text-[#181C2E]">Kasir Pemindai QR & Kode Tiket</h2>
+            <h2 className="text-sm font-bold text-[#222222]">QR Scanner</h2>
             <p className="text-xs text-[#646982] mt-0.5">
-              Pindai QR tiket pembeli via kamera atau masukkan kode pengambilan secara manual
+              Scan QR tiket pembeli via kamera atau masukkan kode pengambilan di bawah
             </p>
 
             {/* Camera Control Toggle Buttons */}
@@ -297,7 +297,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                 >
                   <Camera className="w-4 h-4" />
                   <span>
-                    {isStartingCamera ? "Menyiapkan Kamera..." : "Nyalakan Kamera Pemindai"}
+                    {isStartingCamera ? "Menyiapkan Kamera..." : "Nyalakan Kamera Scanner"}
                   </span>
                 </button>
               ) : (
@@ -314,7 +314,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
 
             {/* Camera Permission / Device Fallback Notice */}
             {cameraError && (
-              <div className="mt-3 flex items-start gap-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 text-left">
+              <div className="mt-3 flex items-start gap-2 p-2.5 rounded-xl bg-[#F0F5FA] text-xs text-amber-800 text-left">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
                 <span>{cameraError}</span>
               </div>
@@ -322,29 +322,29 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           </div>
 
           {/* Manual Input Fallback Form */}
-          <form onSubmit={handleSubmit} className="bg-white p-4 rounded-2xl border border-[#EEF0F4] shadow-sm space-y-3">
+          <form onSubmit={handleSubmit} className="bg-white p-4 rounded-xl border border-[#EEF0F4] shadow-sm space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-[#181C2E] mb-1">
-                Kode Tiket Pesanan / QR Payload (Input Manual & Fallback)
+              <label className="block text-xs font-semibold text-[#222222] mb-1">
+                Kode Tiket Pesanan / QR Payload
               </label>
               <input
                 type="text"
                 value={inputCode}
                 onChange={(e) => setInputCode(e.target.value)}
-                placeholder="Ketik kode (contoh: #NW-4821 atau 4821)"
-                className="w-full text-xs font-mono uppercase px-3.5 py-2.5 rounded-xl border border-[#E4EAF1] bg-[#F0F5FA] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                placeholder="Contoh: #NW-4821"
+                className="w-full text-xs tabular-nums uppercase px-3.5 py-2.5 rounded-xl border border-[#E4EAF1] bg-[#F0F5FA] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
               />
             </div>
 
             {/* Special Cross-Store Fraud Alert Box */}
             {isCrossStoreFraud && errorMessage && (
-              <div className="p-3 bg-red-50 border-2 border-red-500 rounded-2xl text-xs text-red-950 space-y-1.5 animate-pulse">
+              <div className="p-3 bg-red-50 border-2 border-red-500 rounded-xl text-xs text-red-950 space-y-1.5 animate-pulse">
                 <div className="flex items-center gap-1.5 text-red-700 font-extrabold text-xs">
                   <ShieldAlert className="w-4 h-4 text-red-600" />
                   <span>PERINGATAN FRAUD / SALAH GERAI</span>
                 </div>
-                <p className="text-[11px] font-semibold leading-relaxed">{errorMessage}</p>
-                <p className="text-[10px] text-red-800 italic">
+                <p className="text-xs font-semibold leading-relaxed">{errorMessage}</p>
+                <p className="text-xs text-red-800 italic">
                   Sistem menolak serah terima makanan untuk mencegah penipuan tiket lintas-gerai mitra NullWasted.
                 </p>
               </div>
@@ -380,13 +380,13 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
 
           {/* Success Confirmation Card with Settlement Badge */}
           {successTicket && (
-            <div className="bg-emerald-50 border border-emerald-300 p-4 rounded-2xl text-emerald-950 space-y-2.5 shadow-sm animate-fade-in">
+            <div className="bg-[#F0F5FA] p-4 rounded-xl text-emerald-950 space-y-2.5 shadow-sm animate-fade-in">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                   <span>TRANSAKSI SELESAI (STATUS: COMPLETED)</span>
                 </div>
-                <span className="text-[10px] font-extrabold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-extrabold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-lg">
                   LUNAS
                 </span>
               </div>
@@ -403,23 +403,23 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                       }}
                     />
                     <div className="min-w-0 flex-1">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-800">Menu Ditebus</span>
+                      <span className="text-xs uppercase font-bold tracking-wider text-emerald-800">Menu Ditebus</span>
                       <p className="font-bold text-stone-900 text-sm truncate">{successTicket.food_name}</p>
-                      <p className="text-[11px] text-stone-600 font-medium">{successTicket.quantity} porsi</p>
+                      <p className="text-xs text-stone-600 font-medium">{successTicket.quantity} porsi</p>
                     </div>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span className="text-[#646982]">Kode Tiket:</span>
-                  <span className="font-mono font-bold text-emerald-800">{successTicket.order_code}</span>
+                  <span className="tabular-nums font-bold text-emerald-800">{successTicket.order_code}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#646982]">Pembeli:</span>
-                  <span className="font-semibold text-[#181C2E]">{successTicket.customer_name}</span>
+                  <span className="font-semibold text-[#222222]">{successTicket.customer_name}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#646982]">Menu & Porsi:</span>
-                  <span className="font-semibold text-[#181C2E]">
+                  <span className="font-semibold text-[#222222]">
                     {successTicket.food_name} ({successTicket.quantity} porsi)
                   </span>
                 </div>
@@ -436,13 +436,13 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                   </span>
                 </div>
                 {successTicket.completed_at && (
-                  <div className="flex justify-between text-[10px] text-gray-500 pt-1 border-t border-gray-100">
+                  <div className="flex justify-between text-xs text-gray-500 pt-1 border-t border-gray-100">
                     <span>Diserahterimakan pada:</span>
                     <span>{new Date(successTicket.completed_at).toLocaleTimeString("id-ID")}</span>
                   </div>
                 )}
               </div>
-              <p className="text-[11px] text-emerald-800 font-medium text-center">
+              <p className="text-xs text-emerald-800 font-medium text-center">
                 Pesanan telah berhasil diserahkan kepada konsumen. Stok telah berkurang di sistem.
               </p>
             </div>
@@ -452,35 +452,35 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
         {/* Kolom Kanan — Rekapitulasi Shift & Antrean Operasional */}
         <div className="md:col-span-7 space-y-4">
           {/* Cashier POS Daily Shift Summary (Pilar 7) */}
-          <div className="bg-white p-4 rounded-2xl border border-[#EEF0F4] shadow-sm space-y-3">
+          <div className="bg-white p-4 rounded-xl border border-[#EEF0F4] shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800">
                 <Receipt className="w-4 h-4 text-emerald-600" />
                 <span className="uppercase tracking-wider">Rekapitulasi Shift Kasir Hari Ini (POS Summary)</span>
               </div>
-              <span className="text-[10px] text-stone-500 font-semibold">
+              <span className="text-xs text-stone-500 font-semibold">
                 {completedOrders.length} Pesanan Selesai
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl">
-                <span className="text-[10px] text-emerald-800 font-bold block mb-0.5">Porsi Terselamatkan</span>
-                <span className="text-xs sm:text-sm font-black text-emerald-900 font-mono">
-                  {completedOrders.length} Tiket ({rescuedPortionsCount} Porsi)
+            <div className="grid grid-cols-3 gap-2.5 text-center">
+              <div className="p-3 bg-[#F0F5FA] rounded-xl space-y-1">
+                <span className="text-xs text-[#646982] font-medium block">Porsi</span>
+                <span className="text-sm font-bold text-[#222222] tabular-nums block">
+                  {rescuedPortionsCount} Porsi
                 </span>
               </div>
 
-              <div className="p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl">
-                <span className="text-[10px] text-amber-800 font-bold block mb-0.5">Wajib Setor Tunai</span>
-                <span className="text-xs sm:text-sm font-black text-amber-950 font-mono">
+              <div className="p-3 bg-[#F0F5FA] rounded-xl space-y-1">
+                <span className="text-xs text-[#646982] font-medium block">Cash</span>
+                <span className="text-sm font-bold text-[#222222] tabular-nums block">
                   Rp {cashToCollectTotal.toLocaleString("id-ID")}
                 </span>
               </div>
 
-              <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-xl">
-                <span className="text-[10px] text-blue-800 font-bold block mb-0.5">Lunas Digital (QRIS)</span>
-                <span className="text-xs sm:text-sm font-black text-blue-950 font-mono">
+              <div className="p-3 bg-[#F0F5FA] rounded-xl space-y-1">
+                <span className="text-xs text-[#646982] font-medium block">QRIS</span>
+                <span className="text-sm font-bold text-emerald-600 tabular-nums block">
                   Rp {qrisSettledTotal.toLocaleString("id-ID")}
                 </span>
               </div>
@@ -488,18 +488,25 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           </div>
 
           {/* Pending Queue List with Cashier Instructions */}
-          <div className="bg-white p-4 rounded-2xl border border-[#EEF0F4] shadow-sm space-y-3">
+          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-[#181C2E] uppercase tracking-wider">
+              <h3 className="text-xs font-bold text-[#222222] uppercase tracking-wider">
                 Antrean Menunggu Pengambilan ({reservedOrders.length})
               </h3>
-              <span className="text-[10px] text-gray-400">Status: RESERVED</span>
             </div>
 
             {reservedOrders.length === 0 ? (
-              <p className="text-xs text-[#646982] text-center py-4 italic">
-                Tidak ada pesanan yang sedang menunggu pengambilan saat ini.
-              </p>
+              <div className="py-5 px-4 flex flex-col items-center justify-center text-center space-y-2">
+                <img
+                  src="/assets/empty_store.jpg"
+                  alt="Belum ada antrean"
+                  className="w-24 h-24 object-contain"
+                />
+                <p className="text-sm font-bold text-[#222222]">Belum Ada Antrean</p>
+                <p className="text-xs text-[#646982]">
+                  Belum ada pesanan yang menunggu pengambilan saat ini.
+                </p>
+              </div>
             ) : (
               <div className="space-y-2">
                 {reservedOrders.map((ord) => {
@@ -508,20 +515,20 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                   return (
                     <div
                       key={ord.id}
-                      className="p-3 rounded-xl bg-[#F0F5FA] border border-[#E8E2D5] flex flex-col justify-between text-xs space-y-2"
+                      className="p-3 rounded-xl bg-[#F0F5FA] border border-slate-200 flex flex-col justify-between text-xs space-y-2"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-emerald-800 text-sm">
+                            <span className="tabular-nums font-bold text-emerald-800 text-sm">
                               {ord.order_code}
                             </span>
-                            <span className="text-[11px] text-[#646982] flex items-center gap-1">
+                            <span className="text-xs text-[#646982] flex items-center gap-1">
                               <User className="w-3 h-3 text-gray-400" />
                               {ord.customer_name}
                             </span>
                           </div>
-                          <p className="text-[11px] text-[#181C2E] font-medium flex items-center gap-1 mt-0.5">
+                          <p className="text-xs text-[#222222] font-normal flex items-center gap-1 mt-0.5">
                             <ShoppingBag className="w-3 h-3 text-gray-400 shrink-0" />
                             <span className="truncate">{ord.food_name} ({ord.quantity} porsi) · Rp {ord.total_price.toLocaleString("id-ID")}</span>
                           </p>
@@ -541,12 +548,12 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                       {/* Cashier Payment Instruction Banner */}
                       <div className="pt-1.5 border-t border-stone-200 flex items-center justify-between">
                         {isPaid ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg">
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg">
                             <CreditCard className="w-3 h-3 text-emerald-600" />
                             SUDAH LUNAS VIA QRIS (Jangan Tagih Tunai)
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-lg">
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-lg">
                             <Banknote className="w-3 h-3 text-amber-700" />
                             TAGIHKAN TUNAI: Rp {ord.total_price.toLocaleString("id-ID")}
                           </span>
@@ -560,21 +567,18 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           </div>
 
           {/* Completed Orders History (POS Reconciliation) */}
-          <div className="bg-white p-4 rounded-2xl border border-[#EEF0F4] shadow-sm space-y-3">
+          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <Receipt className="w-4 h-4 text-emerald-600" />
-                <h3 className="text-xs font-bold text-[#181C2E] uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-[#222222] uppercase tracking-wider">
                   Riwayat Penjualan Selesai Hari Ini ({completedOrders.length})
                 </h3>
               </div>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                Status: COMPLETED
-              </span>
             </div>
 
             {completedOrders.length === 0 ? (
-              <p className="text-xs text-[#646982] text-center py-4 italic">
+              <p className="text-xs text-[#646982] text-center py-4">
                 Belum ada pesanan yang diselesaikan hari ini.
               </p>
             ) : (
@@ -595,15 +599,15 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-emerald-800 text-sm">
+                            <span className="tabular-nums font-bold text-emerald-800 text-sm">
                               {ord.order_code}
                             </span>
-                            <span className="text-[11px] font-semibold text-stone-800 flex items-center gap-1">
+                            <span className="text-xs font-semibold text-stone-800 flex items-center gap-1">
                               <User className="w-3 h-3 text-stone-400" />
                               {ord.customer_name}
                             </span>
                           </div>
-                          <p className="text-[11px] text-stone-700 mt-0.5 truncate">
+                          <p className="text-xs text-stone-700 mt-0.5 truncate">
                             {ord.food_name} · <span className="font-semibold">{ord.quantity} porsi</span>
                           </p>
                         </div>
@@ -623,20 +627,20 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                             <span className="text-xs font-extrabold text-stone-900 block">
                               Rp {ord.total_price.toLocaleString("id-ID")}
                             </span>
-                            <span className="text-[10px] text-stone-400">{formattedTime}</span>
+                            <span className="text-xs text-stone-400">{formattedTime}</span>
                           </div>
                         </div>
                       </div>
 
                       <div className="pt-1.5 border-t border-stone-200 flex items-center justify-between">
-                        <span className="text-[10px] text-stone-500">Metode Pembayaran:</span>
+                        <span className="text-xs text-stone-500">Metode Pembayaran:</span>
                         {ord.payment_method === "SIMULATED_QRIS" ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
                             <CreditCard className="w-3 h-3 text-emerald-600" />
                             <span>Lunas QRIS</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md">
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md">
                             <Banknote className="w-3 h-3 text-amber-700" />
                             <span>Tunai Diterima</span>
                           </span>
