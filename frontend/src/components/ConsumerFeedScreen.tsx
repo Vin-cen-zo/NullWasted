@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ItemListing, humanizeBpomText, resolveImageUrl } from "../types/listing";
+import { ItemListing, cleanLocationBadge, humanizeBpomText, resolveImageUrl } from "../types/listing";
 import {
   ShieldCheck,
   Search,
@@ -7,12 +7,10 @@ import {
   Map as MapIcon,
   Navigation,
   Crosshair,
-  Store,
-  CheckCircle2,
   Star,
   Heart,
   Clock,
-  Zap,
+  ShoppingBag,
   LayoutGrid,
   Croissant,
   Utensils,
@@ -204,82 +202,103 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   });
 
   return (
-    <div className="flex-1 flex flex-col space-y-4">
-      {/* Header Greeting, Live GPS Status & Open Map CTA */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <h2 className="text-sm font-bold text-[#1F1D1A]">Selamat Datang, {customerName}</h2>
-          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+    <div className="flex-1 flex flex-col space-y-5">
+      {/* Top Location & Map Bar (Figma Home_01 Style) */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={requestLiveGps}
+            disabled={isGpsLoading}
+            className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+              gpsStatus === "LIVE_GPS"
+                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25"
+                : "bg-[#ECF0F4] text-[#181C2E] hover:bg-slate-200"
+            }`}
+            title="Perbarui koordinat GPS perangkat Anda"
+            aria-label="Perbarui GPS"
+          >
+            <Crosshair className={`w-4 h-4 ${isGpsLoading ? "animate-spin" : ""}`} />
+          </button>
+          <div className="min-w-0">
+            <span className="block text-xs font-bold uppercase tracking-wider text-emerald-600">
+              {gpsStatus === "LIVE_GPS" ? "Lokasi GPS Aktif" : "Lokasi Pickup"}
+            </span>
             <button
               type="button"
               onClick={requestLiveGps}
-              disabled={isGpsLoading}
-              className={`text-[10px] font-semibold flex items-center gap-1 px-2.5 py-0.5 rounded-full transition cursor-pointer border ${
-                gpsStatus === "LIVE_GPS"
-                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                  : "bg-white text-stone-700 border-stone-300 hover:bg-stone-50"
-              }`}
-              title="Perbarui koordinat GPS perangkat Anda"
+              className="text-sm font-medium text-[#646982] hover:text-[#181C2E] truncate flex items-center gap-1 cursor-pointer"
             >
-              <Crosshair className={`w-3 h-3 ${isGpsLoading ? "animate-spin" : ""}`} />
-              <span>
+              <span className="truncate">
                 {isGpsLoading
-                  ? "Mencari GPS..."
+                  ? "Mencari koordinat GPS..."
                   : gpsStatus === "LIVE_GPS"
-                    ? "GPS Aktif (Perbarui Lokasi)"
-                    : "Gunakan Lokasi Saya"}
+                    ? "Koordinat Terdekat (Ketuk Perbarui)"
+                    : "Aktifkan GPS untuk estimasi jarak"}
               </span>
             </button>
             {gpsNotice && (
-              <span className="text-[10px] font-medium text-amber-700">{gpsNotice}</span>
+              <span className="text-xs font-medium text-amber-600 block truncate">{gpsNotice}</span>
             )}
           </div>
         </div>
+
+        {/* Circular Map Trigger with Active Count Badge */}
         <button
           type="button"
           onClick={() => setIsMapOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
+          className="relative flex items-center gap-2 h-11 px-4 rounded-lg bg-[#181C2E] hover:bg-[#252a44] text-white text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
         >
-          <MapIcon className="w-3.5 h-3.5" />
-          <span>Cek Merchant</span>
+          <MapIcon className="w-4 h-4" />
+          <span className="hidden sm:inline">Peta Gerai</span>
+          <span className="min-w-[20px] h-5 px-1.5 rounded-lg bg-emerald-500 text-white text-[11px] font-extrabold flex items-center justify-center">
+            {activeNonExpiredListings.length}
+          </span>
         </button>
       </div>
 
-      {/* Responsive Search Input & Radius Distance Toolbar */}
+      {/* Clean Greeting */}
+      <div>
+        <p className="text-[16px] text-[#1A1817]">
+          Halo <span className="font-normal">{customerName},</span>{" "}
+          <span className="font-bold text-[#181C2E]">Siap Selamatkan Surplus?</span>
+        </p>
+      </div>
+
+      {/* Search Bar & Radius Toolbar */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-        {/* Search Input Bar */}
         <div className="relative md:col-span-7">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+          <Search className="w-[18px] h-[18px] text-[#676767] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari makanan surplus, menu, atau gerai..."
-            className="w-full text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-[#D8D2C5] bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 text-[#1F1D1A]"
+            placeholder="Mau selamatkan makanan apa hari ini?"
+            className="w-full h-[50px] text-[14px] pl-11 pr-16 rounded-xl bg-[#F6F6F6] border border-transparent focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-[#181C2E] placeholder:text-[#676767] transition-all"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-3 text-[10px] text-gray-400 hover:text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded cursor-pointer"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-[#646982] hover:text-[#181C2E] bg-white px-2.5 py-1 rounded-lg shadow-xs cursor-pointer"
             >
               Hapus
             </button>
           )}
         </div>
 
-        {/* Radius Distance Filter Row */}
-        <div className="flex items-center justify-between gap-2 text-[11px] bg-stone-100 p-1.5 rounded-xl text-stone-600 md:col-span-5">
-          <div className="flex items-center gap-1.5 shrink-0 ml-1">
+        {/* Radius Distance Filter */}
+        <div className="flex items-center justify-between gap-2 text-xs bg-[#F0F5FA] p-1.5 rounded-xl text-[#646982] md:col-span-5 h-[50px]">
+          <div className="flex items-center gap-1.5 shrink-0 ml-2">
             <Navigation className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span className="font-semibold text-stone-700">Radius:</span>
+            <span className="font-bold text-[#181C2E]">Radius</span>
           </div>
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => setSelectedRadius("ALL")}
-              className={`px-2 py-0.5 rounded-lg font-medium transition cursor-pointer ${
-                selectedRadius === "ALL" ? "bg-white font-bold text-emerald-800 shadow-sm" : "hover:text-stone-900"
+              className={`px-2.5 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                selectedRadius === "ALL" ? "bg-white font-bold text-[#181C2E] shadow-xs" : "hover:text-[#181C2E]"
               }`}
             >
               Semua
@@ -287,121 +306,151 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
             <button
               type="button"
               onClick={() => setSelectedRadius("500")}
-              className={`px-2 py-0.5 rounded-lg font-medium transition cursor-pointer ${
-                selectedRadius === "500" ? "bg-white font-bold text-emerald-800 shadow-sm" : "hover:text-stone-900"
+              className={`px-2.5 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                selectedRadius === "500" ? "bg-white font-bold text-[#181C2E] shadow-xs" : "hover:text-[#181C2E]"
               }`}
             >
-              &lt; 500m (Jalan Kaki)
+              &lt; 500m
             </button>
             <button
               type="button"
               onClick={() => setSelectedRadius("1500")}
-              className={`px-2 py-0.5 rounded-lg font-medium transition cursor-pointer ${
-                selectedRadius === "1500" ? "bg-white font-bold text-emerald-800 shadow-sm" : "hover:text-stone-900"
+              className={`px-2.5 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                selectedRadius === "1500" ? "bg-white font-bold text-[#181C2E] shadow-xs" : "hover:text-[#181C2E]"
               }`}
             >
-              &lt; 1.5km (Motor)
+              &lt; 1.5km
             </button>
           </div>
         </div>
       </div>
 
-      {/* Horizontal Category Filter Carousel (Like Prototype Tugas 4) */}
-      <nav aria-label="Category Filters" className="overflow-x-auto no-scrollbar -mx-1 px-1 flex items-center gap-2 pb-1 text-xs">
-        {/* All */}
-        <button
-          type="button"
-          onClick={() => setSelectedCategory("ALL")}
-          className={`shrink-0 px-4 py-2 rounded-full font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
-            selectedCategory === "ALL"
-              ? "bg-emerald-500 text-white shadow-sm"
-              : "bg-white text-stone-700 border border-stone-200 hover:border-stone-300"
-          }`}
-        >
-          <LayoutGrid className="w-3.5 h-3.5" />
-          <span>All ({activeNonExpiredListings.length})</span>
-        </button>
-
-        {/* Bakery */}
-        <button
-          type="button"
-          onClick={() => setSelectedCategory("BAKERY")}
-          className={`shrink-0 px-3.5 py-2 rounded-full font-medium flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
-            selectedCategory === "BAKERY"
-              ? "bg-emerald-500 text-white font-bold shadow-sm"
-              : "bg-white text-stone-700 border border-stone-200 hover:border-stone-300"
-          }`}
-        >
-          <Croissant className="w-3.5 h-3.5 text-amber-600" />
-          <span>Bakery</span>
-        </button>
-
-        {/* Meals */}
-        <button
-          type="button"
-          onClick={() => setSelectedCategory("HEAVY")}
-          className={`shrink-0 px-3.5 py-2 rounded-full font-medium flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
-            selectedCategory === "HEAVY"
-              ? "bg-emerald-500 text-white font-bold shadow-sm"
-              : "bg-white text-stone-700 border border-stone-200 hover:border-stone-300"
-          }`}
-        >
-          <Utensils className="w-3.5 h-3.5 text-orange-600" />
-          <span>Meals</span>
-        </button>
-
-        {/* Beverages */}
-        <button
-          type="button"
-          onClick={() => setSelectedCategory("BEVERAGE")}
-          className={`shrink-0 px-3.5 py-2 rounded-full font-medium flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
-            selectedCategory === "BEVERAGE"
-              ? "bg-emerald-500 text-white font-bold shadow-sm"
-              : "bg-white text-stone-700 border border-stone-200 hover:border-stone-300"
-          }`}
-        >
-          <Coffee className="w-3.5 h-3.5 text-teal-600" />
-          <span>Beverages</span>
-        </button>
-
-        {/* Surprise Bag / Mystery Bag */}
-        <button
-          type="button"
-          onClick={() => setSelectedCategory("BUNDLE")}
-          className={`shrink-0 px-3.5 py-2 rounded-full font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
-            selectedCategory === "BUNDLE"
-              ? "bg-purple-600 text-white shadow-sm"
-              : "bg-white text-purple-700 border border-purple-200 hover:bg-purple-50"
-          }`}
-        >
-          <Package className="w-3.5 h-3.5 text-purple-600" />
-          <span>Mystery Bag</span>
-        </button>
-      </nav>
-
-      {/* Section Heading with Live Count */}
-      <div className="flex items-center justify-between pt-1">
-        <div className="flex items-center gap-1.5">
-          <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
-          <h2 className="font-bold text-sm text-stone-900 tracking-tight">Surplus Rescue Near You</h2>
+      {/* Category Carousel (Figma Home_01 Pill Style) */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[18px] font-normal text-[#32343E]">Semua Kategori</h2>
+          <span className="text-[13px] text-[#646982] font-medium">
+            {filteredListings.length} tersedia
+          </span>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
+
+        <nav aria-label="Category Filters" className="overflow-x-auto no-scrollbar -mx-1 px-1 flex items-center gap-3 py-1.5 text-[13px]">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("ALL")}
+            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-lg font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+              selectedCategory === "ALL"
+                ? "bg-emerald-600 text-white shadow-[0_10px_25px_rgba(5,150,105,0.25)]"
+                : "bg-white text-[#32343E] shadow-[0_8px_24px_rgba(150,150,154,0.14)] hover:bg-slate-50"
+            }`}
+          >
+            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "ALL" ? "bg-white" : "bg-[#F0ECE9]"}`}>
+              <LayoutGrid className="w-4 h-4 text-[#181C2E]" />
+            </span>
+            <span>Semua ({activeNonExpiredListings.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("BAKERY")}
+            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-lg font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+              selectedCategory === "BAKERY"
+                ? "bg-emerald-600 text-white shadow-[0_10px_25px_rgba(5,150,105,0.25)]"
+                : "bg-white text-[#32343E] shadow-[0_8px_24px_rgba(150,150,154,0.14)] hover:bg-slate-50"
+            }`}
+          >
+            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "BAKERY" ? "bg-white" : "bg-[#F0ECE9]"}`}>
+              <Croissant className="w-4 h-4 text-emerald-600" />
+            </span>
+            <span>Bakery</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("HEAVY")}
+            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-lg font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+              selectedCategory === "HEAVY"
+                ? "bg-emerald-600 text-white shadow-[0_10px_25px_rgba(5,150,105,0.25)]"
+                : "bg-white text-[#32343E] shadow-[0_8px_24px_rgba(150,150,154,0.14)] hover:bg-slate-50"
+            }`}
+          >
+            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "HEAVY" ? "bg-white" : "bg-[#F0ECE9]"}`}>
+              <Utensils className="w-4 h-4 text-emerald-600" />
+            </span>
+            <span>Meals</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("BEVERAGE")}
+            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-lg font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+              selectedCategory === "BEVERAGE"
+                ? "bg-emerald-600 text-white shadow-[0_10px_25px_rgba(5,150,105,0.25)]"
+                : "bg-white text-[#32343E] shadow-[0_8px_24px_rgba(150,150,154,0.14)] hover:bg-slate-50"
+            }`}
+          >
+            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "BEVERAGE" ? "bg-white" : "bg-[#F0ECE9]"}`}>
+              <Coffee className="w-4 h-4 text-emerald-600" />
+            </span>
+            <span>Beverages</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("BUNDLE")}
+            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-lg font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+              selectedCategory === "BUNDLE"
+                ? "bg-purple-600 text-white shadow-[0_10px_25px_rgba(147,51,234,0.25)]"
+                : "bg-white text-[#32343E] shadow-[0_8px_24px_rgba(150,150,154,0.14)] hover:bg-slate-50"
+            }`}
+          >
+            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "BUNDLE" ? "bg-white/15" : "bg-purple-50"}`}>
+              <Package className={`w-4 h-4 ${selectedCategory === "BUNDLE" ? "text-white" : "text-purple-600"}`} />
+            </span>
+            <span>Mystery Bag</span>
+          </button>
+        </nav>
+      </div>
+
+      {/* Section Heading */}
+      <div className="flex items-center justify-between pt-1">
+        <h2 className="text-[18px] font-normal text-[#32343E]">Penyelamatan Surplus Terdekat</h2>
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-          <span>{filteredListings.length} Active Listings</span>
+          <span>{filteredListings.length} Menu Aktif</span>
         </div>
       </div>
 
       {/* Food Discovery Cards Grid */}
       {filteredListings.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white rounded-2xl border border-dashed border-[#D8D2C5]">
-          <Utensils className="w-10 h-10 text-gray-300 mb-2" />
-          <p className="text-xs font-bold text-[#1F1D1A]">Tidak Ada Makanan Ditemukan</p>
-          <p className="text-[11px] text-[#6B655B] mt-1">
-            Cobalah mengubah filter kategori atau radius pencarian Anda.
-          </p>
+        <div className="flex-1 flex flex-col items-center justify-center py-10 px-6 text-center bg-white space-y-2.5">
+          <img
+            src="/assets/empty_store.jpg"
+            alt="Tidak ada makanan ditemukan"
+            className="w-36 h-36 object-contain"
+          />
+          <div className="space-y-1">
+            <p className="text-base font-bold text-[#222222]">Tidak Ada Makanan Ditemukan</p>
+            <p className="text-sm text-[#646982] max-w-sm">
+              Cobalah mengubah filter kategori atau radius pencarian Anda.
+            </p>
+          </div>
+          {(selectedCategory !== "ALL" || selectedRadius !== "ALL" || searchQuery.trim() !== "") && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCategory("ALL");
+                setSelectedRadius("ALL");
+                setSearchQuery("");
+              }}
+              className="text-sm font-bold text-emerald-600 hover:underline pt-1 cursor-pointer"
+            >
+              Reset semua filter
+            </button>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 items-stretch">
           {sortedListings.map((item) => {
             const itemCoords = resolveItemCoords(item);
             const distM =
@@ -411,9 +460,9 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
             const distLabel =
               distM !== null
                 ? distM < 1000
-                  ? `${distM}m dari Anda`
-                  : `${(distM / 1000).toFixed(1)}km dari Anda`
-                : item.location_badge || "Lokasi via peta";
+                  ? `${distM}m`
+                  : `${(distM / 1000).toFixed(1)}km`
+                : cleanLocationBadge(item.location_badge) || "Lokasi via peta";
             const resolvedImg = resolveImageUrl(item.image_url, item.is_bundle);
             const hasImage = Boolean(resolvedImg && !failedImageIds.has(item.id));
             const isBookmarked = bookmarkedIds.includes(item.id);
@@ -422,61 +471,13 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
               <article
                 key={item.id}
                 onClick={() => onSelectItem(item)}
-                className={`bg-white border rounded-2xl overflow-hidden shadow-sm hover:border-emerald-400 hover:shadow-md transition-all duration-200 flex flex-col cursor-pointer ${
-                  item.is_bundle
-                    ? "border-purple-300 ring-1 ring-purple-200"
-                    : "border-stone-200"
+                className={`bg-white rounded-xl overflow-hidden shadow-[0_10px_30px_rgba(150,150,154,0.12)] hover:shadow-[0_16px_36px_rgba(150,150,154,0.2)] transition-all duration-200 flex flex-col cursor-pointer border ${
+                  item.is_bundle ? "border-purple-200" : "border-slate-100"
                 }`}
               >
-                {/* 1. Store Header Row */}
-                <div className="px-4 py-3 flex items-center justify-between border-b border-stone-100 bg-white">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        item.is_bundle
-                          ? "bg-purple-50 border border-purple-200 text-purple-700"
-                          : "bg-amber-50 border border-amber-200 text-amber-700"
-                      }`}
-                    >
-                      <Store className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="font-bold text-xs text-stone-900 truncate">{item.store_name}</h3>
-                        <span title="BPOM Safety Verified" className="inline-flex items-center">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 fill-emerald-50" />
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-stone-500 flex items-center gap-1 truncate">
-                        <span>{distLabel}</span>
-                        <span>•</span>
-                        <span className="text-amber-700 font-semibold flex items-center">
-                          4.8 <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500 ml-0.5" />
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => toggleBookmark(item.id, e)}
-                    aria-label="Bookmark store"
-                    aria-pressed={isBookmarked}
-                    title={isBookmarked ? "Hapus dari favorit" : "Simpan ke favorit"}
-                    className="p-1 rounded-lg active:scale-95 transition-colors shrink-0 cursor-pointer"
-                  >
-                    <Heart
-                      className={`w-4 h-4 transition-colors ${
-                        isBookmarked
-                          ? "fill-rose-500 text-rose-500"
-                          : "text-stone-300 hover:text-rose-500"
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* 2. Adaptive Image Presentation: Full Banner or Sleek Compact Header */}
+                {/* Food Image Banner */}
                 {hasImage ? (
-                  <div className="relative w-full h-44 overflow-hidden bg-stone-100 group">
+                  <div className="relative w-full h-44 overflow-hidden bg-[#F0ECE9] group shrink-0">
                     <img
                       alt={item.food_name}
                       src={resolvedImg!}
@@ -488,92 +489,120 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
 
                     {/* Stock Pill (Top Left) */}
                     {item.quantity <= 2 ? (
-                      <div className="absolute top-3 left-3 bg-amber-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1 text-[11px] font-bold shadow-md">
-                        <span>!</span>
-                        <span>{item.is_bundle ? `Hanya ${item.quantity} Paket Sisa!` : `Tersisa ${item.quantity} Porsi!`}</span>
+                      <div className="absolute top-3 left-3 bg-amber-500 text-white px-2.5 py-1 rounded-lg text-[11px] font-bold shadow-sm">
+                        {item.is_bundle ? `Sisa ${item.quantity} Paket` : `Sisa ${item.quantity} Porsi`}
                       </div>
                     ) : (
-                      <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-md border border-stone-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-[11px] font-semibold text-stone-800 shadow-sm">
+                      <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-[11px] font-semibold text-[#181C2E] shadow-sm">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        <span>{item.quantity} porsi tersisa</span>
+                        <span>{item.quantity} porsi</span>
                       </div>
                     )}
 
                     {/* Discount Badge (Top Right) */}
-                    <div className="absolute top-3 right-3 bg-emerald-500 text-white font-bold text-[11px] px-2 py-0.5 rounded-md shadow">
+                    <div className="absolute top-3 right-3 bg-[#181C2E] text-white font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-sm">
                       {item.discount_percent}% OFF
                     </div>
                   </div>
                 ) : (
-                  /* Sleek Compact Card Stock & Discount Row (When No Image Banner) */
-                  <div className="px-4 pt-3 pb-1 flex items-center justify-between gap-2 border-b border-stone-50 bg-[#FCFBF9]">
-                    {item.quantity <= 2 ? (
-                      <div className="bg-amber-500 text-white px-2.5 py-0.5 rounded-lg flex items-center gap-1 text-[11px] font-bold shadow-2xs">
-                        <span>!</span>
-                        <span>{item.is_bundle ? `Hanya ${item.quantity} Paket Sisa!` : `Tersisa ${item.quantity} Porsi!`}</span>
-                      </div>
-                    ) : (
-                      <div className="bg-white border border-stone-200 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 text-[11px] font-semibold text-stone-700 shadow-2xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        <span>{item.quantity} porsi tersisa</span>
-                      </div>
-                    )}
-                    <span className="bg-emerald-600 text-white font-bold text-[11px] px-2 py-0.5 rounded-md shadow-2xs shrink-0">
+                  <div className="px-4 pt-4 pb-1 flex items-center justify-between gap-2 bg-white">
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${
+                        item.quantity <= 2
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-[#F0F5FA] text-[#181C2E]"
+                      }`}
+                    >
+                      {item.quantity} porsi tersisa
+                    </span>
+                    <span className="bg-[#181C2E] text-white font-bold text-[11px] px-2.5 py-1 rounded-lg">
                       {item.discount_percent}% OFF
                     </span>
                   </div>
                 )}
 
-                {/* 3. Card Content */}
-                <div className="p-4 flex flex-col space-y-2.5 flex-1 justify-between">
-                  <div>
-                    <h4 className="font-bold text-sm text-stone-900 leading-snug line-clamp-1">{item.food_name}</h4>
-                    <p className="text-xs text-stone-500 line-clamp-1 mt-0.5 leading-relaxed">
-                      {item.hazard_description || item.safety_reason || "Makanan surplus higienis berstandar BPOM."}
+                {/* Card Content (ShopeeFood-inspired Unified Headline) */}
+                <div className="p-4 flex flex-col space-y-3.5 flex-1 justify-between">
+                  <div className="space-y-2.5">
+                    {/* Dish + Store Name in One Unified Headline (ShopeeFood Style) */}
+                    <h4 className="font-normal text-[18px] text-[#222222] leading-snug line-clamp-2">
+                      {item.food_name} - {item.store_name}
+                    </h4>
+
+                    {/* Clean 1-Line Subtitle */}
+                    <p className="text-[14px] leading-relaxed text-[#646982] line-clamp-1">
+                      {humanizeBpomText(item.safety_reason) || item.hazard_description || "Makanan surplus higienis berstandar BPOM."}
                     </p>
                   </div>
 
-                  {/* Urgency Countdown Pill & BPOM Guarantee */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-1.5 bg-amber-50/80 border border-amber-200 px-2.5 py-1.5 rounded-xl text-amber-900 text-[11px] font-medium">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                        <span className="truncate">Ambil s/d pk {item.closing_time || "20:30"} WIB</span>
-                      </div>
+                  {/* Rating, Distance & Closing Time Row */}
+                  <div className="space-y-2 pt-0.5">
+                    <div className="flex items-center gap-2 text-xs text-[#646982] flex-wrap">
+                      <span className="flex items-center gap-1 font-semibold text-[#181C2E]">
+                        <Star className="w-3.5 h-3.5 fill-[#DFB300] text-[#DFB300]" />
+                        4.8
+                      </span>
+                      <span className="text-slate-300">|</span>
+                      <span className="truncate max-w-[160px]">{distLabel}</span>
+                      <span className="text-slate-300">|</span>
+                      <span className="flex items-center gap-1 shrink-0">
+                        <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                        Tutup {item.closing_time || "20:30"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        BPOM Safe
+                      </span>
                       <ClosingCountdownBadge
                         closingTime={item.closing_time || "20:30"}
                         expiresAt={item.expires_at}
                         fallbackMinutes={item.minutes_until_closing}
                       />
                     </div>
-
-                    <div className="flex items-center gap-1.5 text-[10px] text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span className="truncate font-medium">BPOM Safe: {humanizeBpomText(item.safety_reason)}</span>
-                    </div>
                   </div>
 
-                  {/* Price & CTA Action */}
-                  <div className="flex items-center justify-between pt-2 border-t border-stone-100">
+                  {/* Price & Circular Figma Action Row */}
+                  <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
                     <div>
-                      <div className="text-[11px] text-stone-400 line-through">
+                      <span className="text-xs text-[#A0A5BA] line-through block leading-none">
                         Rp {item.original_price.toLocaleString("id-ID")}
-                      </div>
-                      <div className="font-extrabold text-base text-emerald-700 tracking-tight">
+                      </span>
+                      <span className="font-bold text-[18px] text-[#222222] tracking-tight tabular-nums">
                         Rp {item.discounted_price.toLocaleString("id-ID")}
-                      </div>
+                      </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectItem(item);
-                      }}
-                      className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      <Zap className="w-3.5 h-3.5 fill-white" />
-                      <span>View & Reserve</span>
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => toggleBookmark(item.id, e)}
+                        aria-label="Bookmark store"
+                        aria-pressed={isBookmarked}
+                        title={isBookmarked ? "Hapus dari favorit" : "Simpan ke favorit"}
+                        className="w-10 h-10 rounded-lg border border-[#E3DCD5] flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <Heart
+                          className={`w-4 h-4 transition-colors ${
+                            isBookmarked ? "fill-rose-500 text-rose-500" : "text-[#646982]"
+                          }`}
+                        />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectItem(item);
+                        }}
+                        className="h-10 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs shadow-emerald-500/20 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                      >
+                        <ShoppingBag className="w-3.5 h-3.5" />
+                        <span>Pesan</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </article>

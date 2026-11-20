@@ -209,6 +209,16 @@ export function humanizeBpomText(text?: string): string {
     .replace(/LOW_PERISHABILITY/g, "Roti & Pastry");
 }
 
+export function cleanLocationBadge(text?: string): string {
+  if (!text) return "";
+  return text
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\uFE0F]/gu, "")
+    .replace(/\(\s+/g, "(")
+    .replace(/\s+\)/g, ")")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 
 /**
  * Resolves a food image URL safely across cross-origin backend static storage,

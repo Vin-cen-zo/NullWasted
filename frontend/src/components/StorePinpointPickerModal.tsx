@@ -27,7 +27,7 @@ function createCustomPinIcon(): L.DivIcon {
   return L.divIcon({
     className: "nullwasted-pinpoint-marker",
     html: `<div style="width:32px;height:40px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;pointer-events:none;">
-      <div style="width:32px;height:32px;border-radius:9999px;background:#059669;border:3px solid #ffffff;box-shadow:0 4px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:#ffffff;font-weight:900;font-size:14px;">📍</div>
+      <div style="width:32px;height:32px;border-radius:9999px;background:#059669;border:3px solid #ffffff;box-shadow:0 4px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:#ffffff;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></div>
       <div style="width:4px;height:8px;background:#059669;border-radius:0 0 4px 4px;"></div>
     </div>`,
     iconSize: [32, 40],
