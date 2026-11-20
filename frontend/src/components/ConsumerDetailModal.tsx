@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ItemListing, getFriendlyCategory, humanizeBpomText, resolveImageUrl } from "../types/listing";
+import { ItemListing, cleanLocationBadge, getFriendlyCategory, humanizeBpomText, resolveImageUrl } from "../types/listing";
 import {
   X,
   ShieldCheck,
@@ -192,80 +192,70 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-xl bg-white rounded-t-[32px] sm:rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[88vh] overflow-y-auto overscroll-contain space-y-4"
+        className="w-full max-w-xl bg-white rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[88vh] overflow-y-auto overscroll-contain space-y-4"
       >
         {/* ========================================================================= */}
         {/* STEP 1: ITEM DETAIL & QUANTITY CHECKOUT STEP                              */}
         {/* ========================================================================= */}
         {modalStep === "DETAIL" ? (
           <>
-            {/* Top Handle / Close */}
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100 shrink-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {/* Badge 1: Diskon (Clean text, no emoji) */}
-                <span className="text-[11px] font-black tracking-wider text-emerald-900 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300 shadow-xs">
+            {/* Top Handle / Close (Figma Food Details_01 Style) */}
+            <div className="flex items-center justify-between pb-1 shrink-0">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-10 h-10 rounded-lg bg-[#ECF0F4] text-[#181C2E] hover:bg-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+                  aria-label="Tutup"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <span className="text-[18px] font-bold text-[#181C2E]">Detail Hidangan</span>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                <span className="text-[11px] font-extrabold tracking-wider text-white bg-[#181C2E] px-2.5 py-1 rounded-lg">
                   {item.discount_percent}% OFF
                 </span>
-
-                {/* Badge 2: Kategori Ramah Konsumen (Clean text, no emoji) */}
                 {item.is_bundle ? (
-                  <span className="text-[11px] font-bold tracking-wide text-purple-900 bg-purple-100 px-2.5 py-1 rounded-full border border-purple-300 flex items-center gap-1">
+                  <span className="text-[11px] font-bold text-purple-900 bg-purple-100 px-2.5 py-1 rounded-lg flex items-center gap-1">
                     <Package className="w-3.5 h-3.5" />
                     Mystery Bag
                   </span>
                 ) : (
-                  <span className="text-[11px] font-bold tracking-wide text-stone-700 bg-stone-100 px-2.5 py-1 rounded-full border border-stone-200">
+                  <span className="text-[11px] font-bold text-[#646982] bg-[#F0F5FA] px-2.5 py-1 rounded-lg">
                     {getFriendlyCategory(item.category).label}
                   </span>
                 )}
-
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
-            {/* Food Image Banner (Adaptive presentation: hidden if no image or error) */}
+            {/* Food Image Banner (Figma 20px rounded) */}
             {(() => {
               const resolvedImg = resolveImageUrl(item.image_url, item.is_bundle);
               if (!resolvedImg || imageError) return null;
               return (
-                <div className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden bg-stone-100 shadow-xs shrink-0">
+                <div className="relative w-full h-48 sm:h-52 rounded-xl overflow-hidden bg-[#F0ECE9] shrink-0">
                   <img
                     src={resolvedImg}
                     alt={item.food_name}
                     onError={() => setImageError(true)}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
-                  <div className="absolute bottom-2.5 left-3 text-white flex items-center gap-1.5">
-                    <span className="text-[11px] font-semibold bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20 flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-emerald-400" />
-                      {item.store_name}
-                    </span>
-                  </div>
                 </div>
               );
             })()}
 
-            {/* Food Info & Pricing */}
-            <div>
-              <h2 className="text-base font-extrabold text-[#1F1D1A] leading-snug">{item.food_name}</h2>
-              <div className="flex items-center justify-between mt-1.5">
-                <p className="text-xs font-semibold text-emerald-800">{item.store_name}</p>
-                <div className="text-right">
-                  <span className="text-xs text-gray-400 line-through mr-1.5">
-                    Rp {item.original_price.toLocaleString("id-ID")}
-                  </span>
-                  <span className="text-base font-black text-emerald-600">
-                    Rp {item.discounted_price.toLocaleString("id-ID")}
-                  </span>
-                </div>
+            {/* Store Pill & Dish Info */}
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#E9E9E9] bg-white text-xs font-semibold text-[#181C2E]">
+                <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{item.store_name}</span>
               </div>
+
+              <h2 className="text-[22px] font-normal text-[#181C2E] leading-snug">{item.food_name}</h2>
+              <p className="text-[15px] text-[#646982] leading-relaxed">
+                {item.hazard_description || humanizeBpomText(item.safety_reason)}
+              </p>
             </div>
 
             {/* Mystery Bag Items Breakdown with Allergen & Ingredient Transparency */}
@@ -317,12 +307,12 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
             )}
 
             {/* Location & Map Link */}
-            <div className="bg-[#F8F6F0] p-3 rounded-2xl flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
+            <div className="bg-[#F0F5FA] p-3.5 rounded-xl flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
-                <div>
-                  <p className="font-semibold text-[#1F1D1A]">{item.location_badge}</p>
-                  <p className="text-[10px] text-[#6B655B]">Self-Pickup sebelum gerai tutup</p>
+                <div className="min-w-0">
+                  <p className="font-semibold text-[#181C2E] truncate">{cleanLocationBadge(item.location_badge)}</p>
+                  <p className="text-[13px] text-[#646982]">Self-Pickup sebelum gerai tutup</p>
                 </div>
               </div>
               {item.maps_url && (
@@ -330,34 +320,34 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                   href={item.maps_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="p-2 rounded-xl bg-white border border-[#D8D2C5] text-emerald-700 hover:bg-gray-50 flex items-center gap-1 text-[11px] font-bold"
+                  className="px-3 py-1.5 rounded-lg bg-white text-[#181C2E] hover:bg-slate-50 shadow-xs flex items-center gap-1.5 text-[13px] font-bold shrink-0"
                 >
                   <span>Maps</span>
-                  <ExternalLink className="w-3 h-3" />
+                  <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
                 </a>
               )}
             </div>
 
-            {/* BPOM Safety Guarantee Box */}
-            <div className="bg-emerald-50/70 border border-emerald-200 p-3.5 rounded-2xl text-xs space-y-1.5">
-              <div className="flex items-center gap-1.5 font-bold text-emerald-900">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            {/* BPOM Safety Guarantee Box (Clean neutral surface, no colored stroke) */}
+            <div className="bg-[#F0F5FA] p-4 rounded-xl text-sm space-y-2">
+              <div className="flex items-center gap-2 font-bold text-[#181C2E]">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>Jaminan Keamanan Pangan BPOM</span>
               </div>
-              <p className="text-[11px] text-emerald-950 leading-relaxed">{humanizeBpomText(item.safety_reason)}</p>
-              <div className="flex items-center justify-between text-[10px] text-emerald-800/80 pt-1 border-t border-emerald-200">
+              <p className="text-[13px] text-[#646982] leading-relaxed">{humanizeBpomText(item.safety_reason)}</p>
+              <div className="flex items-center justify-between gap-2 text-[13px] text-[#646982] pt-2 border-t border-slate-200/80 flex-wrap">
                 <span>
                   Dimasak: {item.hours_since_cooked} jam lalu (Maks: {item.bpom_max_hours} jam)
                 </span>
-                <span className="font-mono">{item.regulation_ref}</span>
+                <span className="font-medium text-right">{item.regulation_ref}</span>
               </div>
             </div>
 
             {/* Closing Window Counter with Live Synchronized Badge */}
-            <div className="flex items-center justify-between text-xs text-amber-900 bg-amber-50/80 px-3 py-2 rounded-xl border border-amber-200">
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Batas Penjemputan (Tutup pk {item.closing_time || "20:30"} WIB)</span>
+            <div className="flex items-center justify-between text-sm text-[#181C2E] bg-[#F0F5FA] px-4 py-3 rounded-xl">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="font-semibold">Batas Penjemputan (Tutup {item.closing_time || "20:30"} WIB)</span>
               </div>
               <ClosingCountdownBadge
                 closingTime={item.closing_time || "20:30"}
@@ -366,75 +356,43 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
               />
             </div>
 
-            {/* Quantity Stepper */}
-            {!item.is_bundle && (
-              <div className="p-3 rounded-2xl bg-[#F8F6F0] border border-[#E8E2D5] flex items-center justify-between">
-                <span className="text-xs font-bold text-[#1F1D1A]">Pilih Jumlah Porsi:</span>
-                <div className="flex items-center gap-3 bg-white px-2 py-1 rounded-xl border border-[#D8D2C5]">
-                  <button
-                    type="button"
-                    onClick={handleDecrement}
-                    disabled={qty <= 1}
-                    className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="text-xs font-bold font-mono min-w-[20px] text-center">{qty}</span>
-                  <button
-                    type="button"
-                    onClick={handleIncrement}
-                    disabled={qty >= maxQty}
-                    className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Transparent Bill Settlement Sheet */}
-            <div className="p-3.5 rounded-2xl bg-white border border-stone-200 shadow-sm space-y-2 text-xs">
-              <h4 className="font-bold text-[11px] text-stone-700 uppercase tracking-wider">
+            <div className="p-4 rounded-xl bg-white border border-slate-100 shadow-[0_6px_20px_rgba(150,150,154,0.08)] space-y-2.5 text-sm">
+              <h4 className="font-bold text-xs text-[#646982] uppercase tracking-wider">
                 Ringkasan Tagihan Transparan
               </h4>
-              <div className="space-y-1 text-stone-600">
+              <div className="space-y-1.5 text-[#646982]">
                 <div className="flex items-center justify-between">
                   <span>Harga Normal Kumulatif ({qty} porsi)</span>
-                  <span className="font-mono text-stone-400 line-through">
+                  <span className="tabular-nums text-[#A0A5BA] line-through">
                     Rp {originalTotal.toLocaleString("id-ID")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-emerald-700 font-semibold">
                   <span>Potongan Penyelamatan Pangan ({item.discount_percent}%)</span>
-                  <span className="font-mono">- Rp {discountSavings.toLocaleString("id-ID")}</span>
-                </div>
-                <div className="flex items-center justify-between pt-1.5 border-t border-stone-100 font-bold text-stone-900 text-sm">
-                  <span>Total Bersih Bayar:</span>
-                  <span className="text-emerald-600 font-extrabold font-mono">
-                    Rp {totalPrice.toLocaleString("id-ID")}
-                  </span>
+                  <span className="tabular-nums">- Rp {discountSavings.toLocaleString("id-ID")}</span>
                 </div>
               </div>
             </div>
 
             {/* Payment Method Selector */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-stone-800">Pilih Metode Pembayaran:</label>
-              <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="space-y-2.5">
+              <label className="block text-sm font-bold text-[#181C2E]">Pilih Metode Pembayaran:</label>
+              <div className="grid grid-cols-2 gap-2.5 text-sm">
                 <button
                   type="button"
                   onClick={() => setPaymentMethod("CASH_ON_PICKUP")}
-                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                  className={`p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                     paymentMethod === "CASH_ON_PICKUP"
                       ? "bg-emerald-500 border-emerald-500 text-white font-bold shadow-sm"
-                      : "bg-white border-stone-200 text-stone-700 hover:border-emerald-300"
+                      : "bg-white border-slate-200 text-[#181C2E] hover:border-emerald-300"
                   }`}
                 >
-                  <div className="flex items-center gap-1.5 mb-1">
+                  <div className="flex items-center gap-2 mb-1">
                     <Banknote className={`w-4 h-4 ${paymentMethod === "CASH_ON_PICKUP" ? "text-white" : "text-emerald-600"}`} />
-                    <span className="font-bold text-[11px]">Tunai di Kasir</span>
+                    <span className="font-bold text-sm">Tunai di Kasir</span>
                   </div>
-                  <span className={`text-[10px] font-normal ${paymentMethod === "CASH_ON_PICKUP" ? "text-emerald-100" : "text-stone-500"}`}>
+                  <span className={`text-[13px] font-normal ${paymentMethod === "CASH_ON_PICKUP" ? "text-emerald-100" : "text-[#646982]"}`}>
                     Cash on Pickup
                   </span>
                 </button>
@@ -442,51 +400,86 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod("SIMULATED_QRIS")}
-                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                  className={`p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                     paymentMethod === "SIMULATED_QRIS"
                       ? "bg-emerald-500 border-emerald-500 text-white font-bold shadow-sm"
-                      : "bg-white border-stone-200 text-stone-700 hover:border-emerald-300"
+                      : "bg-white border-slate-200 text-[#181C2E] hover:border-emerald-300"
                   }`}
                 >
-                  <div className="flex items-center gap-1.5 mb-1">
+                  <div className="flex items-center gap-2 mb-1">
                     <QrCode className={`w-4 h-4 ${paymentMethod === "SIMULATED_QRIS" ? "text-white" : "text-emerald-600"}`} />
-                    <span className="font-bold text-[11px]">QRIS Instan</span>
+                    <span className="font-bold text-sm">QRIS Instan</span>
                   </div>
-                  <span className={`text-[10px] font-normal ${paymentMethod === "SIMULATED_QRIS" ? "text-emerald-100" : "text-stone-500"}`}>
+                  <span className={`text-[13px] font-normal ${paymentMethod === "SIMULATED_QRIS" ? "text-emerald-100" : "text-[#646982]"}`}>
                     Pembayaran Digital
                   </span>
                 </button>
               </div>
             </div>
 
-            {/* Reserve / Proceed to Payment CTA */}
-            <button
-              type="button"
-              disabled={isReserving || maxQty <= 0}
-              onClick={handleMainActionClick}
-              className={`w-full py-3.5 px-4 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                isReserving || maxQty <= 0
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-                  : "bg-[#10B981] hover:bg-[#059669] text-white shadow-emerald-500/20 active:scale-[0.98]"
-              }`}
-            >
-              {isReserving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Memproses Reservasi Stok...</span>
-                </>
-              ) : paymentMethod === "SIMULATED_QRIS" ? (
-                <>
-                  <QrCode className="w-4 h-4" />
-                  <span>Lanjut ke Pembayaran QRIS (Rp {totalPrice.toLocaleString("id-ID")})</span>
-                </>
-              ) : (
-                <>
-                  <ShoppingBag className="w-4 h-4" />
-                  <span>Konfirmasi Reservasi (Bayar Tunai di Kasir · Rp {totalPrice.toLocaleString("id-ID")})</span>
-                </>
-              )}
-            </button>
+            {/* Bottom Checkout Panel */}
+            <div className="bg-[#F0F5FA] p-4 rounded-xl space-y-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-[13px] font-medium text-[#646982] block">Total Bayar</span>
+                  <span className="text-[22px] font-extrabold text-[#181C2E] tracking-tight">
+                    Rp {totalPrice.toLocaleString("id-ID")}
+                  </span>
+                </div>
+
+                {!item.is_bundle && (
+                  <div className="flex items-center gap-3 bg-white border border-slate-200 text-[#222222] px-2.5 py-1.5 rounded-lg shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={handleDecrement}
+                      disabled={qty <= 1}
+                      className="w-7 h-7 rounded-md bg-[#F0F5FA] hover:bg-slate-200 text-[#222222] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+                      aria-label="Kurangi porsi"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-sm font-bold tabular-nums min-w-[20px] text-center">{qty}</span>
+                    <button
+                      type="button"
+                      onClick={handleIncrement}
+                      disabled={qty >= maxQty}
+                      className="w-7 h-7 rounded-md bg-[#F0F5FA] hover:bg-slate-200 text-[#222222] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+                      aria-label="Tambah porsi"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                disabled={isReserving || maxQty <= 0}
+                onClick={handleMainActionClick}
+                className={`w-full h-[52px] px-4 rounded-xl text-sm font-bold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  isReserving || maxQty <= 0
+                    ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                    : "bg-[#10B981] hover:bg-[#059669] text-white shadow-emerald-500/25 active:scale-[0.98]"
+                }`}
+              >
+                {isReserving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Memproses Reservasi Stok...</span>
+                  </>
+                ) : paymentMethod === "SIMULATED_QRIS" ? (
+                  <>
+                    <QrCode className="w-4 h-4" />
+                    <span>Bayar</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Bayar</span>
+                  </>
+                )}
+              </button>
+            </div>
           </>
         ) : (
           /* ========================================================================= */
@@ -512,7 +505,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1 rounded-full text-stone-400 hover:text-stone-700 cursor-pointer"
+                className="p-1 rounded-lg text-stone-400 hover:text-stone-700 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -540,11 +533,11 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
             {/* Nominal Tagihan & Timer */}
             <div className="w-full space-y-1">
               <span className="text-[11px] text-stone-500 block">Total Tagihan Bersih:</span>
-              <span className="text-2xl font-black text-emerald-700 font-mono">
+              <span className="text-2xl font-black text-emerald-700 tabular-nums">
                 Rp {totalPrice.toLocaleString("id-ID")}
               </span>
               <div className="pt-1">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold font-mono">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold tabular-nums">
                   <Clock className="w-3.5 h-3.5 text-amber-600" />
                   <span>Selesaikan dalam {formatCountdown(qrisSecondsLeft)}</span>
                 </span>
@@ -560,7 +553,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                 type="button"
                 disabled={isConfirmingQris || isReserving}
                 onClick={handleConfirmQrisPayment}
-                className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
                 {isConfirmingQris ? (
                   <>

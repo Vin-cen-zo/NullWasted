@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { UserSession, ItemListing, OrderTicket, DraftResponse, PublishRequest } from "./types/listing";
 import { AuthScreen } from "./components/AuthScreen";
+import { NullWastedLogo } from "./components/NullWastedLogo";
 import { MerchantInputScreen } from "./components/MerchantInputScreen";
 import { MerchantPreviewScreen } from "./components/MerchantPreviewScreen";
 import { MerchantInventoryScreen } from "./components/MerchantInventoryScreen";
@@ -283,7 +284,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F6F0] font-sans text-[#1F1D1A] flex flex-col">
+    <div className="min-h-screen bg-white font-sans text-[#181C2E] flex flex-col">
       {/* Toast Notification Float */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] animate-bounce pointer-events-none">
@@ -300,17 +301,21 @@ export const App: React.FC = () => {
       )}
 
       {/* Sticky Top Navbar */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E2DDD3] shadow-sm shrink-0">
-        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4 w-full">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-[0_4px_20px_rgba(150,150,154,0.06)] shrink-0">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-2 sm:gap-4 w-full">
           {/* Sisi Kiri: Brand & Identity */}
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
-              NW
-            </div>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <NullWastedLogo className="w-10 h-10" />
             <div className="min-w-0">
-              <h1 className="text-xs font-black tracking-tight text-[#1F1D1A] truncate">NullWasted</h1>
+              <h1
+                className="text-[20px] tracking-[0.05em] leading-none uppercase truncate"
+                style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+              >
+                <span className="text-[#222222]">NULL</span>
+                <span className="text-emerald-600">WASTED</span>
+              </h1>
               {session ? (
-                <div className="flex items-center gap-1 text-[10px] text-[#6B655B] min-w-0">
+                <div className="flex items-center gap-1 text-[11px] text-[#646982] min-w-0">
                   {session.role === "merchant" ? (
                     <>
                       <Store className="w-3 h-3 text-emerald-600 shrink-0" />
@@ -324,14 +329,14 @@ export const App: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <p className="text-[10px] text-[#6B655B] truncate">Zero-Waste Food PWA</p>
+                <p className="text-[11px] text-[#646982] truncate">Zero-Waste Food PWA</p>
               )}
             </div>
           </div>
 
           {/* Sisi Tengah (Desktop Only Nav Tabs) */}
           {session && (
-            <div className="hidden md:flex items-center gap-1.5 bg-[#F8F6F0] p-1 rounded-xl border border-[#E2DDD3]">
+            <div className="hidden md:flex items-center gap-1.5 bg-[#F0F5FA] p-1 rounded-lg">
               {session.role === "merchant" ? (
                 <>
                   <button
@@ -340,10 +345,10 @@ export const App: React.FC = () => {
                       setMerchantTab("create");
                       setActiveDraft(null);
                     }}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       merchantTab === "create"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
-                        : "text-[#6B655B] hover:text-[#1F1D1A] hover:bg-white/60 font-semibold"
+                        : "text-[#646982] hover:text-[#181C2E] font-semibold"
                     }`}
                   >
                     <PlusCircle className="w-4 h-4" />
@@ -353,10 +358,10 @@ export const App: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setMerchantTab("inventory")}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       merchantTab === "inventory"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
-                        : "text-[#6B655B] hover:text-[#1F1D1A] hover:bg-white/60 font-semibold"
+                        : "text-[#646982] hover:text-[#181C2E] font-semibold"
                     }`}
                   >
                     <ClipboardList className="w-4 h-4" />
@@ -366,10 +371,10 @@ export const App: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setMerchantTab("cashier")}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       merchantTab === "cashier"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
-                        : "text-[#6B655B] hover:text-[#1F1D1A] hover:bg-white/60 font-semibold"
+                        : "text-[#646982] hover:text-[#181C2E] font-semibold"
                     }`}
                   >
                     <QrCode className="w-4 h-4" />
@@ -381,10 +386,10 @@ export const App: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setConsumerTab("explore")}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       consumerTab === "explore"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
-                        : "text-[#6B655B] hover:text-[#1F1D1A] hover:bg-white/60 font-semibold"
+                        : "text-[#646982] hover:text-[#181C2E] font-semibold"
                     }`}
                   >
                     <UtensilsCrossed className="w-4 h-4" />
@@ -394,10 +399,10 @@ export const App: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setConsumerTab("orders")}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       consumerTab === "orders"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
-                        : "text-[#6B655B] hover:text-[#1F1D1A] hover:bg-white/60 font-semibold"
+                        : "text-[#646982] hover:text-[#181C2E] font-semibold"
                     }`}
                   >
                     <Ticket className="w-4 h-4" />
@@ -415,7 +420,7 @@ export const App: React.FC = () => {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-[11px] sm:text-xs font-bold text-gray-700 transition-colors shrink-0 cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#ECF0F4] hover:bg-slate-200 text-[11px] sm:text-xs font-bold text-[#181C2E] transition-colors shrink-0 cursor-pointer"
                 title="Ganti Peran / Logout"
                 aria-label="Ganti Akun"
               >
@@ -519,6 +524,7 @@ export const App: React.FC = () => {
             {consumerTab === "orders" && (
               <ConsumerOrdersScreen
                 orders={activeOrders}
+                listings={activeListings}
                 customerName={session.customerName || "Budi Santoso"}
                 onCancelOrder={handleCancelOrder}
                 onRefreshOrders={refreshOrders}
@@ -538,7 +544,7 @@ export const App: React.FC = () => {
 
       {/* Bottom Navigation Bar */}
       {session && (
-        <nav className="flex md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E2DDD3] px-3 py-2 items-center justify-around shadow-lg">
+        <nav className="flex md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-100 px-3 py-2 items-center justify-around shadow-[0_-8px_24px_rgba(150,150,154,0.1)]">
           {session.role === "merchant" ? (
             <>
               <button
@@ -550,7 +556,7 @@ export const App: React.FC = () => {
                 className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
                   merchantTab === "create"
                     ? "text-emerald-600 font-bold"
-                    : "text-gray-400 hover:text-gray-600"
+                    : "text-[#A0A5BA] hover:text-[#646982]"
                 }`}
               >
                 <PlusCircle className="w-5 h-5" />
@@ -563,7 +569,7 @@ export const App: React.FC = () => {
                 className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all relative ${
                   merchantTab === "inventory"
                     ? "text-emerald-600 font-bold"
-                    : "text-gray-400 hover:text-gray-600"
+                    : "text-[#A0A5BA] hover:text-[#646982]"
                 }`}
               >
                 <ClipboardList className="w-5 h-5" />
@@ -576,7 +582,7 @@ export const App: React.FC = () => {
                 className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all relative ${
                   merchantTab === "cashier"
                     ? "text-emerald-600 font-bold"
-                    : "text-gray-400 hover:text-gray-600"
+                    : "text-[#A0A5BA] hover:text-[#646982]"
                 }`}
               >
                 <QrCode className="w-5 h-5" />
@@ -591,7 +597,7 @@ export const App: React.FC = () => {
                 className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${
                   consumerTab === "explore"
                     ? "text-emerald-600 font-bold"
-                    : "text-gray-400 hover:text-gray-600"
+                    : "text-[#A0A5BA] hover:text-[#646982]"
                 }`}
               >
                 <UtensilsCrossed className="w-5 h-5" />
@@ -604,7 +610,7 @@ export const App: React.FC = () => {
                 className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all relative ${
                   consumerTab === "orders"
                     ? "text-emerald-600 font-bold"
-                    : "text-gray-400 hover:text-gray-600"
+                    : "text-[#A0A5BA] hover:text-[#646982]"
                 }`}
               >
                 <Ticket className="w-5 h-5" />

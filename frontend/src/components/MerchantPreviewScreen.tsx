@@ -295,7 +295,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-1.5 text-xs font-semibold text-[#6B655B] hover:text-[#1F1D1A] py-1 px-2.5 rounded-lg bg-white border border-[#E2DDD3] cursor-pointer"
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#646982] hover:text-[#181C2E] py-1 px-2.5 rounded-lg bg-white border border-[#EEF0F4] cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Ubah Input</span>
@@ -401,10 +401,10 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       {/* 2-Column Responsive Grid: Human-in-the-Loop Entity Card & Dynamic Pricing Card */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
         {/* Editable Human-in-the-Loop Entity Card */}
-        <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3 h-full flex flex-col justify-between">
+        <div className="bg-white p-4 rounded-2xl border border-[#EEF0F4] shadow-sm space-y-3 h-full flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-xs font-bold text-[#1F1D1A] uppercase tracking-wider">
+              <h4 className="text-xs font-bold text-[#181C2E] uppercase tracking-wider">
                 Rincian Entitas & Verifikasi Staf
               </h4>
               <span className="text-[10px] text-stone-400">Klik kolom untuk mengubah</span>
@@ -566,13 +566,13 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-[#F4F3F7] border border-stone-200/50">
-                  <span className="text-[10px] text-[#6B655B] block">Kategori Pangan</span>
-                  <span className="font-bold text-[#1F1D1A]">{getFriendlyCategory(draft.category).label}</span>
+                  <span className="text-[10px] text-[#646982] block">Kategori Pangan</span>
+                  <span className="font-bold text-[#181C2E]">{getFriendlyCategory(draft.category).label}</span>
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-[#F4F3F7] border border-stone-200/50">
-                  <span className="text-[10px] text-[#6B655B] block">Waktu Sejak Dimasak</span>
-                  <span className="font-bold text-[#1F1D1A]">
+                  <span className="text-[10px] text-[#646982] block">Waktu Sejak Dimasak</span>
+                  <span className="font-bold text-[#181C2E]">
                     {draft.hours_since_cooked} jam / Maks {draft.bpom_max_hours} jam
                   </span>
                 </div>
@@ -580,7 +580,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-[#6B655B] pt-2 border-t border-stone-100 mt-2">
+          <div className="flex items-center gap-2 text-[11px] text-[#646982] pt-2 border-t border-stone-100 mt-2">
             <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span>
               Sisa waktu tutup toko: <strong>{formatCountdown(remainingSeconds)}</strong>
@@ -589,12 +589,12 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
         </div>
 
         {/* Dynamic Pricing Interactive Slider */}
-        <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3 h-full flex flex-col justify-between">
+        <div className="bg-white p-4 rounded-2xl border border-[#EEF0F4] shadow-sm space-y-3 h-full flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-emerald-600" />
-                <h4 className="text-xs font-bold text-[#1F1D1A]">Dynamic Pricing (50% – 70%)</h4>
+                <h4 className="text-xs font-bold text-[#181C2E]">Dynamic Pricing (50% – 70%)</h4>
               </div>
               <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                 Diskon: {discountPercent}%
@@ -614,7 +614,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                 }}
                 className="w-full accent-emerald-600 cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] text-[#6B655B]">
+              <div className="flex justify-between text-[10px] text-[#646982]">
                 <span>50% (Awal Window)</span>
                 <span>Rekomendasi AI: {liveRecommendedDiscount}%</span>
                 <span>70% (Menjelang Tutup)</span>
@@ -625,7 +625,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
           {/* Pricing Calculation Display */}
           <div className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200/60 flex items-center justify-between mt-3">
             <div>
-              <span className="text-[10px] text-[#6B655B] block">Harga Normal Asli</span>
+              <span className="text-[10px] text-[#646982] block">Harga Normal Asli</span>
               <span className="text-xs text-gray-400 line-through">
                 Rp {originalPrice.toLocaleString("id-ID")}
               </span>

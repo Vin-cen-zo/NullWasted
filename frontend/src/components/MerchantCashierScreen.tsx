@@ -260,7 +260,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
             className={`bg-white p-4 rounded-2xl border shadow-sm text-center transition-all ${
               scanFlash
                 ? "border-emerald-500 ring-4 ring-emerald-500/30 bg-emerald-50/30"
-                : "border-[#E2DDD3]"
+                : "border-[#EEF0F4]"
             }`}
           >
             {/* Active Video Mount Point (Always in DOM for Html5Qrcode) */}
@@ -281,8 +281,8 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
               </div>
             )}
 
-            <h2 className="text-sm font-bold text-[#1F1D1A]">Kasir Pemindai QR & Kode Tiket</h2>
-            <p className="text-xs text-[#6B655B] mt-0.5">
+            <h2 className="text-sm font-bold text-[#181C2E]">Kasir Pemindai QR & Kode Tiket</h2>
+            <p className="text-xs text-[#646982] mt-0.5">
               Pindai QR tiket pembeli via kamera atau masukkan kode pengambilan secara manual
             </p>
 
@@ -322,9 +322,9 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           </div>
 
           {/* Manual Input Fallback Form */}
-          <form onSubmit={handleSubmit} className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3">
+          <form onSubmit={handleSubmit} className="bg-white p-4 rounded-2xl border border-[#EEF0F4] shadow-sm space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+              <label className="block text-xs font-semibold text-[#181C2E] mb-1">
                 Kode Tiket Pesanan / QR Payload (Input Manual & Fallback)
               </label>
               <input
@@ -332,7 +332,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                 value={inputCode}
                 onChange={(e) => setInputCode(e.target.value)}
                 placeholder="Ketik kode (contoh: #NW-4821 atau 4821)"
-                className="w-full text-xs font-mono uppercase px-3.5 py-2.5 rounded-xl border border-[#D8D2C5] bg-[#F8F6F0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                className="w-full text-xs font-mono uppercase px-3.5 py-2.5 rounded-xl border border-[#E4EAF1] bg-[#F0F5FA] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
               />
             </div>
 
@@ -410,27 +410,27 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-[#6B655B]">Kode Tiket:</span>
+                  <span className="text-[#646982]">Kode Tiket:</span>
                   <span className="font-mono font-bold text-emerald-800">{successTicket.order_code}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#6B655B]">Pembeli:</span>
-                  <span className="font-semibold text-[#1F1D1A]">{successTicket.customer_name}</span>
+                  <span className="text-[#646982]">Pembeli:</span>
+                  <span className="font-semibold text-[#181C2E]">{successTicket.customer_name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#6B655B]">Menu & Porsi:</span>
-                  <span className="font-semibold text-[#1F1D1A]">
+                  <span className="text-[#646982]">Menu & Porsi:</span>
+                  <span className="font-semibold text-[#181C2E]">
                     {successTicket.food_name} ({successTicket.quantity} porsi)
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-1 border-t border-stone-200">
-                  <span className="text-[#6B655B]">Metode Pembayaran:</span>
+                  <span className="text-[#646982]">Metode Pembayaran:</span>
                   <span className="font-bold text-emerald-700">
                     {successTicket.payment_method === "SIMULATED_QRIS" ? "QRIS Instan (Lunas)" : "Bayar Tunai di Kasir"}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#6B655B]">Total Tagihan:</span>
+                  <span className="text-[#646982]">Total Tagihan:</span>
                   <span className="font-extrabold text-emerald-600 text-sm">
                     Rp {successTicket.total_price.toLocaleString("id-ID")}
                   </span>
@@ -452,7 +452,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
         {/* Kolom Kanan — Rekapitulasi Shift & Antrean Operasional */}
         <div className="md:col-span-7 space-y-4">
           {/* Cashier POS Daily Shift Summary (Pilar 7) */}
-          <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3">
+          <div className="bg-white p-4 rounded-2xl border border-[#EEF0F4] shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800">
                 <Receipt className="w-4 h-4 text-emerald-600" />
@@ -488,16 +488,16 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           </div>
 
           {/* Pending Queue List with Cashier Instructions */}
-          <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3">
+          <div className="bg-white p-4 rounded-2xl border border-[#EEF0F4] shadow-sm space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-[#1F1D1A] uppercase tracking-wider">
+              <h3 className="text-xs font-bold text-[#181C2E] uppercase tracking-wider">
                 Antrean Menunggu Pengambilan ({reservedOrders.length})
               </h3>
               <span className="text-[10px] text-gray-400">Status: RESERVED</span>
             </div>
 
             {reservedOrders.length === 0 ? (
-              <p className="text-xs text-[#6B655B] text-center py-4 italic">
+              <p className="text-xs text-[#646982] text-center py-4 italic">
                 Tidak ada pesanan yang sedang menunggu pengambilan saat ini.
               </p>
             ) : (
@@ -508,7 +508,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                   return (
                     <div
                       key={ord.id}
-                      className="p-3 rounded-xl bg-[#F8F6F0] border border-[#E8E2D5] flex flex-col justify-between text-xs space-y-2"
+                      className="p-3 rounded-xl bg-[#F0F5FA] border border-[#E8E2D5] flex flex-col justify-between text-xs space-y-2"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
@@ -516,12 +516,12 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                             <span className="font-mono font-bold text-emerald-800 text-sm">
                               {ord.order_code}
                             </span>
-                            <span className="text-[11px] text-[#6B655B] flex items-center gap-1">
+                            <span className="text-[11px] text-[#646982] flex items-center gap-1">
                               <User className="w-3 h-3 text-gray-400" />
                               {ord.customer_name}
                             </span>
                           </div>
-                          <p className="text-[11px] text-[#1F1D1A] font-medium flex items-center gap-1 mt-0.5">
+                          <p className="text-[11px] text-[#181C2E] font-medium flex items-center gap-1 mt-0.5">
                             <ShoppingBag className="w-3 h-3 text-gray-400 shrink-0" />
                             <span className="truncate">{ord.food_name} ({ord.quantity} porsi) · Rp {ord.total_price.toLocaleString("id-ID")}</span>
                           </p>
@@ -560,11 +560,11 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           </div>
 
           {/* Completed Orders History (POS Reconciliation) */}
-          <div className="bg-white p-4 rounded-2xl border border-[#E2DDD3] shadow-sm space-y-3">
+          <div className="bg-white p-4 rounded-2xl border border-[#EEF0F4] shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <Receipt className="w-4 h-4 text-emerald-600" />
-                <h3 className="text-xs font-bold text-[#1F1D1A] uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-[#181C2E] uppercase tracking-wider">
                   Riwayat Penjualan Selesai Hari Ini ({completedOrders.length})
                 </h3>
               </div>
@@ -574,7 +574,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
             </div>
 
             {completedOrders.length === 0 ? (
-              <p className="text-xs text-[#6B655B] text-center py-4 italic">
+              <p className="text-xs text-[#646982] text-center py-4 italic">
                 Belum ada pesanan yang diselesaikan hari ini.
               </p>
             ) : (

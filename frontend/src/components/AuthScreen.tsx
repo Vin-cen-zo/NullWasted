@@ -3,7 +3,6 @@ import { UserSession } from "../types/listing";
 import {
   Store,
   ShoppingBag,
-  ShieldCheck,
   ArrowRight,
   KeyRound,
   Mail,
@@ -25,6 +24,7 @@ import {
   registerConsumer,
 } from "../services/api";
 import { StorePinpointPickerModal } from "./StorePinpointPickerModal";
+import { NullWastedLogo } from "./NullWastedLogo";
 
 interface AuthScreenProps {
   onLogin: (session: UserSession) => void;
@@ -45,12 +45,6 @@ export interface SavedConsumerAccount {
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const DEMO_MERCHANT_EMAILS = [
-  { label: "Dapur Barokah FTUI", email: "dapurbarokah@nullwasted.id" },
-  { label: "Roti Unyil Margonda", email: "rotiunyil@nullwasted.id" },
-  { label: "Warkop Kutek", email: "warkopkutek@nullwasted.id" },
-];
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [role, setRole] = useState<"merchant" | "consumer">("merchant");
@@ -439,47 +433,44 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center py-2 sm:py-8">
-      <div className="w-full max-w-md mx-auto p-5 sm:p-8 bg-white rounded-3xl border border-[#E2DDD3] shadow-lg flex flex-col justify-between space-y-5">
-        {/* Brand & Compliance Header */}
-        <div className="text-center pt-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#10B981]/15 text-[#10B981] mb-2 shadow-sm">
-            <ShieldCheck className="w-7 h-7" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#1F1D1A]">NullWasted</h1>
-          <p className="text-xs text-[#6B655B] mt-0.5">Autonomous AI Surplus Food Marketplace</p>
-          <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-medium text-emerald-800">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            Standar Kepatuhan PerBPOM No. 16/2019
+    <div className="flex-1 flex flex-col items-center justify-center py-3 sm:py-8">
+      <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white rounded-xl border border-slate-100 shadow-[0_10px_30px_rgba(150,150,154,0.12)] flex flex-col justify-between space-y-5">
+        {/* Startup Brand Header */}
+        <div className="text-center pt-1 space-y-2">
+          <NullWastedLogo className="w-20 h-20" showWordmark />
+          <p className="text-sm text-[#646982]">Autonomous AI Surplus Food Marketplace</p>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#F0F5FA] text-xs font-medium text-[#646982]">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span>Standar Kepatuhan PerBPOM No. 16/2019</span>
           </div>
         </div>
 
         {/* Role Switcher */}
-        <div className="my-2">
-          <div className="grid grid-cols-2 gap-1 p-1 bg-[#E8E3D9]/60 rounded-xl border border-[#D8D2C5]">
+        <div className="my-1">
+          <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-[#F0F5FA] rounded-xl">
             <button
               type="button"
               onClick={() => setRole("merchant")}
-              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
                 role === "merchant"
-                  ? "bg-white text-[#1F1D1A] shadow-sm border border-black/5"
-                  : "text-[#6B655B] hover:text-[#1F1D1A]"
+                  ? "bg-white text-[#222222] shadow-sm"
+                  : "text-[#646982] hover:text-[#222222]"
               }`}
             >
               <Store className="w-4 h-4 text-emerald-600" />
-              Mitra Toko
+              <span>Mitra Toko</span>
             </button>
             <button
               type="button"
               onClick={() => setRole("consumer")}
-              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
                 role === "consumer"
-                  ? "bg-white text-[#1F1D1A] shadow-sm border border-black/5"
-                  : "text-[#6B655B] hover:text-[#1F1D1A]"
+                  ? "bg-white text-[#222222] shadow-sm"
+                  : "text-[#646982] hover:text-[#222222]"
               }`}
             >
               <ShoppingBag className="w-4 h-4 text-emerald-600" />
-              Konsumen
+              <span>Konsumen</span>
             </button>
           </div>
 
@@ -489,17 +480,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           {role === "merchant" ? (
             <div className="mt-4">
               {/* Merchant Sub-Tabs */}
-              <div className="flex border-b border-[#D8D2C5] mb-4">
+              <div className="flex border-b border-slate-100 mb-4">
                 <button
                   type="button"
                   onClick={() => {
                     setMerchantTab("login");
                     setRegisteredStoreData(null);
                   }}
-                  className={`flex-1 py-2 text-xs font-bold transition-all border-b-2 ${
+                  className={`flex-1 py-2.5 text-sm font-bold transition-all border-b-2 cursor-pointer ${
                     merchantTab === "login"
-                      ? "border-emerald-600 text-emerald-800"
-                      : "border-transparent text-stone-500 hover:text-stone-700"
+                      ? "border-emerald-600 text-emerald-700"
+                      : "border-transparent text-[#646982] hover:text-[#222222]"
                   }`}
                 >
                   Masuk ke Dapur
@@ -507,10 +498,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                 <button
                   type="button"
                   onClick={() => setMerchantTab("register")}
-                  className={`flex-1 py-2 text-xs font-bold transition-all border-b-2 ${
+                  className={`flex-1 py-2.5 text-sm font-bold transition-all border-b-2 cursor-pointer ${
                     merchantTab === "register"
-                      ? "border-emerald-600 text-emerald-800"
-                      : "border-transparent text-stone-500 hover:text-stone-700"
+                      ? "border-emerald-600 text-emerald-700"
+                      : "border-transparent text-[#646982] hover:text-[#222222]"
                   }`}
                 >
                   Daftarkan Gerai Baru
@@ -518,38 +509,38 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
               </div>
 
               {merchantTab === "login" ? (
-                <form onSubmit={handleMerchantLogin} className="space-y-3">
+                <form onSubmit={handleMerchantLogin} className="space-y-3.5">
                   {/* Saved Merchant Email Quick Chips (never store password) */}
                   {savedMerchants.length > 0 && (
-                    <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1.5">
-                        <Sparkles className="w-3 h-3 text-emerald-600" />
-                        <span>Pilih Cepat Email Gerai</span>
+                    <div className="p-3 rounded-xl bg-[#F0F5FA]">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#222222] mb-2">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Akun Gerai Tersimpan</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {savedMerchants.map((item) => (
                           <div
                             key={item.email}
-                            className="inline-flex items-center rounded-lg bg-white border border-emerald-300 shadow-sm overflow-hidden"
+                            className="inline-flex items-center rounded-lg bg-white shadow-xs overflow-hidden"
                           >
                             <button
                               type="button"
                               onClick={() => handleSelectQuickMerchant(item)}
-                              className="px-2.5 py-1 hover:bg-emerald-100 text-[11px] font-medium text-stone-800 transition-colors flex items-center gap-1 cursor-pointer"
+                              className="px-2.5 py-1.5 hover:bg-emerald-50 text-xs font-medium text-[#222222] transition-colors flex items-center gap-1 cursor-pointer"
                             >
                               <span className="font-bold text-emerald-700 truncate max-w-[110px]">
                                 {item.storeName}
                               </span>
-                              <span className="text-stone-500 truncate max-w-[110px]">· {item.email}</span>
+                              <span className="text-[#646982] truncate max-w-[110px]">· {item.email}</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => removeSavedMerchant(item.email)}
                               aria-label={`Hapus ${item.storeName} dari daftar tersimpan`}
                               title="Hapus email gerai tersimpan"
-                              className="px-1.5 py-1 text-stone-400 hover:text-red-600 hover:bg-red-50 border-l border-emerald-200 transition-colors cursor-pointer"
+                              className="px-1.5 py-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 border-l border-slate-100 transition-colors cursor-pointer"
                             >
-                              <X className="w-3 h-3" />
+                              <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         ))}
@@ -557,32 +548,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                     </div>
                   )}
 
-                  {/* Quick-fill Demo Store Emails (fills email only, no secret persisted) */}
-                  <div className="p-2.5 rounded-xl bg-[#F8F6F0] border border-[#E2DDD3]">
-                    <p className="text-[10px] font-bold text-[#5C574F] uppercase tracking-wider mb-1.5">
-                      Isi Cepat Email Gerai Demo (Password uji: <code className="font-mono normal-case text-[#1F1D1A]">nullwasted123</code>)
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {DEMO_MERCHANT_EMAILS.map((demo) => (
-                        <button
-                          key={demo.email}
-                          type="button"
-                          onClick={() => {
-                            setMerchantEmail(demo.email);
-                            setMerchantError("");
-                          }}
-                          className="px-2 py-1 rounded-lg bg-white hover:bg-emerald-50 border border-[#D8D2C5] text-[10px] font-semibold text-[#1F1D1A] transition-colors cursor-pointer"
-                        >
-                          {demo.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
                   <div>
-                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Email Akun Gerai</label>
+                    <label className="block text-sm font-semibold text-[#222222] mb-1.5">Email Akun Gerai</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <Mail className="w-4 h-4" />
                       </div>
                       <input
@@ -590,13 +559,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         value={merchantEmail}
                         onChange={(e) => setMerchantEmail(e.target.value)}
                         placeholder="Contoh: dapurbarokah@nullwasted.id"
-                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-[#222222] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Password</label>
+                    <label className="block text-xs font-semibold text-[#181C2E] mb-1">Password</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                         <KeyRound className="w-4 h-4" />
@@ -606,7 +575,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         value={merchantPassword}
                         onChange={(e) => setMerchantPassword(e.target.value)}
                         placeholder="Minimal 6 karakter"
-                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                       />
                       <button
                         type="button"
@@ -681,7 +650,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   ) : (
                     <form onSubmit={handleMerchantRegister} className="space-y-3">
                       <div>
-                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Nama Usaha / Gerai</label>
+                        <label className="block text-xs font-semibold text-[#181C2E] mb-1">Nama Usaha / Gerai</label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                             <Store className="w-4 h-4" />
@@ -691,13 +660,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                             value={regStoreName}
                             onChange={(e) => setRegStoreName(e.target.value)}
                             placeholder="Contoh: Warung Berkah Nusantara"
-                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Email Bisnis / Gerai</label>
+                        <label className="block text-xs font-semibold text-[#181C2E] mb-1">Email Bisnis / Gerai</label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                             <Mail className="w-4 h-4" />
@@ -707,14 +676,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                             value={regMerchantEmail}
                             onChange={(e) => setRegMerchantEmail(e.target.value)}
                             placeholder="Contoh: gerai@warungberkah.id"
-                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Kategori Kuliner</label>
+                          <label className="block text-xs font-semibold text-[#181C2E] mb-1">Kategori Kuliner</label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                               <Utensils className="w-4 h-4" />
@@ -722,7 +691,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                             <select
                               value={regCategory}
                               onChange={(e) => setRegCategory(e.target.value)}
-                              className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                              className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                             >
                               <option value="Lauk & Makanan Berat">Lauk Nusantara</option>
                               <option value="Bakery & Pastry">Bakery & Roti</option>
@@ -734,7 +703,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         </div>
 
                         <div>
-                          <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Jam Tutup (24 Jam)</label>
+                          <label className="block text-xs font-semibold text-[#181C2E] mb-1">Jam Tutup (24 Jam)</label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                               <Clock className="w-4 h-4" />
@@ -744,7 +713,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                               step={60}
                               value={regClosingTime}
                               onChange={(e) => setRegClosingTime(e.target.value)}
-                              className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                              className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                             />
                           </div>
                         </div>
@@ -752,7 +721,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
                       {regCategory === "CUSTOM" && (
                         <div>
-                          <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                          <label className="block text-xs font-semibold text-[#181C2E] mb-1">
                             Nama Kategori Kuliner Kustom <span className="text-red-500">*</span>
                           </label>
                           <input
@@ -760,7 +729,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                             value={customCategory}
                             onChange={(e) => setCustomCategory(e.target.value)}
                             placeholder="Contoh: Dimsum & Chinese Food, Bento Jepang"
-                            className="w-full px-3 py-2 text-xs rounded-xl border border-emerald-400 bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                            className="w-full px-3 py-2 text-xs rounded-xl border border-emerald-400 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                           />
                         </div>
                       )}
@@ -773,24 +742,24 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
                       {/* Pinpoint Lokasi Gerai via Peta Interaktif */}
                       <div>
-                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                        <label className="block text-xs font-semibold text-[#181C2E] mb-1">
                           Pin Lokasi Gerai di Peta{" "}
                           <span className="text-stone-400 font-normal">(Bisa diubah/dihapus kapan saja)</span>
                         </label>
                         <button
                           type="button"
                           onClick={() => setIsRegPinpointOpen(true)}
-                          className="w-full px-3 py-2.5 rounded-xl border border-[#D8D2C5] bg-white hover:bg-emerald-50/60 text-left flex items-center justify-between gap-2 transition-colors cursor-pointer"
+                          className="w-full px-3 py-2.5 rounded-xl border border-[#E4EAF1] bg-white hover:bg-emerald-50/60 text-left flex items-center justify-between gap-2 transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
                             <div className="min-w-0">
-                              <span className="block text-xs font-bold text-[#1F1D1A] truncate">
+                              <span className="block text-xs font-bold text-[#181C2E] truncate">
                                 {regPinLat !== null && regPinLng !== null
                                   ? regPinLabel || "Pin Lokasi Gerai Terpasang"
                                   : "Pilih Titik Lokasi Gerai di Peta"}
                               </span>
-                              <span className="block text-[10px] text-[#6B655B] font-mono truncate">
+                              <span className="block text-[10px] text-[#646982] font-mono truncate">
                                 {regPinLat !== null && regPinLng !== null
                                   ? `${regPinLat.toFixed(5)}, ${regPinLng.toFixed(5)}`
                                   : "Klik untuk menaruh pin agar toko tampil di peta jelajah"}
@@ -804,7 +773,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                        <label className="block text-xs font-semibold text-[#181C2E] mb-1">
                           Buat Password Gerai (Min. 6 Karakter)
                         </label>
                         <div className="relative">
@@ -816,7 +785,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                             value={regMerchantPassword}
                             onChange={(e) => setRegMerchantPassword(e.target.value)}
                             placeholder="Minimal 6 karakter"
-                            className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                            className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                           />
                           <button
                             type="button"
@@ -868,14 +837,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             /* ========================================================================= */
             <div className="mt-4">
               {/* Consumer Sub-Tabs */}
-              <div className="flex border-b border-[#D8D2C5] mb-4">
+              <div className="flex border-b border-slate-100 mb-4">
                 <button
                   type="button"
                   onClick={() => setConsumerTab("login")}
-                  className={`flex-1 py-2 text-xs font-bold transition-all border-b-2 ${
+                  className={`flex-1 py-2.5 text-sm font-bold transition-all border-b-2 cursor-pointer ${
                     consumerTab === "login"
-                      ? "border-emerald-600 text-emerald-800"
-                      : "border-transparent text-stone-500 hover:text-stone-700"
+                      ? "border-emerald-600 text-emerald-700"
+                      : "border-transparent text-[#646982] hover:text-[#222222]"
                   }`}
                 >
                   Masuk Akun
@@ -883,10 +852,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                 <button
                   type="button"
                   onClick={() => setConsumerTab("register")}
-                  className={`flex-1 py-2 text-xs font-bold transition-all border-b-2 ${
+                  className={`flex-1 py-2.5 text-sm font-bold transition-all border-b-2 cursor-pointer ${
                     consumerTab === "register"
-                      ? "border-emerald-600 text-emerald-800"
-                      : "border-transparent text-stone-500 hover:text-stone-700"
+                      ? "border-emerald-600 text-emerald-700"
+                      : "border-transparent text-[#646982] hover:text-[#222222]"
                   }`}
                 >
                   Daftar Pengguna Baru
@@ -894,37 +863,37 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
               </div>
 
               {consumerTab === "login" ? (
-                <form onSubmit={handleConsumerLogin} className="space-y-3">
+                <form onSubmit={handleConsumerLogin} className="space-y-3.5">
                   {savedConsumers.length > 0 && (
-                    <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1.5">
-                        <Sparkles className="w-3 h-3 text-emerald-600" />
-                        <span>Pilih Cepat Email Anda</span>
+                    <div className="p-3 rounded-xl bg-[#F0F5FA]">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#222222] mb-2">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Akun Tersimpan</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {savedConsumers.map((item) => (
                           <div
                             key={item.email}
-                            className="inline-flex items-center rounded-lg bg-white border border-emerald-300 shadow-sm overflow-hidden"
+                            className="inline-flex items-center rounded-lg bg-white shadow-xs overflow-hidden"
                           >
                             <button
                               type="button"
                               onClick={() => handleSelectQuickConsumer(item)}
-                              className="px-2.5 py-1 hover:bg-emerald-100 text-[11px] font-medium text-stone-800 transition-colors flex items-center gap-1 cursor-pointer"
+                              className="px-2.5 py-1.5 hover:bg-emerald-50 text-xs font-medium text-[#222222] transition-colors flex items-center gap-1 cursor-pointer"
                             >
                               <span className="font-bold text-emerald-700 truncate max-w-[100px]">
                                 {item.customerName}
                               </span>
-                              <span className="text-stone-500 truncate max-w-[115px]">· {item.email}</span>
+                              <span className="text-[#646982] truncate max-w-[115px]">· {item.email}</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => removeSavedConsumer(item.email)}
                               aria-label={`Hapus ${item.customerName} dari daftar tersimpan`}
                               title="Hapus email konsumen tersimpan"
-                              className="px-1.5 py-1 text-stone-400 hover:text-red-600 hover:bg-red-50 border-l border-emerald-200 transition-colors cursor-pointer"
+                              className="px-1.5 py-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 border-l border-slate-100 transition-colors cursor-pointer"
                             >
-                              <X className="w-3 h-3" />
+                              <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         ))}
@@ -932,28 +901,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                     </div>
                   )}
 
-                  {/* Quick-fill Demo Consumer Email */}
-                  <div className="p-2.5 rounded-xl bg-[#F8F6F0] border border-[#E2DDD3] flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-[#5C574F]">
-                      Akun demo: <code className="font-mono font-bold text-[#1F1D1A]">budi@nullwasted.id</code> (pw:{" "}
-                      <code className="font-mono text-[#1F1D1A]">nullwasted123</code>)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConsumerEmail("budi@nullwasted.id");
-                        setConsumerError("");
-                      }}
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-emerald-50 border border-[#D8D2C5] text-[10px] font-bold text-emerald-700 shrink-0 cursor-pointer"
-                    >
-                      Isi Email
-                    </button>
-                  </div>
-
                   <div>
-                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Email Terdaftar</label>
+                    <label className="block text-sm font-semibold text-[#222222] mb-1.5">Email Terdaftar</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <Mail className="w-4 h-4" />
                       </div>
                       <input
@@ -961,13 +912,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         value={consumerEmail}
                         onChange={(e) => setConsumerEmail(e.target.value)}
                         placeholder="Contoh: budi@nullwasted.id"
-                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-[#222222] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Password</label>
+                    <label className="block text-xs font-semibold text-[#181C2E] mb-1">Password</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                         <KeyRound className="w-4 h-4" />
@@ -977,7 +928,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         value={consumerPassword}
                         onChange={(e) => setConsumerPassword(e.target.value)}
                         placeholder="Minimal 6 karakter"
-                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                       />
                       <button
                         type="button"
@@ -1021,7 +972,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
               ) : (
                 <form onSubmit={handleConsumerRegister} className="space-y-3">
                   <div>
-                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Nama Lengkap</label>
+                    <label className="block text-xs font-semibold text-[#181C2E] mb-1">Nama Lengkap</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                         <User className="w-4 h-4" />
@@ -1031,13 +982,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         value={regCustomerName}
                         onChange={(e) => setRegCustomerName(e.target.value)}
                         placeholder="Contoh: Budi Santoso"
-                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">Email Aktif</label>
+                    <label className="block text-xs font-semibold text-[#181C2E] mb-1">Email Aktif</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                         <Mail className="w-4 h-4" />
@@ -1047,13 +998,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         value={regCustomerEmail}
                         onChange={(e) => setRegCustomerEmail(e.target.value)}
                         placeholder="Contoh: nama@email.id"
-                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                    <label className="block text-xs font-semibold text-[#181C2E] mb-1">
                       Password (Min. 6 Karakter)
                     </label>
                     <div className="relative">
@@ -1065,7 +1016,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         value={regCustomerPassword}
                         onChange={(e) => setRegCustomerPassword(e.target.value)}
                         placeholder="Minimal 6 karakter"
-                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                       />
                       <button
                         type="button"
@@ -1079,7 +1030,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#1F1D1A] mb-1">
+                    <label className="block text-xs font-semibold text-[#181C2E] mb-1">
                       Nomor WhatsApp <span className="text-stone-400 font-normal">(Opsional untuk kontak tiket)</span>
                     </label>
                     <div className="relative">
@@ -1091,12 +1042,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         value={regCustomerPhone}
                         onChange={(e) => setRegCustomerPhone(e.target.value)}
                         placeholder="Contoh: 0812-8899-0011"
-                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D8D2C5] bg-white text-[#1F1D1A] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                       />
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-[#6B655B] bg-[#F8F6F0] px-3 py-2 rounded-xl border border-[#E7E1D4]">
+                  <p className="text-[11px] text-[#646982] bg-[#F0F5FA] px-3 py-2 rounded-xl border border-[#E7E1D4]">
                     Setelah masuk, aplikasi akan meminta izin GPS perangkat Anda untuk menghitung jarak ke gerai sekitar.
                   </p>
 

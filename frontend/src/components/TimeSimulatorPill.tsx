@@ -84,10 +84,10 @@ export const TimeSimulatorPill: React.FC = () => {
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         title="Klik untuk membuka Simulator Jam Uji WIB"
-        className={`inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-mono font-bold border transition-all active:scale-95 ${
+        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] sm:text-sm font-semibold tabular-nums border transition-all active:scale-95 ${
           simulated
             ? "bg-amber-50 text-amber-800 border-amber-300 shadow-xs"
-            : "bg-[#F8F6F0] text-[#5C574F] border-[#E5E0D5] hover:border-[#10B981]/50 hover:text-[#1F1D1A]"
+            : "bg-[#F0F5FA] text-[#222222] border-slate-200 hover:border-emerald-500/50"
         }`}
       >
         <Clock className={`w-3.5 h-3.5 shrink-0 ${simulated ? "text-amber-600" : "text-[#10B981]"}`} />
@@ -105,12 +105,12 @@ export const TimeSimulatorPill: React.FC = () => {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-amber-600" />
-              <span className="text-xs font-extrabold text-[#1F1D1A]">Simulator Jam Uji (WIB)</span>
+              <span className="text-xs font-extrabold text-[#181C2E]">Simulator Jam Uji (WIB)</span>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="p-1 text-[#5C574F] hover:text-[#1F1D1A] rounded-lg"
+              className="p-1 text-[#5C574F] hover:text-[#181C2E] rounded-lg"
               aria-label="Tutup simulator jam"
             >
               <X className="w-3.5 h-3.5" />
@@ -126,7 +126,7 @@ export const TimeSimulatorPill: React.FC = () => {
               type="time"
               value={timeInput}
               onChange={(e) => setTimeInput(e.target.value)}
-              className="flex-1 bg-[#F8F6F0] border border-[#E5E0D5] rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-[#1F1D1A] focus:outline-none focus:border-[#10B981]"
+              className="flex-1 bg-[#F0F5FA] border border-[#E5E0D5] rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-[#181C2E] focus:outline-none focus:border-[#10B981]"
             />
             <button
               type="submit"
@@ -142,7 +142,7 @@ export const TimeSimulatorPill: React.FC = () => {
                 key={preset.time}
                 type="button"
                 onClick={() => handleSelectPreset(preset.time)}
-                className="text-left px-2.5 py-1.5 rounded-xl bg-[#F8F6F0] hover:bg-[#E8F8F2] border border-[#E5E0D5] hover:border-[#10B981]/50 text-[11px] font-semibold text-[#1F1D1A] transition-colors"
+                className="text-left px-2.5 py-1.5 rounded-xl bg-[#F0F5FA] hover:bg-[#E8F8F2] border border-[#E5E0D5] hover:border-[#10B981]/50 text-[11px] font-semibold text-[#181C2E] transition-colors"
               >
                 {preset.label}
               </button>
@@ -152,7 +152,7 @@ export const TimeSimulatorPill: React.FC = () => {
           <button
             type="button"
             onClick={handleReset}
-            className="w-full py-2 px-3 rounded-xl border border-[#E5E0D5] bg-white hover:bg-[#F8F6F0] text-xs font-bold text-[#5C574F] hover:text-[#1F1D1A] flex items-center justify-center gap-1.5 transition-colors"
+            className="w-full py-2 px-3 rounded-xl border border-[#E5E0D5] bg-white hover:bg-[#F0F5FA] text-xs font-bold text-[#5C574F] hover:text-[#181C2E] flex items-center justify-center gap-1.5 transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Gunakan Waktu Sekarang</span>

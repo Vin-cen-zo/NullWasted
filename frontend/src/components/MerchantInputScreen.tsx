@@ -287,14 +287,14 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   return (
     <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full space-y-4">
       {/* Top Banner / Store Context & Catalog Quick Action */}
-      <div className="bg-white p-3.5 rounded-2xl border border-[#E2DDD3] shadow-sm">
+      <div className="bg-white p-3.5 rounded-2xl border border-[#EEF0F4] shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-bold text-[#1F1D1A]">Buat Listing Makanan Surplus</h2>
-            <p className="text-xs text-[#6B655B]">
+            <h2 className="text-sm font-bold text-[#181C2E]">Buat Listing Makanan Surplus</h2>
+            <p className="text-xs text-[#646982]">
               Gerai: <span className="font-semibold text-emerald-800">{storeName}</span> ({storeId})
             </p>
-            <p className="text-[11px] text-[#6B655B] mt-0.5 flex items-center gap-1">
+            <p className="text-[11px] text-[#646982] mt-0.5 flex items-center gap-1">
               <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
               <span>
                 {latitude != null && longitude != null
@@ -307,7 +307,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
             <button
               type="button"
               onClick={() => setIsPinpointOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-800 border border-[#D8D2C5] text-xs font-bold transition shadow-sm cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-800 border border-[#E4EAF1] text-xs font-bold transition shadow-sm cursor-pointer"
             >
               <MapPin className="w-3.5 h-3.5 text-emerald-700" />
               <span>{latitude != null ? "Ubah Pin" : "Pasang Pin"}</span>
@@ -345,14 +345,14 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
       />
 
       {/* Dual-Mode Tabs */}
-      <div className="grid grid-cols-2 gap-1 p-1 bg-[#E8E3D9]/60 rounded-xl border border-[#D8D2C5]">
+      <div className="grid grid-cols-2 gap-1 p-1 bg-[#E8E3D9]/60 rounded-xl border border-[#E4EAF1]">
         <button
           type="button"
           onClick={() => setInputMode("catalog")}
           className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
             inputMode === "catalog"
-              ? "bg-white text-[#1F1D1A] shadow-sm border border-black/5"
-              : "text-[#6B655B] hover:text-[#1F1D1A]"
+              ? "bg-white text-[#181C2E] shadow-sm border border-black/5"
+              : "text-[#646982] hover:text-[#181C2E]"
           }`}
         >
           <Utensils className="w-4 h-4 text-emerald-600" />
@@ -363,8 +363,8 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
           onClick={() => setInputMode("ai")}
           className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
             inputMode === "ai"
-              ? "bg-white text-[#1F1D1A] shadow-sm border border-black/5"
-              : "text-[#6B655B] hover:text-[#1F1D1A]"
+              ? "bg-white text-[#181C2E] shadow-sm border border-black/5"
+              : "text-[#646982] hover:text-[#181C2E]"
           }`}
         >
           <Sparkles className="w-4 h-4 text-emerald-600" />
@@ -461,7 +461,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
         /* ========================================================================= */
         <div className="space-y-4">
           <div className="bg-[#FAF8F5] p-3 rounded-xl border border-[#E8E2D5] text-[11px] text-[#555047] space-y-1">
-            <div className="flex items-center gap-1.5 font-semibold text-[#1F1D1A]">
+            <div className="flex items-center gap-1.5 font-semibold text-[#181C2E]">
               <Info className="w-3.5 h-3.5 text-emerald-600" />
               <span>Panduan Dikte Bebas Menu Spesial:</span>
             </div>
@@ -477,7 +477,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                 value={inputText}
                 onChange={(e) => handleTextChange(e.target.value)}
                 placeholder="Ketik deskripsi sisa makanan atau tekan tombol Dikte Suara di bawah..."
-                className="w-full p-3.5 text-xs rounded-2xl border border-[#D8D2C5] bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 resize-none text-[#1F1D1A] leading-relaxed placeholder:text-gray-400"
+                className="w-full p-3.5 text-xs rounded-2xl border border-[#E4EAF1] bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 resize-none text-[#181C2E] leading-relaxed placeholder:text-gray-400"
               />
               {inputText && (
                 <button
@@ -498,7 +498,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all ${
                   isRecording
                     ? "bg-red-50 text-red-700 border-red-300 animate-pulse"
-                    : "bg-white text-[#1F1D1A] border-[#D8D2C5] hover:bg-gray-50"
+                    : "bg-white text-[#181C2E] border-[#E4EAF1] hover:bg-gray-50"
                 }`}
               >
                 {isRecording ? (
@@ -617,7 +617,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
             </div>
 
             {/* Stepper Porsi Sisa (1 - 200) */}
-            <div className="p-3 bg-[#F8F6F0] rounded-2xl border border-stone-200 flex items-center justify-between">
+            <div className="p-3 bg-[#F0F5FA] rounded-2xl border border-stone-200 flex items-center justify-between">
               <div>
                 <span className="text-xs font-bold text-stone-800 block">Jumlah Porsi Sisa</span>
                 <span className="text-[11px] text-stone-500">Porsi tersedia (maks 200)</span>

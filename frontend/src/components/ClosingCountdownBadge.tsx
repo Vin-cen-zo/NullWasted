@@ -54,15 +54,15 @@ export const ClosingCountdownBadge: React.FC<ClosingCountdownBadgeProps> = ({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold tabular-nums ${
         isExpired
-          ? "bg-red-50 text-red-700 border-red-200"
+          ? "bg-red-50 text-red-700"
           : isUrgent
-          ? "bg-amber-100 text-amber-800 border-amber-300 animate-pulse"
-          : "bg-stone-100 text-stone-700 border-stone-200"
+          ? "bg-amber-100 text-amber-800 animate-pulse"
+          : "bg-white text-[#181C2E] shadow-2xs"
       }`}
     >
-      <Clock className="w-3 h-3 shrink-0" />
+      <Clock className="w-3 h-3 shrink-0 text-emerald-600" />
       <span>{formatDuration(secondsLeft)}</span>
     </span>
   );

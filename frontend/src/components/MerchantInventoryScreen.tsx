@@ -42,8 +42,8 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
       {/* Header Info */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-bold text-[#1F1D1A]">Inventaris Aktif Gerai</h2>
-          <p className="text-xs text-[#6B655B]">{storeName} · Live Catalog</p>
+          <h2 className="text-sm font-bold text-[#181C2E]">Inventaris Aktif Gerai</h2>
+          <p className="text-xs text-[#646982]">{storeName} · Live Catalog</p>
         </div>
         <button
           type="button"
@@ -88,12 +88,12 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
 
       {/* Listing Cards */}
       {listings.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white rounded-2xl border border-dashed border-[#D8D2C5]">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white rounded-2xl border border-dashed border-[#E4EAF1]">
           <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
             <Store className="w-6 h-6" />
           </div>
-          <p className="text-xs font-bold text-[#1F1D1A]">Belum Ada Makanan Aktif</p>
-          <p className="text-[11px] text-[#6B655B] mt-1 max-w-[220px]">
+          <p className="text-xs font-bold text-[#181C2E]">Belum Ada Makanan Aktif</p>
+          <p className="text-[11px] text-[#646982] mt-1 max-w-[220px]">
             Gunakan tab Buat Listing untuk mempublikasikan menu surplus malam ini.
           </p>
           <button
@@ -122,7 +122,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                 className={`bg-white p-4 rounded-2xl border shadow-sm transition-all h-full flex flex-col justify-between space-y-3 ${
                   item.is_bundle
                     ? "border-purple-300 bg-gradient-to-b from-purple-50/40 to-white"
-                    : "border-[#E2DDD3] hover:border-emerald-300"
+                    : "border-[#EEF0F4] hover:border-emerald-300"
                 }`}
               >
                 <div className="flex items-start justify-between">
@@ -147,8 +147,8 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                         expiresAt={item.expires_at}
                       />
                     </div>
-                    <h3 className="text-xs font-bold text-[#1F1D1A] leading-snug">{item.food_name}</h3>
-                    <p className="text-[10px] text-[#6B655B]">
+                    <h3 className="text-xs font-bold text-[#181C2E] leading-snug">{item.food_name}</h3>
+                    <p className="text-[10px] text-[#646982]">
                       {getFriendlyCategory(item.category, item.is_bundle).label}
                     </p>
 
@@ -187,7 +187,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="text-[11px] font-semibold text-[#1F1D1A]">
+                    <span className="text-[11px] font-semibold text-[#181C2E]">
                       Tersisa: {item.quantity} / {item.initial_quantity} porsi
                     </span>
                   </div>
