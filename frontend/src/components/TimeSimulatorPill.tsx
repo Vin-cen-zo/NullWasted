@@ -90,7 +90,7 @@ export const TimeSimulatorPill: React.FC = () => {
             : "bg-[#F0F5FA] text-[#222222] border-slate-200 hover:border-emerald-500/50"
         }`}
       >
-        <Clock className={`w-3.5 h-3.5 shrink-0 ${simulated ? "text-amber-600" : "text-[#10B981]"}`} />
+        <Clock className={`w-3.5 h-3.5 shrink-0 ${simulated ? "text-amber-600" : "text-emerald-600"}`} />
         <span className="hidden sm:inline">{formatWibClock(nowDate, true)}</span>
         <span className="sm:hidden">{formatWibHHMM(nowDate)} WIB</span>
         {simulated && (
@@ -101,7 +101,7 @@ export const TimeSimulatorPill: React.FC = () => {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-72 bg-white border border-[#E5E0D5] rounded-2xl shadow-xl p-4 z-50 text-left">
+        <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 z-50 text-left">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-amber-600" />
@@ -110,27 +110,32 @@ export const TimeSimulatorPill: React.FC = () => {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="p-1 text-[#5C574F] hover:text-[#181C2E] rounded-lg"
+              className="p-1 text-[#646982] hover:text-[#181C2E] rounded-lg cursor-pointer"
               aria-label="Tutup simulator jam"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <p className="text-[11px] text-[#5C574F] leading-relaxed mb-3">
+          <p className="text-[11px] text-[#646982] leading-relaxed mb-3">
             Uji skenario pagi, jelang tutup, atau lewat jam tutup tanpa mengubah jam OS perangkat.
           </p>
 
           <form onSubmit={handleApplyTime} className="flex items-center gap-2 mb-3">
+            <label htmlFor="time-simulator-input" className="sr-only">
+              Pilih jam simulasi WIB
+            </label>
             <input
+              id="time-simulator-input"
+              name="simulatedTime"
               type="time"
               value={timeInput}
               onChange={(e) => setTimeInput(e.target.value)}
-              className="flex-1 bg-[#F0F5FA] border border-[#E5E0D5] rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-[#181C2E] focus:outline-none focus:border-[#10B981]"
+              className="flex-1 bg-[#F0F5FA] border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-[#181C2E] focus:outline-none focus:border-emerald-600"
             />
             <button
               type="submit"
-              className="px-3 py-1.5 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold rounded-xl transition-colors"
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
             >
               Terapkan
             </button>
@@ -142,7 +147,7 @@ export const TimeSimulatorPill: React.FC = () => {
                 key={preset.time}
                 type="button"
                 onClick={() => handleSelectPreset(preset.time)}
-                className="text-left px-2.5 py-1.5 rounded-xl bg-[#F0F5FA] hover:bg-[#E8F8F2] border border-[#E5E0D5] hover:border-[#10B981]/50 text-[11px] font-semibold text-[#181C2E] transition-colors"
+                className="text-left px-2.5 py-1.5 rounded-xl bg-[#F0F5FA] hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-[11px] font-semibold text-[#181C2E] transition-colors cursor-pointer"
               >
                 {preset.label}
               </button>
@@ -152,7 +157,7 @@ export const TimeSimulatorPill: React.FC = () => {
           <button
             type="button"
             onClick={handleReset}
-            className="w-full py-2 px-3 rounded-xl border border-[#E5E0D5] bg-white hover:bg-[#F0F5FA] text-xs font-bold text-[#5C574F] hover:text-[#181C2E] flex items-center justify-center gap-1.5 transition-colors"
+            className="w-full py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-[#F0F5FA] text-xs font-bold text-[#646982] hover:text-[#181C2E] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Gunakan Waktu Sekarang</span>

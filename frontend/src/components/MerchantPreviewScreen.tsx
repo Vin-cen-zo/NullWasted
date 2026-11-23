@@ -296,13 +296,13 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full space-y-4">
+    <div className="flex-1 flex flex-col w-full space-y-4">
       {/* Top Bar Navigation */}
       <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-1.5 text-xs font-semibold text-[#646982] hover:text-[#222222] py-1 px-2.5 rounded-lg bg-white border border-[#EEF0F4] cursor-pointer"
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#646982] hover:text-[#181C2E] py-1.5 px-3 rounded-xl bg-white border border-slate-200 cursor-pointer transition"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Ubah Input</span>
@@ -319,10 +319,10 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       </div>
 
       {/* Catalog Match Resolution Banner */}
-      <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm space-y-2">
-        <div className="flex items-center justify-between">
+      <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] space-y-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-[#646982] uppercase tracking-wider">
               Status Pencocokan Katalog
             </span>
             {renderCatalogBadge()}
@@ -334,10 +334,10 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
               type="button"
               onClick={handleSaveToCatalog}
               disabled={isSavingToCatalog || savedToCatalog}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs ${
                 savedToCatalog
                   ? "bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default"
-                  : "bg-stone-100 hover:bg-emerald-50 text-stone-800 hover:text-emerald-800 border border-stone-300 cursor-pointer"
+                  : "bg-[#F0F5FA] hover:bg-emerald-50 text-[#181C2E] hover:text-emerald-800 border border-slate-200 cursor-pointer"
               }`}
             >
               {savedToCatalog ? (
@@ -414,19 +414,22 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       {/* 2-Column Responsive Grid: Human-in-the-Loop Entity Card & Dynamic Pricing Card */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
         {/* Editable Human-in-the-Loop Entity Card */}
-        <div className="bg-white p-4 rounded-xl border border-[#EEF0F4] shadow-sm space-y-3 h-full flex flex-col justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] space-y-3 h-full flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-xs font-bold text-[#222222] uppercase tracking-wider">
+              <h4 className="text-xs font-bold text-[#181C2E] uppercase tracking-wider">
                 Rincian Entitas & Verifikasi Staf
               </h4>
-              <span className="text-xs text-stone-400">Klik kolom untuk mengubah</span>
+              <span className="text-xs text-[#A0A5BA]">Klik kolom untuk mengubah</span>
             </div>
 
             <div className="space-y-3 text-xs">
               {/* Photo Control & Preview Card (Replace / Delete) */}
-              <div className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+              <div className="p-2.5 rounded-xl bg-[#F0F5FA] border border-slate-200 space-y-2">
                 <input
+                  id="preview-photo-upload"
+                  name="photoUpload"
+                  aria-label="Unggah foto hidangan"
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
@@ -439,21 +442,21 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                       <img
                         src={resolveImageUrl(imageUrl)!}
                         alt={foodName}
-                        className="w-12 h-12 rounded-lg object-cover border border-stone-200 shrink-0 bg-stone-100 shadow-xs"
+                        className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-100 shadow-xs"
                         onError={(e) => {
                           (e.target as HTMLElement).style.display = "none";
                         }}
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-lg border border-dashed border-stone-300 bg-white flex items-center justify-center shrink-0 text-stone-400">
+                      <div className="w-12 h-12 rounded-lg border border-dashed border-slate-300 bg-white flex items-center justify-center shrink-0 text-[#A0A5BA]">
                         <Camera className="w-5 h-5" />
                       </div>
                     )}
                     <div className="text-xs min-w-0">
-                      <span className="font-bold text-stone-800 block truncate">
+                      <span className="font-bold text-[#181C2E] block truncate">
                         {resolveImageUrl(imageUrl) ? "Foto Hidangan Aktif" : "Tanpa Foto Khusus"}
                       </span>
-                      <span className="text-stone-500 text-xs block truncate">
+                      <span className="text-[#646982] text-xs block truncate">
                         {resolveImageUrl(imageUrl)
                           ? imageUrl === draft.image_url
                             ? "Diwarisi dari buku menu / siap diganti"
@@ -467,7 +470,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                       type="button"
                       disabled={isUploadingImage}
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-emerald-50 border border-stone-300 hover:border-emerald-300 text-xs font-bold text-stone-700 hover:text-emerald-800 transition cursor-pointer disabled:opacity-50"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-xs font-bold text-[#181C2E] hover:text-emerald-800 transition cursor-pointer disabled:opacity-50"
                     >
                       {isUploadingImage ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
@@ -481,7 +484,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                         type="button"
                         disabled={isUploadingImage}
                         onClick={handleRemoveImage}
-                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white hover:bg-red-50 border border-stone-300 hover:border-red-300 text-xs font-bold text-stone-600 hover:text-red-700 transition cursor-pointer disabled:opacity-50"
+                        className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-xs font-bold text-[#646982] hover:text-red-700 transition cursor-pointer disabled:opacity-50"
                         title="Hapus foto dan gunakan ilustrasi kategori"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -497,24 +500,28 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
 
               {/* Editable Food Name */}
               <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1">
+                <label htmlFor="preview-food-name" className="block text-xs font-semibold text-[#646982] mb-1">
                   Nama Hidangan
                 </label>
                 <input
+                  id="preview-food-name"
+                  name="foodName"
                   type="text"
                   value={foodName}
                   onChange={(e) => setFoodName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-stone-200 font-bold text-stone-800 bg-[#F4F3F7] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs transition-colors"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 font-bold text-[#181C2E] bg-[#F0F5FA] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs transition-colors"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 {/* Editable Quantity bounded 1 - 200 */}
                 <div>
-                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                  <label htmlFor="preview-quantity" className="block text-xs font-semibold text-[#646982] mb-1">
                     Jumlah Porsi (Maks 200)
                   </label>
                   <input
+                    id="preview-quantity"
+                    name="quantity"
                     type="number"
                     min={1}
                     max={200}
@@ -533,13 +540,13 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                       setQuantity(clamped);
                       setQuantityInput(String(clamped));
                     }}
-                    className="w-full px-3 py-2 rounded-xl border border-stone-200 font-bold text-stone-800 bg-[#F4F3F7] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs transition-colors"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 font-bold text-[#181C2E] bg-[#F0F5FA] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs transition-colors"
                   />
                 </div>
 
                 {/* Editable Original Price bounded 1000 - 2000000 */}
                 <div>
-                  <label className="block text-xs font-semibold text-stone-600 mb-1 flex items-center justify-between">
+                  <label htmlFor="preview-original-price" className="block text-xs font-semibold text-[#646982] mb-1 flex items-center justify-between">
                     <span>Harga Normal (Rp)</span>
                     {draft.needs_manual_price && (
                       <span className="text-xs font-bold text-amber-700 bg-amber-100 px-1 rounded">
@@ -548,6 +555,8 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                     )}
                   </label>
                   <input
+                    id="preview-original-price"
+                    name="originalPrice"
                     type="number"
                     step={500}
                     min={1000}
@@ -573,19 +582,19 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                     className={`w-full px-3 py-2 rounded-xl font-bold text-xs focus:outline-none focus:ring-2 ${
                       draft.needs_manual_price
                         ? "border-2 border-amber-400 bg-amber-50 text-amber-950 focus:ring-amber-500"
-                        : "border border-stone-200 bg-[#F4F3F7] focus:bg-white text-stone-800 focus:ring-emerald-500 transition-colors"
+                        : "border border-slate-200 bg-[#F0F5FA] focus:bg-white text-[#181C2E] focus:ring-emerald-500 transition-colors"
                     }`}
                   />
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-[#F4F3F7] border border-stone-200/50">
+                <div className="p-2.5 rounded-xl bg-[#F0F5FA] border border-slate-200/70">
                   <span className="text-xs text-[#646982] block">Kategori Pangan</span>
-                  <span className="font-bold text-[#222222]">{getFriendlyCategory(draft.category).label}</span>
+                  <span className="font-bold text-[#181C2E]">{getFriendlyCategory(draft.category).label}</span>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-[#F4F3F7] border border-stone-200/50">
+                <div className="p-2.5 rounded-xl bg-[#F0F5FA] border border-slate-200/70">
                   <span className="text-xs text-[#646982] block">Waktu Sejak Dimasak</span>
-                  <span className="font-bold text-[#222222]">
+                  <span className="font-bold text-[#181C2E]">
                     {draft.hours_since_cooked} jam / Maks {draft.bpom_max_hours} jam
                   </span>
                 </div>
@@ -593,7 +602,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-[#646982] pt-2 border-t border-stone-100 mt-2">
+          <div className="flex items-center gap-2 text-xs text-[#646982] pt-2 border-t border-slate-100 mt-2">
             <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span>
               Sisa waktu tutup toko: <strong>{formatCountdown(remainingSeconds)}</strong>
@@ -602,13 +611,13 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
         </div>
 
         {/* Dynamic Pricing Interactive Slider */}
-        <div className="bg-white p-4 rounded-xl border border-[#EEF0F4] shadow-sm space-y-3 h-full flex flex-col justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] space-y-3 h-full flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5">
+              <label htmlFor="preview-discount-slider" className="flex items-center gap-1.5 cursor-pointer">
                 <Sparkles className="w-4 h-4 text-emerald-600" />
-                <h4 className="text-xs font-bold text-[#222222]">Dynamic Pricing (50% – 70%)</h4>
-              </div>
+                <span className="text-xs font-bold text-[#181C2E]">Dynamic Pricing (50% – 70%)</span>
+              </label>
               <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
                 Diskon: {discountPercent}%
               </span>
@@ -616,6 +625,8 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
 
             <div className="space-y-2 mt-3">
               <input
+                id="preview-discount-slider"
+                name="discountPercent"
                 type="range"
                 min={50}
                 max={70}
@@ -639,7 +650,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
           <div className="p-3 rounded-xl bg-[#F0F5FA] flex items-center justify-between mt-3">
             <div>
               <span className="text-xs text-[#646982] block">Harga Normal Asli</span>
-              <span className="text-xs text-gray-400 line-through">
+              <span className="text-xs text-[#A0A5BA] line-through">
                 Rp {originalPrice.toLocaleString("id-ID")}
               </span>
             </div>
@@ -676,8 +687,8 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
             !isSafe || !draft.can_publish || isStoreClosed
               ? "bg-red-200 text-red-600 cursor-not-allowed shadow-none border border-red-300"
               : isPublishing
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed shadow-none"
-              : "bg-[#10B981] hover:bg-[#059669] text-white shadow-emerald-500/20 active:scale-[0.98] cursor-pointer"
+              ? "bg-slate-200 text-slate-500 cursor-not-allowed shadow-none"
+              : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20 active:scale-[0.98] cursor-pointer"
           }`}
         >
           {!isSafe || !draft.can_publish ? (

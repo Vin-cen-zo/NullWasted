@@ -437,12 +437,11 @@ export const App: React.FC = () => {
                 type="button"
                 onClick={handleLogout}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#ECF0F4] hover:bg-slate-200 text-[11px] sm:text-xs font-bold text-[#181C2E] transition-colors shrink-0 cursor-pointer"
-                title="Ganti Peran / Logout"
-                aria-label="Ganti Akun"
+                title="Keluar dari akun"
+                aria-label="Keluar"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Ganti Akun</span>
-                <span className="sm:hidden">Keluar</span>
+                <span>Keluar</span>
               </button>
             ) : null}
           </div>

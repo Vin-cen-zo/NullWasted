@@ -59,19 +59,35 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const hasInitialFitRef = useRef<boolean>(false);
+  const hasFittedRegisteredStoresRef = useRef<boolean>(false);
+  const hasUserInteractedRef = useRef<boolean>(false);
   const lastMarkersSignatureRef = useRef<string>("");
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [registeredStores, setRegisteredStores] = useState<StoreProfile[]>([]);
+  const [storesLoaded, setStoresLoaded] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
     let active = true;
+    setStoresLoaded(false);
     fetchStores()
       .then((stores) => {
-        if (active) setRegisteredStores(stores);
+        if (active) {
+          setRegisteredStores(stores);
+          setStoresLoaded(true);
+        }
       })
       .catch(() => {
-        // Fallback silently to listings-derived stores if /stores unavailable
+        if (active) setStoresLoaded(true);
       });
     return () => {
       active = false;
@@ -143,11 +159,16 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
     if (!isOpen || !mapContainerRef.current) return;
 
     hasInitialFitRef.current = false;
+    hasFittedRegisteredStoresRef.current = false;
+    hasUserInteractedRef.current = false;
 
     const map = L.map(mapContainerRef.current, {
       center: userCoords || DEFAULT_OVERVIEW_CENTER,
       zoom: userCoords ? 14 : 11,
       zoomControl: true,
+    });
+    map.on("dragstart", () => {
+      hasUserInteractedRef.current = true;
     });
     mapInstanceRef.current = map;
 
@@ -288,19 +309,27 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
       });
     });
 
-    // Only auto-position the camera once when store/GPS data first arrives
-    if (!hasInitialFitRef.current && (userCoords || storePoints.length > 0)) {
+    // Auto-fit once on initial arrival, and re-fit once when /stores finishes loading (if user hasn't dragged)
+    const shouldInitialFit = !hasInitialFitRef.current && (userCoords || storePoints.length > 0);
+    const shouldReFitWithAllStores =
+      storesLoaded &&
+      !hasFittedRegisteredStoresRef.current &&
+      !hasUserInteractedRef.current &&
+      storePoints.length > 0;
+
+    if (shouldInitialFit || shouldReFitWithAllStores) {
       hasInitialFitRef.current = true;
+      if (storesLoaded) hasFittedRegisteredStoresRef.current = true;
       const safeStorePoints = filterOutlierPoints(storePoints, userCoords);
-      if (userCoords) {
+      if (userCoords && !shouldReFitWithAllStores) {
         map.setView(userCoords, 14);
       } else if (safeStorePoints.length === 1) {
         map.setView(safeStorePoints[0], 14);
       } else if (safeStorePoints.length > 1) {
-        map.fitBounds(L.latLngBounds(safeStorePoints), { padding: [48, 48], maxZoom: 15 });
+        map.fitBounds(L.latLngBounds(safeStorePoints), { padding: [56, 56], maxZoom: 15 });
       }
     }
-  }, [isOpen, markersSignature, storeMap, userCoords]);
+  }, [isOpen, markersSignature, storeMap, userCoords, storesLoaded]);
 
   // Leaflet map invalidation on store panel toggle and responsive window resize
   useEffect(() => {
@@ -325,35 +354,44 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
   const activeStoreData = selectedStoreId ? storeMap.get(selectedStoreId) : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3">
-      <div className="w-full max-w-4xl bg-stone-50 rounded-2xl sm:rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col h-[85vh] sm:h-[82vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-xs p-3 sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col h-[85vh] sm:h-[82vh]">
         {/* Header */}
-        <div className="bg-emerald-700 text-white px-5 py-3.5 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-2">
-            <MapPin className="w-5 h-5 text-emerald-200" />
-            <div>
-              <h2 className="font-bold text-sm">Peta Gerai Makanan Surplus</h2>
-              <p className="text-[11px] text-emerald-100">
+        <div className="bg-white border-b border-slate-100 px-5 py-3.5 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-[#F0F5FA] flex items-center justify-center shrink-0">
+              <MapPin className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="font-bold text-sm text-[#181C2E] truncate">Peta Gerai Makanan Surplus</h2>
+              <p className="text-xs text-[#646982] truncate">
                 {storeMap.size} gerai terpin di peta · OpenStreetMap Explorer
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {storeMap.size > 0 && (
               <button
                 type="button"
                 onClick={fitAllPinnedStores}
-                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
               >
-                <Maximize2 className="w-3 h-3" />
+                <Maximize2 className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Lihat Semua ({storeMap.size})</span>
               </button>
             )}
             <button
+              type="button"
               onClick={onClose}
-              className="p-1 rounded-lg hover:bg-emerald-600 transition text-emerald-100 hover:text-white cursor-pointer"
+              aria-label="Tutup peta gerai"
+              className="p-2 rounded-lg hover:bg-[#F0F5FA] transition text-[#646982] hover:text-[#181C2E] cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -362,15 +400,15 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
         <div className="flex-1 relative">
           <div ref={mapContainerRef} className="w-full h-full" />
 
-          {/* Quick instructions & floating legend */}
-          <div className="absolute top-3 left-3 right-3 z-[400] pointer-events-none space-y-1">
-            <div className="bg-white/95 px-3.5 py-2 rounded-xl shadow-md border border-stone-200 text-center space-y-1">
-              <div className="text-xs font-bold text-stone-800 flex items-center justify-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
+          {/* Quick instructions & floating legend (offset left-14 to clear Leaflet zoom controls) */}
+          <div className="absolute top-3 left-14 right-3 z-[400] pointer-events-none space-y-1">
+            <div className="bg-white/95 px-3.5 py-2 rounded-xl shadow-md border border-slate-200 text-center space-y-1">
+              <div className="text-xs font-bold text-[#181C2E] flex items-center justify-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block shrink-0"></span>
                 <span>Radius Jalan Kaki 500m (± 5 Menit)</span>
               </div>
-              <div className="text-xs text-stone-600 flex items-center justify-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span>
+              <div className="text-xs text-[#646982] flex items-center justify-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block shrink-0"></span>
                 <span>Pin Angka: Jumlah Surplus (Arahkan kursor untuk nama gerai, klik untuk detail)</span>
               </div>
             </div>
@@ -515,13 +553,14 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
             )}
           </div>
         ) : (
-          <div className="p-3 bg-stone-100 border-t border-stone-200 flex items-center justify-between text-[11px] text-stone-600 shrink-0">
+          <div className="px-5 py-3 bg-white border-t border-slate-100 flex items-center justify-between text-xs text-[#646982] shrink-0">
             <span>
-              Terdapat <strong>{listings.length} hidangan aktif</strong> di sekitar Anda.
+              Terdapat <strong className="text-[#181C2E]">{listings.length} hidangan aktif</strong> di sekitar Anda.
             </span>
             <button
+              type="button"
               onClick={onClose}
-              className="font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
+              className="font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
             >
               <span>Lihat Daftar Feed</span>
               <ArrowRight className="w-3.5 h-3.5" />

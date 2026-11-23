@@ -21,7 +21,7 @@ import { startIndonesianSpeechRecognition } from "../services/speech";
 import { fetchStoreMenu, publishListing, updateStoreLocation } from "../services/api";
 import { MerchantCatalogModal } from "./MerchantCatalogModal";
 import { StorePinpointPickerModal } from "./StorePinpointPickerModal";
-import { PublishRequest, StoreMenuItem, getFriendlyCategory, resolveImageUrl } from "../types/listing";
+import { PublishRequest, StoreMenuItem, cleanLocationBadge, getFriendlyCategory, resolveImageUrl } from "../types/listing";
 import {
   computeEffectiveSecondsUntilClosing,
   getEffectiveNow,
@@ -80,6 +80,15 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   const [batchDiscountPercent, setBatchDiscountPercent] = useState(60);
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
   const [batchClockTick, setBatchClockTick] = useState<number>(() => getEffectiveNow().getTime());
+
+  useEffect(() => {
+    if (!selectedMenuItem) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedMenuItem(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedMenuItem]);
 
   useEffect(() => {
     const syncClock = () => setBatchClockTick(getEffectiveNow().getTime());
@@ -317,19 +326,19 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   const minuteOptions = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
 
   return (
-    <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full space-y-4">
+    <div className="flex-1 flex flex-col w-full space-y-4">
       {/* Top Banner / Store Context & Catalog Quick Action */}
       <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1.5">
-            <h2 className="text-base font-bold text-[#222222]">Buat Listing Makanan Surplus</h2>
+            <h2 className="text-base font-bold text-[#181C2E]">Buat Listing Makanan Surplus</h2>
             <p className="text-xs text-[#646982] flex items-center gap-1.5 flex-wrap">
-              <span className="font-semibold text-[#222222]">{storeName}</span>
+              <span className="font-semibold text-[#181C2E]">{storeName}</span>
               <span className="text-slate-300">•</span>
               <span className="inline-flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 {latitude != null && longitude != null
-                  ? locationName || "Lokasi peta terpasang"
+                  ? cleanLocationBadge(locationName) || "Lokasi peta terpasang"
                   : "Pin peta belum dipasang"}
               </span>
             </p>
@@ -338,7 +347,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
             <button
               type="button"
               onClick={() => setIsPinpointOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#F0F5FA] hover:bg-slate-200/70 text-[#222222] text-xs font-bold transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] text-xs font-bold transition cursor-pointer"
             >
               <MapPin className="w-3.5 h-3.5 text-emerald-600" />
               <span>{latitude != null ? "Ubah Pin" : "Pasang Pin"}</span>
@@ -346,7 +355,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
             <button
               type="button"
               onClick={() => setIsCatalogOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
             >
               <BookOpen className="w-3.5 h-3.5" />
               <span>Kelola Buku Menu</span>
@@ -376,14 +385,14 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
       />
 
       {/* Dual-Mode Tabs */}
-      <div className="grid grid-cols-2 gap-1 p-1 bg-[#E8E3D9]/60 rounded-xl border border-[#E4EAF1]">
+      <div className="grid grid-cols-2 gap-1 p-1 bg-[#F0F5FA] rounded-xl border border-slate-200/70">
         <button
           type="button"
           onClick={() => setInputMode("catalog")}
           className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
             inputMode === "catalog"
-              ? "bg-white text-[#222222] shadow-sm border border-black/5"
-              : "text-[#646982] hover:text-[#222222]"
+              ? "bg-white text-[#181C2E] shadow-sm border border-black/5"
+              : "text-[#646982] hover:text-[#181C2E]"
           }`}
         >
           <Utensils className="w-4 h-4 text-emerald-600" />
@@ -394,8 +403,8 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
           onClick={() => setInputMode("ai")}
           className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
             inputMode === "ai"
-              ? "bg-white text-[#222222] shadow-sm border border-black/5"
-              : "text-[#646982] hover:text-[#222222]"
+              ? "bg-white text-[#181C2E] shadow-sm border border-black/5"
+              : "text-[#646982] hover:text-[#181C2E]"
           }`}
         >
           <Sparkles className="w-4 h-4 text-emerald-600" />
@@ -409,74 +418,81 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
       {inputMode === "catalog" ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-stone-700">
+            <span className="text-xs font-bold text-[#181C2E]">
               Ketuk Hidangan untuk Terbitkan Sisa Batch:
             </span>
-            <span className="text-xs text-stone-500">
+            <span className="text-xs text-[#646982]">
               {menuItems.length} menu aktif
             </span>
           </div>
 
           {isLoadingMenu ? (
-            <div className="p-8 text-center bg-white rounded-xl border border-stone-200">
+            <div className="p-8 text-center bg-white rounded-xl border border-slate-200">
               <RefreshCw className="w-5 h-5 text-emerald-600 animate-spin mx-auto mb-2" />
-              <p className="text-xs text-stone-500">Memuat katalog menu gerai...</p>
+              <p className="text-xs text-[#646982]">Memuat katalog menu gerai...</p>
             </div>
           ) : menuItems.length === 0 ? (
-            <div className="p-6 text-center bg-white rounded-xl border border-stone-200 space-y-3">
-              <BookOpen className="w-8 h-8 text-stone-400 mx-auto" />
-              <p className="text-xs text-stone-600">
+            <div className="p-6 text-center bg-white rounded-xl border border-slate-200 space-y-3">
+              <BookOpen className="w-8 h-8 text-[#A0A5BA] mx-auto" />
+              <p className="text-xs text-[#646982]">
                 Belum ada hidangan rutin di Buku Menu Gerai Anda.
               </p>
               <button
                 type="button"
                 onClick={() => setIsCatalogOpen(true)}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
               >
                 + Tambah Hidangan ke Buku Menu
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {menuItems.map((item) => {
                 const itemImg = resolveImageUrl(item.image_url);
+                const isHighRisk = item.bpom_max_hours <= 4;
                 return (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => handleOpenBatchModal(item)}
-                    className="p-3 text-left bg-white hover:bg-emerald-50/50 rounded-xl border border-stone-200 hover:border-emerald-400 shadow-sm transition-all flex flex-col justify-between h-full space-y-2 group cursor-pointer"
+                    className="p-3.5 text-left bg-white hover:bg-emerald-50/40 rounded-xl border border-slate-200/80 hover:border-emerald-400 shadow-xs transition-all flex flex-col justify-between h-full space-y-2.5 group cursor-pointer"
                   >
                     <div className="flex items-start gap-2.5">
                       {itemImg && (
                         <img
                           src={itemImg}
                           alt={item.food_name}
-                          className="w-10 h-10 rounded-lg object-cover border border-stone-200 shrink-0 bg-stone-100"
+                          className="w-11 h-11 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-100"
                           onError={(e) => {
                             (e.target as HTMLElement).style.display = "none";
                           }}
                         />
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-1.5">
-                          <span className="font-bold text-xs text-stone-900 group-hover:text-emerald-900 leading-snug line-clamp-2">
+                        <div className="flex items-start justify-between gap-1.5 min-h-[34px]">
+                          <span className="font-bold text-xs text-[#181C2E] group-hover:text-emerald-900 leading-snug line-clamp-2">
                             {item.food_name}
                           </span>
-                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 shrink-0 flex items-center gap-0.5">
-                            <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" />
+                          <span
+                            className={`text-[11px] font-bold px-1.5 py-0.5 rounded-lg border shrink-0 flex items-center gap-0.5 ${
+                              isHighRisk
+                                ? "bg-amber-50 text-amber-800 border-amber-200"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            }`}
+                          >
+                            <ShieldCheck className={`w-2.5 h-2.5 ${isHighRisk ? "text-amber-600" : "text-emerald-600"}`} />
                             <span>{item.bpom_max_hours}j</span>
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-stone-100">
-                      <span className="font-extrabold text-stone-800">
+                    <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                      <span className="font-extrabold text-[#181C2E]">
                         Rp {item.original_price.toLocaleString("id-ID")}
                       </span>
-                      <span className="text-xs text-stone-500 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-stone-400" />
+                      <span className="text-xs text-[#646982] flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-[#A0A5BA]" />
                         <span>Masak: {item.typical_cooking_time}</span>
                       </span>
                     </div>
@@ -492,32 +508,37 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
         /* ========================================================================= */
         <div className="space-y-4">
           <div className="bg-[#F0F5FA] p-4 rounded-xl text-[13px] text-[#646982] space-y-1.5">
-            <div className="flex items-center gap-2 font-bold text-sm text-[#222222]">
+            <div className="flex items-center gap-2 font-bold text-sm text-[#181C2E]">
               <Info className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>Cara Pakai Input Suara</span>
             </div>
             <p className="leading-relaxed">
               Sebutkan nama makanan, jumlah porsi, harga, dan jam masak untuk menu di luar buku menu.
             </p>
-            <p className="text-xs text-[#222222]/80">
+            <p className="text-xs text-[#181C2E]/80">
               Contoh: <span className="italic">"Ada sisa 3 porsi Sop Buntut, harga 35 ribu, matang jam 5 sore."</span>
             </p>
           </div>
 
           <form onSubmit={handleAiFormSubmit} className="space-y-4">
             <div className="relative">
+              <label htmlFor="merchant-ai-textarea" className="sr-only">
+                Deskripsi sisa makanan untuk analisis AI
+              </label>
               <textarea
+                id="merchant-ai-textarea"
+                name="aiPrompt"
                 rows={4}
                 value={inputText}
                 onChange={(e) => handleTextChange(e.target.value)}
                 placeholder="Ketik deskripsi sisa makanan atau tekan tombol Rekam Suara di bawah..."
-                className="w-full p-3.5 text-xs rounded-xl border border-[#E4EAF1] bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 resize-none text-[#222222] leading-relaxed placeholder:text-gray-400"
+                className="w-full p-3.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 resize-none text-[#181C2E] leading-relaxed placeholder:text-[#A0A5BA]"
               />
               {inputText && (
                 <button
                   type="button"
                   onClick={() => handleTextChange("")}
-                  className="absolute right-3 top-3 text-xs text-gray-400 hover:text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded cursor-pointer"
+                  className="absolute right-3 top-3 text-xs text-[#646982] hover:text-[#181C2E] bg-[#F0F5FA] px-2 py-0.5 rounded-lg cursor-pointer"
                 >
                   Hapus
                 </button>
@@ -529,10 +550,10 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               <button
                 type="button"
                 onClick={toggleSpeechRecognition}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all ${
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                   isRecording
                     ? "bg-red-50 text-red-700 border-red-300 animate-pulse"
-                    : "bg-white text-[#222222] border-[#E4EAF1] hover:bg-gray-50"
+                    : "bg-white text-[#181C2E] border-slate-200 hover:bg-[#F0F5FA]"
                 }`}
               >
                 {isRecording ? (
@@ -590,8 +611,8 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               disabled={!inputText.trim() || isLoading}
               className={`w-full py-3.5 px-4 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all ${
                 !inputText.trim() || isLoading
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-                  : "bg-[#10B981] hover:bg-[#059669] text-white shadow-emerald-500/20 active:scale-[0.98]"
+                  ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20 active:scale-[0.98] cursor-pointer"
               }`}
             >
               {isLoading ? (
@@ -614,16 +635,21 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
       {/* MODAL BOTTOM-SHEET: PENERBITAN INSTAN BATCH MENU RUTIN                     */}
       {/* ========================================================================= */}
       {selectedMenuItem && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md sm:max-w-lg bg-white rounded-t-3xl sm:rounded-xl shadow-2xl border border-stone-200 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/55 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedMenuItem(null);
+          }}
+        >
+          <div className="w-full max-w-md sm:max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-100 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between pb-3.5 border-b border-slate-100">
               <div className="flex items-start gap-3">
                 {resolveImageUrl(selectedMenuItem.image_url) && (
                   <img
                     src={resolveImageUrl(selectedMenuItem.image_url)!}
                     alt={selectedMenuItem.food_name}
-                    className="w-12 h-12 rounded-xl object-cover border border-stone-200 shrink-0 bg-stone-100 shadow-xs"
+                    className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0 bg-slate-100 shadow-xs"
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = "none";
                     }}
@@ -633,44 +659,47 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                   <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
                     Penerbitan Batch Cepat
                   </span>
-                  <h3 className="text-base font-bold text-stone-900 mt-0.5">
+                  <h3 className="text-base font-bold text-[#181C2E] mt-0.5">
                     {selectedMenuItem.food_name}
                   </h3>
-                  <p className="text-xs text-stone-500">
-                    Kategori: <strong className="text-stone-700">{getFriendlyCategory(selectedMenuItem.category).label}</strong> · Batas Maks: <strong className="text-emerald-700">{selectedMenuItem.bpom_max_hours} jam</strong>
+                  <p className="text-xs text-[#646982]">
+                    Kategori: <strong className="text-[#181C2E]">{getFriendlyCategory(selectedMenuItem.category).label}</strong> · Batas Maks: <strong className="text-emerald-700">{selectedMenuItem.bpom_max_hours} jam</strong>
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedMenuItem(null)}
-                className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-700 transition"
+                aria-label="Tutup modal penerbitan batch"
+                className="p-2 rounded-lg hover:bg-[#F0F5FA] text-[#646982] hover:text-[#181C2E] transition cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Stepper Porsi Sisa (1 - 200) */}
-            <div className="p-3 bg-[#F0F5FA] rounded-xl border border-stone-200 flex items-center justify-between">
+            <div className="p-3 bg-[#F0F5FA] rounded-xl border border-slate-200/80 flex items-center justify-between">
               <div>
-                <span className="text-xs font-bold text-stone-800 block">Jumlah Porsi Sisa</span>
-                <span className="text-xs text-stone-500">Porsi tersedia (maks 200)</span>
+                <span className="text-xs font-bold text-[#181C2E] block">Jumlah Porsi Sisa</span>
+                <span className="text-xs text-[#646982]">Porsi tersedia (maks 200)</span>
               </div>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setBatchQty((prev) => Math.max(1, prev - 1))}
-                  className="w-8 h-8 rounded-xl bg-white border border-stone-300 flex items-center justify-center text-stone-700 hover:bg-stone-100 font-bold active:scale-95 transition"
+                  aria-label="Kurangi jumlah porsi"
+                  className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[#181C2E] hover:bg-slate-100 font-bold active:scale-95 transition cursor-pointer"
                 >
                   <Minus className="w-4 h-4" />
                 </button>
-                <span className="w-8 text-center text-base font-black text-stone-900">
+                <span className="w-8 text-center text-base font-black text-[#181C2E]">
                   {batchQty}
                 </span>
                 <button
                   type="button"
                   onClick={() => setBatchQty((prev) => Math.min(200, prev + 1))}
-                  className="w-8 h-8 rounded-xl bg-white border border-stone-300 flex items-center justify-center text-stone-700 hover:bg-stone-100 font-bold active:scale-95 transition"
+                  aria-label="Tambah jumlah porsi"
+                  className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[#181C2E] hover:bg-slate-100 font-bold active:scale-95 transition cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -679,16 +708,20 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
 
             {/* Jam Matang Batch 24-Jam (Dual Dropdown) & Quick Action Buttons */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-stone-700">
+              <span className="block text-xs font-semibold text-[#181C2E]">
                 Jam Matang Batch Ini (Format 24 Jam):
-              </label>
+              </span>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <span className="text-xs text-stone-500 block mb-0.5">Jam (00 - 23)</span>
+                  <label htmlFor="batch-cook-hour" className="text-xs text-[#646982] block mb-0.5">
+                    Jam (00 - 23)
+                  </label>
                   <select
+                    id="batch-cook-hour"
+                    name="batchCookHour"
                     value={batchCookHour}
                     onChange={(e) => setBatchCookHour(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs rounded-xl border border-stone-300 bg-white tabular-nums font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200 bg-white tabular-nums font-bold text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     {hourOptions.map((h) => (
                       <option key={h} value={h}>
@@ -698,11 +731,15 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                   </select>
                 </div>
                 <div>
-                  <span className="text-xs text-stone-500 block mb-0.5">Menit (00 - 55)</span>
+                  <label htmlFor="batch-cook-minute" className="text-xs text-[#646982] block mb-0.5">
+                    Menit (00 - 55)
+                  </label>
                   <select
+                    id="batch-cook-minute"
+                    name="batchCookMinute"
                     value={batchCookMinute}
                     onChange={(e) => setBatchCookMinute(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs rounded-xl border border-stone-300 bg-white tabular-nums font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200 bg-white tabular-nums font-bold text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     {minuteOptions.map((m) => (
                       <option key={m} value={m}>
@@ -718,7 +755,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                 <button
                   type="button"
                   onClick={handleSetCurrentTime}
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition flex items-center gap-1"
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition flex items-center gap-1 cursor-pointer"
                 >
                   <Clock className="w-3 h-3 text-emerald-600" />
                   <span>Waktu Sekarang</span>
@@ -726,7 +763,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                 <button
                   type="button"
                   onClick={handleSetTypicalTime}
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-300 transition"
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] border border-slate-200 transition cursor-pointer"
                 >
                   <span>Jadwal Rutin ({selectedMenuItem.typical_cooking_time})</span>
                 </button>
@@ -784,6 +821,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                   </div>
                   <input
                     id="batchDiscountSlider"
+                    name="batchDiscountPercent"
                     type="range"
                     min={50}
                     max={70}
@@ -794,8 +832,8 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                   />
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-xs text-stone-500 block">Harga Normal</span>
-                      <span className="text-xs text-stone-400 line-through">
+                      <span className="text-xs text-[#646982] block">Harga Normal</span>
+                      <span className="text-xs text-[#A0A5BA] line-through">
                         Rp {selectedMenuItem.original_price.toLocaleString("id-ID")}
                       </span>
                     </div>
@@ -817,7 +855,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedMenuItem(null)}
-                className="flex-1 py-3 px-4 rounded-xl border border-stone-300 text-stone-700 text-xs font-semibold hover:bg-stone-50 transition"
+                className="flex-1 py-3 px-4 rounded-xl bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] text-xs font-bold transition cursor-pointer"
               >
                 Batal
               </button>
