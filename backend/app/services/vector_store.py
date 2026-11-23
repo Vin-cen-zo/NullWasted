@@ -13,6 +13,7 @@ logger = logging.getLogger("vector_store")
 DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "food_knowledge_base.json"
 CACHE_PATH = Path(__file__).resolve().parent.parent / "data" / "food_embeddings_cache.json"
 EMBEDDING_DIM = 3072
+MAX_QUERY_CACHE_SIZE = 500
 CULINARY_ANCHOR_WORDS = {
     "nasi", "mie", "ayam", "sapi", "ikan", "udang", "telur", "tahu", "tempe", "roti",
     "kue", "puding", "kopi", "teh", "susu", "sayur", "sup", "sop", "soto", "sate",
@@ -247,6 +248,8 @@ class LocalVectorStore:
         raw_vec = ai_gateway.embed_text(cleaned, model=GEMINI_EMBEDDING_MODEL)
         if raw_vec and len(raw_vec) == EMBEDDING_DIM:
             norm_vec = _normalize_vector(np.array(raw_vec, dtype=np.float32))
+            if len(self._query_cache) >= MAX_QUERY_CACHE_SIZE:
+                self._query_cache.pop(next(iter(self._query_cache)))
             self._query_cache[cleaned] = norm_vec
             return norm_vec
         return None
