@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class DraftRequest(BaseModel):
-    text: str = Field(..., min_length=3, description="Input bahasa alami dari staf penjual")
+    text: str = Field(..., min_length=3, max_length=1000, description="Input bahasa alami dari staf penjual")
     audio_base64: Optional[str] = Field(default=None, description="Opsional rekaman suara base64")
     store_id: str = Field(default="FTUI-001", description="Store ID pemilik menu")
     store_closing_time: Optional[str] = Field(default="20:30", description="Jam tutup toko")
@@ -42,7 +42,7 @@ class DraftResponse(BaseModel):
 
 
 class PublishRequest(BaseModel):
-    food_name: str
+    food_name: str = Field(..., min_length=1, max_length=150)
     matched_canonical_dish: str
     category: str
     food_type: str = Field(default="MEAL")
@@ -59,18 +59,26 @@ class PublishRequest(BaseModel):
     regulation_ref: str = "PerBPOM No. 16/2019"
     similarity_score: float = 0.95
     store_name: str = "Dapur Barokah"
-    location_badge: Optional[str] = None
+    location_badge: Optional[str] = Field(default=None, max_length=200)
     portion_size: str = Field(default="Reguler")
 
     # Multi-tenant & Bundling extensions
     store_id: str = "FTUI-001"
     closing_time: str = "20:30"
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
+    latitude: Optional[float] = Field(default=None, ge=-90.0, le=90.0)
+    longitude: Optional[float] = Field(default=None, ge=-180.0, le=180.0)
     is_bundle: bool = False
     bundled_items_json: Optional[str] = None
     image_url: Optional[str] = None
     cooked_at_hhmm: Optional[str] = None
+
+    @field_validator("closing_time")
+    @classmethod
+    def validate_publish_closing_time(cls, v: str) -> str:
+        cleaned = (v or "").strip()
+        if not re.match(r"^(?:[01]\d|2[0-3]):[0-5]\d$", cleaned):
+            raise ValueError("Format jam tutup harus HH:MM (00:00 - 23:59).")
+        return cleaned
 
     @field_validator("cooked_at_hhmm")
     @classmethod
@@ -103,11 +111,11 @@ class CancelOrderRequest(BaseModel):
 
 
 class MenuItemCreateRequest(BaseModel):
-    food_name: str = Field(..., min_length=2)
+    food_name: str = Field(..., min_length=2, max_length=150)
     original_price: int = Field(..., ge=1000, le=2000000)
     typical_cooking_time: str = Field(default="16:00")
     default_hours_cooked: float = Field(default=2.0, ge=0.0)
-    ingredients: str = Field(default="")
+    ingredients: str = Field(default="", max_length=500)
     portion_size: str = Field(default="Reguler")
     image_url: Optional[str] = Field(default=None)
 
@@ -172,10 +180,9 @@ def _validate_email_value(v: str) -> str:
 
 
 def _validate_password_value(v: str) -> str:
-    cleaned = v.strip()
-    if len(cleaned) < 6:
+    if len(v) < 6 or not v.strip():
         raise ValueError("Password minimal 6 karakter.")
-    return cleaned
+    return v
 
 
 class MerchantLoginRequest(BaseModel):
@@ -194,14 +201,14 @@ class MerchantLoginRequest(BaseModel):
 
 
 class MerchantRegisterRequest(BaseModel):
-    name: str = Field(..., min_length=2)
+    name: str = Field(..., min_length=2, max_length=120)
     email: str = Field(..., min_length=5)
     password: str = Field(..., min_length=6)
-    location_name: Optional[str] = Field(default="")
+    location_name: Optional[str] = Field(default="", max_length=200)
     closing_time: str = Field(default="20:30")
     category: Optional[str] = Field(default="Kuliner & Makanan")
-    latitude: Optional[float] = Field(default=None)
-    longitude: Optional[float] = Field(default=None)
+    latitude: Optional[float] = Field(default=None, ge=-90.0, le=90.0)
+    longitude: Optional[float] = Field(default=None, ge=-180.0, le=180.0)
 
     @field_validator("email")
     @classmethod
@@ -284,9 +291,9 @@ class AuthResponse(BaseModel):
 
 
 class StoreLocationUpdateRequest(BaseModel):
-    latitude: Optional[float] = Field(default=None)
-    longitude: Optional[float] = Field(default=None)
-    location_name: Optional[str] = Field(default=None)
+    latitude: Optional[float] = Field(default=None, ge=-90.0, le=90.0)
+    longitude: Optional[float] = Field(default=None, ge=-180.0, le=180.0)
+    location_name: Optional[str] = Field(default=None, max_length=200)
 
 
 class StoreProfileResponse(BaseModel):

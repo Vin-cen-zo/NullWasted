@@ -1,10 +1,12 @@
 import hashlib
 import logging
 import time
+from typing import Any
 from uuid import uuid4
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 import httpx
 from app.core.config import STATIC_UPLOADS_DIR, get_cloudinary_config
+from app.core.security import require_merchant_user
 
 logger = logging.getLogger("upload")
 router = APIRouter(tags=["Upload"])
@@ -31,7 +33,10 @@ def verify_magic_bytes(content: bytes, mime_type: str) -> bool:
 
 
 @router.post("/upload-image")
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(
+    file: UploadFile = File(...),
+    _merchant: dict[str, Any] = Depends(require_merchant_user),
+):
     """Dual-mode image upload endpoint (Cloudinary with graceful local static fallback)."""
     # 1. MIME type validation
     content_type = (file.content_type or "").lower().strip()

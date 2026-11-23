@@ -10,7 +10,11 @@ from sqlmodel import Session, select
 
 from app.core.clock import WIB_TZ, get_effective_now_utc, get_effective_now_wib
 from app.core.database import get_session
-from app.core.security import compute_minutes_until_closing, get_optional_user
+from app.core.security import (
+    compute_minutes_until_closing,
+    require_authenticated_user,
+    require_merchant_user,
+)
 from app.models.listing import ItemListing, OrderTicket, Store, StoreMenuItem, User, utc_now_iso
 from app.schemas.listing import (
     CompletePickupRequest,
@@ -87,11 +91,9 @@ def get_store_menu(store_id: str, session: Session = Depends(get_session)) -> Li
 
 
 def _require_merchant_store_access(
-    user_claims: Optional[dict[str, Any]], target_store_id: str
+    user_claims: dict[str, Any], target_store_id: str
 ) -> None:
-    """Enforces merchant role and tenant store_id ownership when JWT claims are provided."""
-    if user_claims is None:
-        return
+    """Strictly enforces merchant role and tenant store_id ownership."""
     if user_claims.get("role") != "merchant":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -110,7 +112,7 @@ async def create_store_menu_item(
     store_id: str,
     payload: MenuItemCreateRequest,
     session: Session = Depends(get_session),
-    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
 ) -> MenuItemResponse:
     """Adds a new routine dish to the store catalog with automatic AI + BPOM vector mapping."""
     _require_merchant_store_access(user_claims, store_id)
@@ -174,7 +176,7 @@ async def update_store_menu_item(
     menu_id: str,
     payload: MenuItemUpdateRequest,
     session: Session = Depends(get_session),
-    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
 ) -> MenuItemResponse:
     """Updates an existing StoreMenuItem."""
     _require_merchant_store_access(user_claims, store_id)
@@ -248,7 +250,7 @@ def delete_store_menu_item(
     store_id: str,
     menu_id: str,
     session: Session = Depends(get_session),
-    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
 ) -> dict[str, Any]:
     """Deactivates a StoreMenuItem from the store's master catalog."""
     _require_merchant_store_access(user_claims, store_id)
@@ -268,16 +270,19 @@ def delete_store_menu_item(
 
 @router.post("/listings/draft", response_model=DraftResponse)
 async def create_draft_listing(
-    request: DraftRequest, session: Session = Depends(get_session)
+    request: DraftRequest,
+    session: Session = Depends(get_session),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
 ) -> DraftResponse:
     """Extracts entities from merchant voice/text prompt with Context-Aware Dual-Mode Slot Filling."""
+    target_store_id = request.store_id or user_claims.get("store_id") or "FTUI-001"
+    _require_merchant_store_access(user_claims, target_store_id)
     extracted = await extract_listing_entities(request.text, request.audio_base64)
     if extracted.get("has_negative_value", False):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Harga atau jumlah porsi tidak boleh bernilai negatif.",
         )
-    target_store_id = request.store_id or "FTUI-001"
 
     # Fetch store details
     store_stmt = select(Store).where(Store.store_id == target_store_id)
@@ -451,7 +456,7 @@ async def create_draft_listing(
 async def publish_listing(
     payload: PublishRequest,
     session: Session = Depends(get_session),
-    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
 ) -> ItemListing:
     """Publishes a validated surplus food listing to the active marketplace catalog.
     Enforces authoritative server BPOM guardrail, dynamic pricing lock, and closing-time guard.
@@ -473,7 +478,7 @@ async def publish_listing(
         elapsed_hours = max(0.0, round((now_wib - cook_dt_wib).total_seconds() / 3600.0, 2))
         effective_hours_cooked = max(effective_hours_cooked, elapsed_hours)
 
-    _, sim_score = vector_store.search_similar_dish(payload.food_name)
+    _, sim_score = await asyncio.to_thread(vector_store.search_similar_dish, payload.food_name)
     ai_is_edible: Optional[bool] = None
     ai_food_type: Optional[str] = (
         payload.food_type if payload.food_type in ("MEAL", "BAKERY", "BEVERAGE") else None
@@ -604,7 +609,7 @@ async def publish_listing(
 def create_smart_bundle(
     payload: SmartBundleRequest,
     session: Session = Depends(get_session),
-    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
 ) -> ItemListing:
     """Combines low-stock (1-2 portions) non-expired items into a discounted surprise Mystery Bag listing."""
     target_store_id = payload.store_id or "FTUI-001"
@@ -789,7 +794,9 @@ def get_active_listings(
 
 @router.post("/orders/reserve", response_model=OrderTicket)
 def reserve_order(
-    payload: ReserveOrderRequest, session: Session = Depends(get_session)
+    payload: ReserveOrderRequest,
+    session: Session = Depends(get_session),
+    user_claims: dict[str, Any] = Depends(require_authenticated_user),
 ) -> OrderTicket:
     """Reserves surplus food items atomically and issues a digital pickup pass with QR payload."""
     listing = session.get(ItemListing, payload.listing_id)
@@ -841,13 +848,17 @@ def reserve_order(
 
     session.refresh(listing)
 
-    while True:
-        order_code = f"#NW-{random.randint(1000, 9999)}"
+    order_code = ""
+    for _ in range(30):
+        candidate = f"#NW-{random.randint(1000, 9999)}"
         existing_code = session.exec(
-            select(OrderTicket).where(OrderTicket.order_code == order_code)
+            select(OrderTicket).where(OrderTicket.order_code == candidate)
         ).first()
         if not existing_code:
+            order_code = candidate
             break
+    if not order_code:
+        order_code = f"#NW-{random.randint(100000, 999999)}"
 
     total_price = listing.discounted_price * payload.quantity
     customer = payload.customer_name.strip() or "Konsumen NullWasted"
@@ -898,15 +909,31 @@ def get_active_orders(
     customer_phone: Optional[str] = None,
     customer_name: Optional[str] = None,
     session: Session = Depends(get_session),
+    user_claims: dict[str, Any] = Depends(require_authenticated_user),
 ) -> List[OrderTicket]:
-    """Retrieves order tickets with optional multi-tenant filtering (store_id or customer_phone)."""
+    """Retrieves order tickets strictly scoped to the authenticated merchant store or consumer account."""
     statement = select(OrderTicket)
-    if store_id:
-        statement = statement.where(OrderTicket.store_id == store_id)
-    if customer_phone:
-        statement = statement.where(OrderTicket.customer_phone == customer_phone)
-    elif customer_name:
-        statement = statement.where(OrderTicket.customer_name == customer_name)
+    role = user_claims.get("role")
+    if role == "merchant":
+        token_store_id = user_claims.get("store_id")
+        if store_id and token_store_id and store_id != token_store_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Akses ditolak: Anda hanya dapat melihat pesanan milik gerai Anda.",
+            )
+        statement = statement.where(OrderTicket.store_id == token_store_id)
+    elif role == "consumer":
+        user_row = session.get(User, user_claims.get("sub")) if user_claims.get("sub") else None
+        claim_phone = (user_claims.get("phone") or (user_row.phone if user_row else "") or "").strip()
+        claim_name = (user_claims.get("name") or (user_row.name if user_row else "") or "").strip()
+        if claim_phone:
+            statement = statement.where(OrderTicket.customer_phone == claim_phone)
+        elif claim_name:
+            statement = statement.where(OrderTicket.customer_name == claim_name)
+        else:
+            return []
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Peran pengguna tidak valid.")
 
     statement = statement.order_by(OrderTicket.created_at.desc())
     results = session.exec(statement).all()
@@ -917,7 +944,7 @@ def get_active_orders(
 def cancel_order(
     order_id: str,
     session: Session = Depends(get_session),
-    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
+    user_claims: dict[str, Any] = Depends(require_authenticated_user),
 ) -> OrderTicket:
     """Cancels a reserved order and atomically rolls back stock to the listing."""
     ticket = session.get(OrderTicket, order_id)
@@ -929,32 +956,31 @@ def cancel_order(
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tiket pesanan tidak ditemukan.")
 
-    if user_claims is not None:
-        role = user_claims.get("role")
-        if role == "merchant":
-            if user_claims.get("store_id") != ticket.store_id:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Akses ditolak: Anda hanya dapat membatalkan pesanan milik gerai Anda.",
-                )
-        elif role == "consumer":
-            user_row = session.get(User, user_claims.get("sub")) if user_claims.get("sub") else None
-            claim_phone = (user_claims.get("phone") or (user_row.phone if user_row else "") or "").strip()
-            claim_name = (user_claims.get("name") or (user_row.name if user_row else "") or "").strip()
-            phone_match = bool(claim_phone and ticket.customer_phone and claim_phone == ticket.customer_phone)
-            name_match = bool(
-                not claim_phone
-                and claim_name
-                and ticket.customer_name
-                and claim_name.lower() == ticket.customer_name.lower()
+    role = user_claims.get("role")
+    if role == "merchant":
+        if user_claims.get("store_id") != ticket.store_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Akses ditolak: Anda hanya dapat membatalkan pesanan milik gerai Anda.",
             )
-            if not (phone_match or name_match):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Akses ditolak: Tiket pesanan ini bukan milik akun Anda.",
-                )
-        else:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Peran pengguna tidak valid.")
+    elif role == "consumer":
+        user_row = session.get(User, user_claims.get("sub")) if user_claims.get("sub") else None
+        claim_phone = (user_claims.get("phone") or (user_row.phone if user_row else "") or "").strip()
+        claim_name = (user_claims.get("name") or (user_row.name if user_row else "") or "").strip()
+        phone_match = bool(claim_phone and ticket.customer_phone and claim_phone == ticket.customer_phone)
+        name_match = bool(
+            not claim_phone
+            and claim_name
+            and ticket.customer_name
+            and claim_name.lower() == ticket.customer_name.lower()
+        )
+        if not (phone_match or name_match):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Akses ditolak: Tiket pesanan ini bukan milik akun Anda.",
+            )
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Peran pengguna tidak valid.")
 
     if ticket.status == "CANCELLED":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tiket sudah berstatus DIBATALKAN.")
@@ -965,26 +991,41 @@ def cancel_order(
             detail="Tiket sudah COMPLETED dan diambil. Tidak dapat dibatalkan.",
         )
 
-    ticket.status = "CANCELLED"
-    ticket.cancelled_at = utc_now_iso()
-    if ticket.payment_status == "PAID":
-        ticket.payment_status = "REFUNDED"
+    # Atomic conditional state transition to prevent double-cancel stock inflation
+    next_payment_status = "REFUNDED" if ticket.payment_status == "PAID" else ticket.payment_status
+    cancel_stmt = (
+        update(OrderTicket)
+        .where(
+            OrderTicket.id == ticket.id,
+            OrderTicket.status == "RESERVED",
+        )
+        .values(
+            status="CANCELLED",
+            cancelled_at=utc_now_iso(),
+            payment_status=next_payment_status,
+        )
+    )
+    cancel_res = session.execute(cancel_stmt)
+    if cancel_res.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Tiket sudah diproses atau dibatalkan sebelumnya.",
+        )
 
-    session.add(ticket)
-
-    # Atomic stock rollback
-    listing = session.get(ItemListing, ticket.listing_id)
-    if listing:
-        listing.quantity += ticket.quantity
-        now = get_effective_now_utc()
-        if listing.expires_at is None:
-            listing.is_active = True
-        else:
-            exp_dt = listing.expires_at if listing.expires_at.tzinfo else listing.expires_at.replace(tzinfo=timezone.utc)
-            if now < exp_dt:
-                listing.is_active = True
-        session.add(listing)
-
+    # Atomic SQL stock rollback preventing lost updates under concurrent checkouts
+    now_utc = get_effective_now_utc()
+    rollback_stmt = (
+        update(ItemListing)
+        .where(ItemListing.id == ticket.listing_id)
+        .values(
+            quantity=ItemListing.quantity + ticket.quantity,
+            is_active=case(
+                (or_(ItemListing.expires_at.is_(None), ItemListing.expires_at > now_utc), True),
+                else_=ItemListing.is_active,
+            ),
+        )
+    )
+    session.execute(rollback_stmt)
     session.commit()
     session.refresh(ticket)
     return ticket
@@ -994,14 +1035,9 @@ def cancel_order(
 def complete_order_pickup(
     payload: CompletePickupRequest,
     session: Session = Depends(get_session),
-    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
 ) -> OrderTicket:
     """Validates order ticket pickup code at cashier with cross-store fraud detection."""
-    if user_claims is not None and user_claims.get("role") != "merchant":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Hanya kasir Mitra Toko yang berhak memverifikasi pengambilan pesanan.",
-        )
 
     raw_code = payload.order_code.strip()
 
@@ -1070,22 +1106,16 @@ def complete_order_pickup(
 def delete_listing(
     listing_id: str,
     session: Session = Depends(get_session),
-    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
 ) -> dict[str, Any]:
     """Deactivates a listing from the merchant inventory."""
     listing = session.get(ItemListing, listing_id)
-    if user_claims is not None:
-        if user_claims.get("role") != "merchant":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Hanya akun Mitra Toko yang dapat menghapus listing.",
-            )
-        token_store_id = user_claims.get("store_id")
-        if listing and token_store_id and listing.store_id != token_store_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Akses ditolak: Anda tidak berhak menghapus listing milik gerai lain.",
-            )
+    token_store_id = user_claims.get("store_id")
+    if listing and token_store_id and listing.store_id != token_store_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akses ditolak: Anda tidak berhak menghapus listing milik gerai lain.",
+        )
     if listing:
         listing.is_active = False
         session.add(listing)

@@ -1,8 +1,11 @@
+import logging
 from typing import Generator
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine, select
 from app.core.config import DATABASE_URL
 from app.core.seed import seed_initial_data
+
+logger = logging.getLogger("database")
 
 _is_sqlite = DATABASE_URL.startswith("sqlite")
 
@@ -184,8 +187,8 @@ def init_db() -> None:
                 conn.execute(text("UPDATE item_listings SET food_type = 'BEVERAGE' WHERE (food_name LIKE '%Kopi%' OR food_name LIKE '%Cendol%' OR food_name LIKE '%Matcha%' OR food_name LIKE '%Boba%' OR food_name LIKE '%Teh%') AND (food_type IS NULL OR food_type = 'MEAL')"))
 
                 conn.commit()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("SQLite auto-migration skipped or failed: %s", exc)
 
     with Session(engine) as session:
         seed_initial_data(session)

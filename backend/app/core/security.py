@@ -119,8 +119,38 @@ def decode_access_token(token: str) -> Optional[dict[str, Any]]:
     return payload
 
 
+def require_authenticated_user(token: Optional[str] = Depends(oauth2_scheme)) -> dict[str, Any]:
+    """Strictly requires a valid, non-expired Bearer JWT token. Raises HTTP 401 otherwise."""
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Autentikasi diperlukan. Silakan masuk terlebih dahulu.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    claims = decode_access_token(token)
+    if claims is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token sesi tidak valid atau telah kedaluwarsa.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return claims
+
+
+def require_merchant_user(
+    user_claims: dict[str, Any] = Depends(require_authenticated_user),
+) -> dict[str, Any]:
+    """Strictly requires an authenticated merchant JWT token. Raises HTTP 403 for non-merchants."""
+    if user_claims.get("role") != "merchant":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hanya akun Mitra Toko yang diizinkan mengakses sumber daya ini.",
+        )
+    return user_claims
+
+
 def get_optional_user(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[dict[str, Any]]:
-    """Parses optional Bearer JWT token claims without rejecting unauthenticated test clients.
+    """Parses optional Bearer JWT token claims without rejecting unauthenticated callers.
     Raises HTTP 401 when an explicit Bearer token is provided but invalid or expired.
     """
     if not token:
