@@ -5,6 +5,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 from app.core.database import get_session
+from app.core.security import create_access_token
 from app.core.seed import seed_initial_data
 from app.main import app
 from app.services.extractor import extract_listing_entities, local_rule_based_extract
@@ -30,7 +31,14 @@ def client_fixture():
             yield session
 
     app.dependency_overrides[get_session] = get_test_session
-    with TestClient(app) as test_client:
+    default_token = create_access_token({
+        "sub": "FTUI-001",
+        "role": "merchant",
+        "email": "dapurbarokah@nullwasted.id",
+        "store_id": "FTUI-001",
+        "store_name": "Dapur Barokah FTUI",
+    })
+    with TestClient(app, headers={"Authorization": f"Bearer {default_token}"}) as test_client:
         yield test_client
     app.dependency_overrides.clear()
 
@@ -544,8 +552,16 @@ def test_context_aware_slot_filling_case_c_and_d(client: TestClient):
 def test_smart_mystery_bag_bundling_engine(client: TestClient):
     """Tests POST /api/v1/listings/smart-bundle clustering low-stock items into 60-70% discounted bundle."""
     # MARGONDA-042 has seeded Croissant (qty=2) and Donat (qty=1)
+    margonda_token = create_access_token({
+        "sub": "MARGONDA-042",
+        "role": "merchant",
+        "email": "rotiunyil@nullwasted.id",
+        "store_id": "MARGONDA-042",
+        "store_name": "Roti Unyil & Pastry Margonda",
+    })
     bundle_res = client.post(
         "/api/v1/listings/smart-bundle",
+        headers={"Authorization": f"Bearer {margonda_token}"},
         json={"store_id": "MARGONDA-042", "custom_bundle_name": "Mystery Bag Pastry Manis", "discount_percent": 65},
     )
     assert bundle_res.status_code == 200
@@ -605,7 +621,7 @@ def test_payment_methods_cash_vs_simulated_qris(client: TestClient):
 
 def test_order_cancellation_atomic_stock_rollback(client: TestClient):
     """Tests POST /api/v1/orders/{id}/cancel returning stock to ItemListing atomically."""
-    active_listings = client.get("/api/v1/listings/active").json()
+    active_listings = client.get("/api/v1/listings/active?store_id=FTUI-001").json()
     item = next(i for i in active_listings if i["quantity"] >= 2 and not i["is_bundle"])
     initial_stock = item["quantity"]
     item_id = item["id"]
@@ -689,8 +705,20 @@ def test_multi_tenant_order_isolation(client: TestClient):
     ftui_orders = client.get("/api/v1/orders/active?store_id=FTUI-001").json()
     assert all(o["store_id"] == "FTUI-001" for o in ftui_orders)
 
-    # Filter by KUTEK-007
-    kutek_orders = client.get("/api/v1/orders/active?store_id=KUTEK-007").json()
+    # Filter by KUTEK-007 using KUTEK-007 merchant token
+    kutek_token = create_access_token({
+        "sub": "KUTEK-007",
+        "role": "merchant",
+        "email": "warkopkutek@nullwasted.id",
+        "store_id": "KUTEK-007",
+        "store_name": "Warkop & Snack Kutek",
+    })
+    kutek_orders_res = client.get(
+        "/api/v1/orders/active?store_id=KUTEK-007",
+        headers={"Authorization": f"Bearer {kutek_token}"},
+    )
+    assert kutek_orders_res.status_code == 200
+    kutek_orders = kutek_orders_res.json()
     assert all(o["store_id"] == "KUTEK-007" for o in kutek_orders)
 
 

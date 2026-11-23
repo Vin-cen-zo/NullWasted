@@ -7,10 +7,18 @@ from sqlmodel import Session
 
 from app.core.config import CORS_ORIGIN_REGEX, normalize_database_url
 from app.core.database import engine, init_db
+from app.core.security import create_access_token
 from app.main import app
 from app.models.listing import ItemListing
 
-client = TestClient(app)
+_default_token = create_access_token({
+    "sub": "cloud-tester",
+    "role": "consumer",
+    "email": "cloud@nullwasted.id",
+    "name": "Cloud Tester",
+    "phone": "0812-0000-1111",
+})
+client = TestClient(app, headers={"Authorization": f"Bearer {_default_token}"})
 
 
 def test_normalize_database_url_postgres_variants():
@@ -34,6 +42,7 @@ def test_cors_origin_regex_allows_cloudflare_pages_and_blocks_untrusted():
     allowed_origins = [
         "https://nullwasted.pages.dev",
         "https://a1b2c3d4.nullwasted.pages.dev",
+        "https://nullwasted.digilabui.cloud",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://nullwasted.vercel.app",
