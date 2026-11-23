@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapPin, Search, Crosshair, Trash2, Check, X, Loader2, ExternalLink } from "lucide-react";
+import { cleanLocationBadge } from "../types/listing";
 
 interface StorePinpointPickerModalProps {
   isOpen: boolean;
@@ -85,7 +86,7 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
 
   const [selectedLat, setSelectedLat] = useState<number | null>(initialLat ?? null);
   const [selectedLng, setSelectedLng] = useState<number | null>(initialLng ?? null);
-  const [locationLabel, setLocationLabel] = useState<string>(initialLabel);
+  const [locationLabel, setLocationLabel] = useState<string>(() => cleanLocationBadge(initialLabel));
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -97,11 +98,20 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
     if (!isOpen) return;
     setSelectedLat(initialLat ?? null);
     setSelectedLng(initialLng ?? null);
-    setLocationLabel(initialLabel || "");
+    setLocationLabel(cleanLocationBadge(initialLabel || ""));
     setSearchQuery("");
     setStatusError(null);
     setSearchResults([]);
   }, [isOpen, initialLat, initialLng, initialLabel]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   const placeMarker = (
     lat: number,
@@ -342,7 +352,12 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-3 sm:p-4 backdrop-blur-xs">
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-3 sm:p-4 backdrop-blur-xs"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="px-4 py-3.5 bg-white border-b border-slate-100 flex items-center justify-between gap-2">
@@ -351,7 +366,7 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
               <MapPin className="w-4 h-4 text-emerald-600" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-sm font-bold text-[#222222] truncate">
+              <h3 className="text-sm font-bold text-[#181C2E] truncate">
                 Pinpoint Lokasi · {storeName}
               </h3>
               <p className="text-xs text-[#646982] truncate">
@@ -362,7 +377,7 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-[#F0F5FA] text-[#646982] cursor-pointer"
+            className="p-2 rounded-lg hover:bg-[#F0F5FA] text-[#646982] hover:text-[#181C2E] cursor-pointer"
             aria-label="Tutup pemilih pin lokasi"
           >
             <X className="w-4 h-4" />
@@ -373,8 +388,13 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
         <div className="p-3 bg-white border-b border-slate-100 space-y-2">
           <div className="flex gap-2">
             <div className="relative flex-1">
+              <label htmlFor="pinpoint-search-input" className="sr-only">
+                Cari area atau link Google Maps
+              </label>
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
+                id="pinpoint-search-input"
+                name="pinpointSearch"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -386,14 +406,14 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
                   }
                 }}
                 placeholder="Cari area atau link Google Maps..."
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-[#F0F5FA] focus:bg-white text-xs font-medium text-[#222222] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-[#F0F5FA] focus:bg-white text-xs font-medium text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
               />
             </div>
             <button
               type="button"
               onClick={(e) => void handleSearch(e)}
               disabled={isSearching}
-              className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
             >
               {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
               <span>Cari</span>
@@ -402,7 +422,7 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
               type="button"
               onClick={handleUseGps}
               disabled={isLocatingGps}
-              className="px-3 py-2 rounded-lg bg-[#F0F5FA] hover:bg-slate-200/70 text-[#222222] text-xs font-bold flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+              className="px-3 py-2 rounded-xl bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] text-xs font-bold flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
               title="Lompat ke koordinat GPS perangkat saat ini"
             >
               {isLocatingGps ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" /> : <Crosshair className="w-3.5 h-3.5 text-emerald-600" />}
@@ -455,21 +475,23 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
         <div className="p-4 bg-white border-t border-slate-100 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-center">
             <div>
-              <label className="block text-xs font-semibold text-[#646982] mb-1">
+              <label htmlFor="pinpoint-location-label" className="block text-xs font-semibold text-[#646982] mb-1">
                 Label Area (Opsional)
               </label>
               <input
+                id="pinpoint-location-label"
+                name="locationLabel"
                 type="text"
                 value={locationLabel}
                 onChange={(e) => setLocationLabel(e.target.value)}
                 placeholder="Mis: Bekasi Timur / Jl. Sudirman"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-[#F0F5FA] focus:bg-white text-xs font-medium text-[#222222] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-[#F0F5FA] focus:bg-white text-xs font-medium text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
-            <div className="text-xs bg-[#F0F5FA] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+            <div className="text-xs bg-[#F0F5FA] rounded-xl px-3 py-2 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <span className="block text-xs font-semibold text-[#646982]">Koordinat</span>
-                <span className="tabular-nums font-bold text-[#222222] truncate block">
+                <span className="tabular-nums font-bold text-[#181C2E] truncate block">
                   {selectedLat !== null && selectedLng !== null
                     ? `${selectedLat}, ${selectedLng}`
                     : "Belum ada pin"}
@@ -495,7 +517,7 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
                 type="button"
                 onClick={handleRemovePin}
                 disabled={isSaving}
-                className="px-3 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                className="px-3 py-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Hapus Pin</span>
@@ -510,7 +532,7 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
               <button
                 type="button"
                 onClick={onClose}
-                className="px-3.5 py-2 rounded-lg bg-[#F0F5FA] hover:bg-slate-200/70 text-xs font-bold text-[#222222] cursor-pointer"
+                className="px-3.5 py-2 rounded-xl bg-[#F0F5FA] hover:bg-slate-200/70 text-xs font-bold text-[#181C2E] cursor-pointer"
               >
                 Batal
               </button>
@@ -518,7 +540,7 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
                 type="button"
                 onClick={handleSavePin}
                 disabled={isSaving || selectedLat === null}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 <span>Simpan Pinpoint</span>

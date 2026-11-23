@@ -26,9 +26,13 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
   // Form states
   const [foodName, setFoodName] = useState("");
   const [price, setPrice] = useState("");
-  const [cookingTime, setCookingTime] = useState("16:00");
+  const [cookHour, setCookHour] = useState("16");
+  const [cookMinute, setCookMinute] = useState("00");
   const [ingredients, setIngredients] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const hourOptions = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+  const minuteOptions = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
 
   // Optional image upload states
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
@@ -111,6 +115,15 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
     }
   }, [isOpen, storeId]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -123,8 +136,9 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
       return;
     }
 
+    const cookingTime = `${cookHour}:${cookMinute}`;
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    if (!timeRegex.test(cookingTime.trim())) {
+    if (!timeRegex.test(cookingTime)) {
       setErrorMsg("Format jam masak harus 24 jam (HH:MM), contoh: 16:00.");
       return;
     }
@@ -140,7 +154,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
       await createStoreMenuItem(storeId, {
         food_name: foodName.trim(),
         original_price: numPrice,
-        typical_cooking_time: cookingTime.trim(),
+        typical_cooking_time: cookingTime,
         default_hours_cooked: 1.0,
         ingredients: ingredients.trim(),
         portion_size: "Reguler",
@@ -178,27 +192,36 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl bg-stone-50 rounded-xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[90vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-xs p-3 sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="bg-emerald-700 text-white px-5 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <BookOpen className="w-5 h-5 text-emerald-200" />
-            <div>
-              <h2 className="font-bold text-base">Buku Menu Gerai (Store Master)</h2>
-              <p className="text-xs text-emerald-100">{storeName} ({storeId})</p>
+        <div className="px-5 py-4 bg-white border-b border-slate-100 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-[#F0F5FA] flex items-center justify-center shrink-0">
+              <BookOpen className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="font-bold text-sm text-[#181C2E] truncate">Buku Menu Gerai (Store Master)</h2>
+              <p className="text-xs text-[#646982] truncate">{storeName} ({storeId})</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-emerald-600 transition text-emerald-100 hover:text-white"
+            aria-label="Tutup buku menu gerai"
+            className="p-2 rounded-lg hover:bg-[#F0F5FA] text-[#646982] hover:text-[#181C2E] transition cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="p-5 overflow-y-auto space-y-5">
+        <div className="p-5 overflow-y-auto space-y-5 bg-[#FAFBFC]">
           {errorMsg && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold">
               {errorMsg}
@@ -206,102 +229,135 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
           )}
 
           {/* Form Tambah Menu Rutin */}
-          <form onSubmit={handleCreate} className="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-3">
-            <h3 className="font-bold text-xs uppercase tracking-wider text-stone-700 flex items-center space-x-1">
+          <form onSubmit={handleCreate} className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3">
+            <h3 className="font-bold text-xs uppercase tracking-wider text-[#181C2E] flex items-center gap-1.5">
               <Plus className="w-3.5 h-3.5 text-emerald-600" />
               <span>Tambah Hidangan Rutin ke Katalog</span>
             </h3>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-stone-600 mb-0.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label htmlFor="catalog-food-name" className="block text-xs font-semibold text-[#646982] mb-1">
                   Nama Hidangan <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="catalog-food-name"
+                  name="foodName"
                   type="text"
                   placeholder="mis. Rendang Daging Sapi"
                   value={foodName}
                   onChange={(e) => setFoodName(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-[#F0F5FA] focus:bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 transition"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-0.5">
+                <label htmlFor="catalog-price" className="block text-xs font-semibold text-[#646982] mb-1">
                   Harga Normal (Rp) <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="catalog-price"
+                  name="originalPrice"
                   type="number"
                   min={1000}
                   max={2000000}
                   placeholder="24000"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-[#F0F5FA] focus:bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 transition"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-0.5">
+                <span className="block text-xs font-semibold text-[#646982] mb-1">
                   Jam Masak (24 Jam) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="time"
-                  step={60}
-                  value={cookingTime}
-                  onChange={(e) => setCookingTime(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  required
-                />
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    id="catalog-cook-hour"
+                    name="cookHour"
+                    aria-label="Jam masak (00 sampai 23)"
+                    value={cookHour}
+                    onChange={(e) => setCookHour(e.target.value)}
+                    className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200 bg-[#F0F5FA] focus:bg-white tabular-nums font-bold text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                  >
+                    {hourOptions.map((h) => (
+                      <option key={h} value={h}>
+                        {h}:00
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    id="catalog-cook-minute"
+                    name="cookMinute"
+                    aria-label="Menit masak (00 sampai 55)"
+                    value={cookMinute}
+                    onChange={(e) => setCookMinute(e.target.value)}
+                    className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200 bg-[#F0F5FA] focus:bg-white tabular-nums font-bold text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                  >
+                    {minuteOptions.map((m) => (
+                      <option key={m} value={m}>
+                        :{m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div className="col-span-2">
-                <p className="text-xs text-[#646982] bg-[#F0F5FA] rounded-lg px-3 py-2 flex items-center gap-2">
+              <div className="sm:col-span-2">
+                <p className="text-xs text-[#646982] bg-[#F0F5FA] rounded-xl px-3 py-2 flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>Klasifikasi keamanan & batas simpan BPOM dideteksi otomatis oleh AI dari nama & komposisi menu.</span>
                 </p>
               </div>
 
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-stone-600 mb-0.5">
+              <div className="sm:col-span-2">
+                <label htmlFor="catalog-ingredients" className="block text-xs font-semibold text-[#646982] mb-1">
                   Komposisi / Bahan <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="catalog-ingredients"
+                  name="ingredients"
                   type="text"
                   placeholder="Daging sapi, santan kelapa, bumbu rempah padang"
                   value={ingredients}
                   onChange={(e) => setIngredients(e.target.value)}
                   minLength={3}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-[#F0F5FA] focus:bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 transition"
                   required
                 />
               </div>
 
               {/* Optional Photo Upload */}
-              <div className="col-span-2 pt-1 border-t border-stone-100">
-                <label className="block text-xs font-semibold text-stone-600 mb-1">
+              <div className="sm:col-span-2 pt-2 border-t border-slate-100">
+                <label htmlFor="catalog-photo-upload" className="block text-xs font-semibold text-[#646982] mb-1.5">
                   Foto Makanan (Opsional)
                 </label>
                 <div className="flex items-center gap-3">
                   {imagePreviewUrl ? (
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-stone-200 shrink-0 bg-stone-100 shadow-xs">
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
                       <img src={imagePreviewUrl} alt="Pratinjau Foto" className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={handleRemoveImage}
-                        className="absolute top-1 right-1 p-0.5 bg-black/60 hover:bg-black/80 text-white rounded-lg transition"
+                        className="absolute top-1 right-1 p-0.5 bg-black/60 hover:bg-black/80 text-white rounded-lg transition cursor-pointer"
                         title="Hapus Foto"
                       >
                         <X className="w-3 h-3" />
                       </button>
                     </div>
                   ) : (
-                    <label className="w-16 h-16 rounded-xl border-2 border-dashed border-stone-300 hover:border-emerald-500 hover:bg-emerald-50/50 flex flex-col items-center justify-center cursor-pointer transition shrink-0 text-stone-400 hover:text-emerald-600">
+                    <label
+                      htmlFor="catalog-photo-upload"
+                      className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50/50 flex flex-col items-center justify-center cursor-pointer transition shrink-0 text-[#A0A5BA] hover:text-emerald-600"
+                    >
                       <Camera className="w-5 h-5 mb-0.5" />
                       <span className="text-[11px] font-semibold">Upload</span>
                       <input
+                        id="catalog-photo-upload"
+                        name="photoUpload"
                         ref={fileInputRef}
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
@@ -322,8 +378,8 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                         Foto siap disimpan {compressedSizeKb ? `(~${compressedSizeKb} KB WebP)` : ""}
                       </p>
                     ) : (
-                      <p className="text-xs text-stone-500">
-                        Upload foto (JPG, PNG, dst).
+                      <p className="text-xs text-[#646982]">
+                        Upload foto (JPG, PNG, WebP).
                       </p>
                     )}
                   </div>
@@ -334,7 +390,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
             <button
               type="submit"
               disabled={submitting || imageUploading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-3 rounded-lg text-xs transition shadow-sm flex items-center justify-center space-x-1 disabled:opacity-50"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{submitting ? "Menyimpan ke BPOM Guardrail..." : "Simpan ke Buku Menu"}</span>
@@ -343,21 +399,21 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
 
           {/* Daftar Menu Aktif */}
           <div>
-            <h3 className="font-bold text-xs uppercase tracking-wider text-stone-600 mb-2 flex items-center justify-between">
+            <h3 className="font-bold text-xs uppercase tracking-wider text-[#646982] mb-2.5 flex items-center justify-between">
               <span>Menu Terdaftar ({menuItems.length})</span>
-              <span className="text-xs font-normal text-stone-500">Katalog Rutin Aktif</span>
+              <span className="text-xs font-normal text-[#A0A5BA]">Katalog Rutin Aktif</span>
             </h3>
 
             {loading ? (
               <p className="text-sm text-[#646982] py-4 text-center">Memuat daftar menu gerai...</p>
             ) : menuItems.length === 0 ? (
-              <div className="py-6 px-4 bg-white rounded-xl flex flex-col items-center justify-center text-center space-y-2">
+              <div className="py-6 px-4 bg-white rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center space-y-2">
                 <img
                   src="/assets/empty_store.jpg"
                   alt="Belum ada menu tersimpan"
                   className="w-24 h-24 object-contain"
                 />
-                <p className="text-sm font-bold text-[#222222]">Belum Ada Menu Tersimpan</p>
+                <p className="text-sm font-bold text-[#181C2E]">Belum Ada Menu Tersimpan</p>
                 <p className="text-xs text-[#646982]">
                   Tambahkan hidangan rutin gerai Anda pada form di atas.
                 </p>
@@ -366,37 +422,43 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {menuItems.map((item) => {
                   const resolvedImg = resolveImageUrl(item.image_url);
+                  const isHighRisk = item.bpom_max_hours <= 4;
                   return (
                     <div
                       key={item.id}
-                      className="p-3 bg-white rounded-xl border border-stone-200 shadow-sm flex items-center justify-between gap-3"
+                      className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {resolvedImg && (
                           <img
                             src={resolvedImg}
                             alt={item.food_name}
-                            className="w-12 h-12 rounded-lg object-cover border border-stone-200 shrink-0 bg-stone-100"
+                            className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-100"
                             onError={(e) => {
                               (e.target as HTMLElement).style.display = "none";
                             }}
                           />
                         )}
                         <div className="min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-normal text-sm text-[#222222] truncate">{item.food_name}</span>
-                            <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 flex items-center space-x-1 shrink-0">
-                              <ShieldCheck className="w-2.5 h-2.5" />
-                              <span>BPOM · Maks {item.bpom_max_hours}j</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-sm text-[#181C2E] truncate">{item.food_name}</span>
+                            <span
+                              className={`text-[11px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 shrink-0 ${
+                                isHighRisk
+                                  ? "bg-amber-50 text-amber-800 border-amber-200"
+                                  : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              }`}
+                            >
+                              <ShieldCheck className={`w-2.5 h-2.5 ${isHighRisk ? "text-amber-600" : "text-emerald-600"}`} />
+                              <span>Maks {item.bpom_max_hours}j</span>
                             </span>
                           </div>
-                          <div className="text-xs text-stone-500 flex items-center space-x-3 mt-1">
-                            <span className="font-semibold text-stone-700">Rp {item.original_price.toLocaleString("id-ID")}</span>
-                            <span className="flex items-center space-x-0.5 text-stone-400">
-                              <Clock className="w-3 h-3" />
+                          <div className="text-xs text-[#646982] flex items-center gap-2.5 mt-1 flex-wrap">
+                            <span className="font-bold text-[#181C2E]">Rp {item.original_price.toLocaleString("id-ID")}</span>
+                            <span className="flex items-center gap-0.5 text-[#646982]">
+                              <Clock className="w-3 h-3 text-[#A0A5BA]" />
                               <span>Masak {item.typical_cooking_time}</span>
                             </span>
-                            <span className="text-stone-400 truncate max-w-[120px]">{item.canonical_bpom_dish}</span>
                           </div>
                         </div>
                       </div>
@@ -414,7 +476,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                             type="button"
                             disabled={deletingId === item.id}
                             onClick={() => setConfirmDeleteId(null)}
-                            className="px-2 py-1 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-700 text-[10px] font-bold cursor-pointer"
+                            className="px-2 py-1 rounded-lg bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] text-[10px] font-bold cursor-pointer"
                           >
                             Batal
                           </button>
@@ -424,7 +486,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                           type="button"
                           disabled={deletingId !== null}
                           onClick={() => setConfirmDeleteId(item.id)}
-                          className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition shrink-0 disabled:opacity-40 cursor-pointer"
+                          className="text-[#A0A5BA] hover:text-red-500 p-1.5 rounded-lg hover:bg-[#F0F5FA] transition shrink-0 disabled:opacity-40 cursor-pointer"
                           title="Hapus dari Buku Menu"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -439,10 +501,11 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="bg-stone-100 px-5 py-3 border-t border-stone-200 flex justify-end">
+        <div className="bg-white px-5 py-3 border-t border-slate-100 flex justify-end">
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-1.5 bg-stone-300 hover:bg-stone-400 text-stone-800 rounded-lg text-xs font-semibold transition"
+            className="px-4 py-2 bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] rounded-xl text-xs font-bold transition cursor-pointer"
           >
             Tutup
           </button>
