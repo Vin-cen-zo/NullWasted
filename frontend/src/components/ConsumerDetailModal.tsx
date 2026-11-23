@@ -403,7 +403,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
             </div>
 
             {/* Transparent Bill Settlement Sheet */}
-            <div className="p-4 rounded-xl bg-white border border-slate-100 shadow-[0_6px_20px_rgba(150,150,154,0.08)] space-y-2.5 text-sm">
+            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-[0_4px_16px_rgba(15,23,42,0.05)] space-y-2.5 text-sm">
               <h4 className="font-bold text-xs text-[#646982] uppercase tracking-wider">
                 Ringkasan Tagihan Transparan
               </h4>
@@ -533,7 +533,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
           /* ========================================================================= */
           <div className="space-y-4 text-center animate-in fade-in duration-200">
             {/* Modal Step Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
               <button
                 type="button"
                 onClick={() => setModalStep("DETAIL")}

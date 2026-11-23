@@ -358,9 +358,9 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="px-4 py-3.5 bg-white border-b border-slate-100 flex items-center justify-between gap-2">
+        <div className="px-4 py-3.5 bg-white border-b border-slate-200 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-lg bg-[#F0F5FA] flex items-center justify-center shrink-0">
               <MapPin className="w-4 h-4 text-emerald-600" />
@@ -385,7 +385,7 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
         </div>
 
         {/* Search & GPS Controls */}
-        <div className="p-3 bg-white border-b border-slate-100 space-y-2">
+        <div className="p-3 bg-white border-b border-slate-200 space-y-2">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <label htmlFor="pinpoint-search-input" className="sr-only">
@@ -472,7 +472,7 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
         </div>
 
         {/* Footer details & Actions */}
-        <div className="p-4 bg-white border-t border-slate-100 space-y-3">
+        <div className="p-4 bg-white border-t border-slate-200 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-center">
             <div>
               <label htmlFor="pinpoint-location-label" className="block text-xs font-semibold text-[#646982] mb-1">

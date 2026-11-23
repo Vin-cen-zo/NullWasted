@@ -328,7 +328,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   return (
     <div className="flex-1 flex flex-col w-full space-y-4">
       {/* Top Banner / Store Context & Catalog Quick Action */}
-      <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)]">
+      <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-[0_4px_16px_rgba(15,23,42,0.05)]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <h2 className="text-base font-bold text-[#181C2E]">Buat Listing Makanan Surplus</h2>
@@ -385,13 +385,13 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
       />
 
       {/* Dual-Mode Tabs */}
-      <div className="grid grid-cols-2 gap-1 p-1 bg-[#F0F5FA] rounded-xl border border-slate-200/70">
+      <div className="grid grid-cols-2 gap-1 p-1 bg-[#F0F5FA] rounded-xl border border-slate-200">
         <button
           type="button"
           onClick={() => setInputMode("catalog")}
           className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
             inputMode === "catalog"
-              ? "bg-white text-[#181C2E] shadow-sm border border-black/5"
+              ? "bg-white text-[#181C2E] shadow-sm border border-slate-200/90"
               : "text-[#646982] hover:text-[#181C2E]"
           }`}
         >
@@ -403,7 +403,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
           onClick={() => setInputMode("ai")}
           className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
             inputMode === "ai"
-              ? "bg-white text-[#181C2E] shadow-sm border border-black/5"
+              ? "bg-white text-[#181C2E] shadow-sm border border-slate-200/90"
               : "text-[#646982] hover:text-[#181C2E]"
           }`}
         >
@@ -455,7 +455,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                     key={item.id}
                     type="button"
                     onClick={() => handleOpenBatchModal(item)}
-                    className="p-3.5 text-left bg-white hover:bg-emerald-50/40 rounded-xl border border-slate-200/80 hover:border-emerald-400 shadow-xs transition-all flex flex-col justify-between h-full space-y-2.5 group cursor-pointer"
+                    className="p-3.5 text-left bg-white hover:bg-emerald-50/40 rounded-xl border border-slate-300/80 hover:border-emerald-400 shadow-[0_2px_8px_rgba(15,23,42,0.06)] hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all flex flex-col justify-between h-full space-y-2.5 group cursor-pointer"
                   >
                     <div className="flex items-start gap-2.5">
                       {itemImg && (
@@ -487,7 +487,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                    <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200/80">
                       <span className="font-extrabold text-[#181C2E]">
                         Rp {item.original_price.toLocaleString("id-ID")}
                       </span>
@@ -641,9 +641,9 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
             if (e.target === e.currentTarget) setSelectedMenuItem(null);
           }}
         >
-          <div className="w-full max-w-md sm:max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-100 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+          <div className="w-full max-w-md sm:max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="flex items-start justify-between pb-3.5 border-b border-slate-100">
+            <div className="flex items-start justify-between pb-3.5 border-b border-slate-200">
               <div className="flex items-start gap-3">
                 {resolveImageUrl(selectedMenuItem.image_url) && (
                   <img

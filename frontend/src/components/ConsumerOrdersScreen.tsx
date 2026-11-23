@@ -189,12 +189,12 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
             return (
               <div
                 key={ticket.id}
-                className={`bg-white rounded-xl border shadow-[0_10px_30px_rgba(150,150,154,0.1)] p-5 space-y-4 transition-all h-full flex flex-col justify-between ${
+                className={`bg-white rounded-xl border shadow-[0_4px_16px_rgba(15,23,42,0.06)] p-5 space-y-4 transition-all h-full flex flex-col justify-between ${
                   isCancelled
                     ? "border-slate-200 bg-slate-50/70 opacity-80"
                     : isCompleted
-                    ? "border-emerald-200"
-                    : "border-slate-100"
+                    ? "border-emerald-300"
+                    : "border-slate-300/80"
                 }`}
               >
                 <div className="space-y-4">
@@ -293,7 +293,7 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
 
                   {/* ISO-Standard QR Code Matrix View */}
                   {!isCancelled && (
-                    <div className="flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-slate-100 space-y-2">
+                    <div className="flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-slate-200 space-y-2">
                       <QRCodeSVG
                         value={ticket.qr_payload}
                         size={140}

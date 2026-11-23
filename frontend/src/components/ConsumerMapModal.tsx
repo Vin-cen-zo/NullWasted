@@ -360,9 +360,9 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col h-[85vh] sm:h-[82vh]">
+      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col h-[85vh] sm:h-[82vh]">
         {/* Header */}
-        <div className="bg-white border-b border-slate-100 px-5 py-3.5 flex items-center justify-between gap-2 shrink-0">
+        <div className="bg-white border-b border-slate-200 px-5 py-3.5 flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-lg bg-[#F0F5FA] flex items-center justify-center shrink-0">
               <MapPin className="w-4 h-4 text-emerald-600" />
@@ -417,7 +417,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
 
         {/* Selected Store Bottom Sheet Details */}
         {activeStoreData ? (
-          <div className="p-4 bg-white border-t border-slate-100 shadow-lg space-y-3 shrink-0 max-h-80 overflow-y-auto">
+          <div className="p-4 bg-white border-t border-slate-200 shadow-lg space-y-3 shrink-0 max-h-80 overflow-y-auto">
             <div className="flex items-center justify-between gap-2">
               <div>
                 <h3 className="font-bold text-sm text-[#181C2E] flex items-center gap-1.5">
@@ -553,7 +553,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
             )}
           </div>
         ) : (
-          <div className="px-5 py-3 bg-white border-t border-slate-100 flex items-center justify-between text-xs text-[#646982] shrink-0">
+          <div className="px-5 py-3 bg-white border-t border-slate-200 flex items-center justify-between text-xs text-[#646982] shrink-0">
             <span>
               Terdapat <strong className="text-[#181C2E]">{listings.length} hidangan aktif</strong> di sekitar Anda.
             </span>

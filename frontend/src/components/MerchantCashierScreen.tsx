@@ -378,7 +378,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           </div>
 
           {/* Manual Input Fallback Form */}
-          <form onSubmit={handleSubmit} className="bg-white p-4 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] space-y-3">
+          <form onSubmit={handleSubmit} className="bg-white p-4 rounded-xl border border-slate-200 shadow-[0_4px_16px_rgba(15,23,42,0.05)] space-y-3">
             <div>
               <label htmlFor="cashier-ticket-code" className="block text-xs font-semibold text-[#181C2E] mb-1">
                 Kode Tiket Pesanan / QR Payload
@@ -494,7 +494,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                   </span>
                 </div>
                 {successTicket.completed_at && (
-                  <div className="flex justify-between text-xs text-gray-500 pt-1 border-t border-gray-100">
+                  <div className="flex justify-between text-xs text-gray-500 pt-1 border-t border-slate-200/80">
                     <span>Diserahterimakan pada:</span>
                     <span>{new Date(parseBackendUtcMs(successTicket.completed_at)).toLocaleTimeString("id-ID")}</span>
                   </div>
@@ -510,7 +510,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
         {/* Kolom Kanan — Rekapitulasi Shift & Antrean Operasional */}
         <div className="md:col-span-7 space-y-4">
           {/* Cashier POS Daily Shift Summary (Pilar 7) */}
-          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] space-y-3">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-[0_4px_16px_rgba(15,23,42,0.05)] space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-[#181C2E]">
                 <Receipt className="w-4 h-4 text-emerald-600" />
@@ -560,7 +560,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           </div>
 
           {/* Pending Queue List with Cashier Instructions */}
-          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] space-y-3">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-[0_4px_16px_rgba(15,23,42,0.05)] space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-[#222222] uppercase tracking-wider">
                 Antrean Menunggu Pengambilan ({reservedOrders.length})
@@ -639,7 +639,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
           </div>
 
           {/* Completed Orders History (POS Reconciliation) */}
-          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] space-y-3">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-[0_4px_16px_rgba(15,23,42,0.05)] space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <Receipt className="w-4 h-4 text-emerald-600" />

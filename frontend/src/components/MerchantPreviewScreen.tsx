@@ -319,7 +319,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       </div>
 
       {/* Catalog Match Resolution Banner */}
-      <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] space-y-2">
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-[0_4px_16px_rgba(15,23,42,0.05)] space-y-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex flex-col gap-1">
             <span className="text-xs font-semibold text-[#646982] uppercase tracking-wider">
@@ -414,7 +414,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       {/* 2-Column Responsive Grid: Human-in-the-Loop Entity Card & Dynamic Pricing Card */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
         {/* Editable Human-in-the-Loop Entity Card */}
-        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] space-y-3 h-full flex flex-col justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-[0_4px_16px_rgba(15,23,42,0.05)] space-y-3 h-full flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-xs font-bold text-[#181C2E] uppercase tracking-wider">
@@ -602,7 +602,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-[#646982] pt-2 border-t border-slate-100 mt-2">
+          <div className="flex items-center gap-2 text-xs text-[#646982] pt-2 border-t border-slate-200/80 mt-2">
             <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span>
               Sisa waktu tutup toko: <strong>{formatCountdown(remainingSeconds)}</strong>
@@ -611,7 +611,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
         </div>
 
         {/* Dynamic Pricing Interactive Slider */}
-        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] space-y-3 h-full flex flex-col justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-[0_4px_16px_rgba(15,23,42,0.05)] space-y-3 h-full flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
               <label htmlFor="preview-discount-slider" className="flex items-center gap-1.5 cursor-pointer">

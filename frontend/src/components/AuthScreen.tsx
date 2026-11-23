@@ -434,7 +434,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center py-3 sm:py-8">
-      <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white rounded-xl border border-slate-100 shadow-[0_10px_30px_rgba(150,150,154,0.12)] flex flex-col justify-between space-y-5">
+      <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white rounded-xl border border-slate-200 shadow-[0_10px_30px_rgba(15,23,42,0.08)] flex flex-col justify-between space-y-5">
         {/* Startup Brand Header */}
         <div className="text-center pt-1 space-y-2">
           <NullWastedLogo className="w-20 h-20" showWordmark />
@@ -480,7 +480,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           {role === "merchant" ? (
             <div className="mt-4">
               {/* Merchant Sub-Tabs */}
-              <div className="flex border-b border-slate-100 mb-4">
+              <div className="flex border-b border-slate-200 mb-4">
                 <button
                   type="button"
                   onClick={() => {
@@ -538,7 +538,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                               onClick={() => removeSavedMerchant(item.email)}
                               aria-label={`Hapus ${item.storeName} dari daftar tersimpan`}
                               title="Hapus email gerai tersimpan"
-                              className="px-1.5 py-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 border-l border-slate-100 transition-colors cursor-pointer"
+                              className="px-1.5 py-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 border-l border-slate-200 transition-colors cursor-pointer"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -859,7 +859,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             /* ========================================================================= */
             <div className="mt-4">
               {/* Consumer Sub-Tabs */}
-              <div className="flex border-b border-slate-100 mb-4">
+              <div className="flex border-b border-slate-200 mb-4">
                 <button
                   type="button"
                   onClick={() => setConsumerTab("login")}
@@ -913,7 +913,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                               onClick={() => removeSavedConsumer(item.email)}
                               aria-label={`Hapus ${item.customerName} dari daftar tersimpan`}
                               title="Hapus email konsumen tersimpan"
-                              className="px-1.5 py-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 border-l border-slate-100 transition-colors cursor-pointer"
+                              className="px-1.5 py-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 border-l border-slate-200 transition-colors cursor-pointer"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -1113,7 +1113,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         </div>
 
         {/* Footer Info */}
-        <div className="text-center pt-2 border-t border-slate-100">
+        <div className="text-center pt-2 border-t border-slate-200">
           <p className="text-[10px] text-[#646982]">Platform Marketplace Surplus Food Berbasis Agentic AI</p>
           <p className="text-[9px] text-[#A0A5BA] mt-0.5">Hemat Pangan · Temukan Gerai Terdekat di Sekitarmu</p>
         </div>

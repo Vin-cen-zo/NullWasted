@@ -198,9 +198,9 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-5 py-4 bg-white border-b border-slate-100 flex items-center justify-between gap-2">
+        <div className="px-5 py-4 bg-white border-b border-slate-200 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-lg bg-[#F0F5FA] flex items-center justify-center shrink-0">
               <BookOpen className="w-4 h-4 text-emerald-600" />
@@ -331,7 +331,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
               </div>
 
               {/* Optional Photo Upload */}
-              <div className="sm:col-span-2 pt-2 border-t border-slate-100">
+              <div className="sm:col-span-2 pt-2 border-t border-slate-200">
                 <label htmlFor="catalog-photo-upload" className="block text-xs font-semibold text-[#646982] mb-1.5">
                   Foto Makanan (Opsional)
                 </label>
@@ -407,7 +407,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
             {loading ? (
               <p className="text-sm text-[#646982] py-4 text-center">Memuat daftar menu gerai...</p>
             ) : menuItems.length === 0 ? (
-              <div className="py-6 px-4 bg-white rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center space-y-2">
+              <div className="py-6 px-4 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center text-center space-y-2">
                 <img
                   src="/assets/empty_store.jpg"
                   alt="Belum ada menu tersimpan"
@@ -501,7 +501,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="bg-white px-5 py-3 border-t border-slate-100 flex justify-end">
+        <div className="bg-white px-5 py-3 border-t border-slate-200 flex justify-end">
           <button
             type="button"
             onClick={onClose}

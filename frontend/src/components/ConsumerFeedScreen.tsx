@@ -480,8 +480,8 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
               <article
                 key={item.id}
                 onClick={() => onSelectItem(item)}
-                className={`bg-white rounded-xl overflow-hidden shadow-[0_10px_30px_rgba(150,150,154,0.12)] hover:shadow-[0_16px_36px_rgba(150,150,154,0.2)] transition-all duration-200 flex flex-col cursor-pointer border ${
-                  item.is_bundle ? "border-purple-200" : "border-slate-100"
+                className={`bg-white rounded-xl overflow-hidden shadow-[0_4px_16px_rgba(15,23,42,0.06)] hover:shadow-[0_10px_28px_rgba(15,23,42,0.12)] transition-all duration-200 flex flex-col cursor-pointer border ${
+                  item.is_bundle ? "border-purple-300" : "border-slate-300/80 hover:border-emerald-400"
                 }`}
               >
                 {/* Food Image Banner */}
@@ -574,7 +574,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
                   </div>
 
                   {/* Price & Circular Figma Action Row */}
-                  <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
+                  <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/80">
                     <div>
                       <span className="text-xs text-[#A0A5BA] line-through block leading-none">
                         Rp {item.original_price.toLocaleString("id-ID")}
