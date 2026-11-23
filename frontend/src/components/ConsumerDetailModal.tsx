@@ -119,15 +119,28 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
     };
   }, []);
 
-  // Lock background scroll when modal is active
+  // Lock background scroll & support Escape key when modal is active
   useEffect(() => {
     if (!item) return;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (modalStep === "QRIS") {
+          qrisSessionRef.current += 1;
+          setIsConfirmingQris(false);
+          setModalStep("DETAIL");
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [item]);
+  }, [item, modalStep, onClose]);
 
   // QRIS 15-minute countdown timer (single stable interval per QRIS step)
   useEffect(() => {
@@ -267,7 +280,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
               const resolvedImg = resolveImageUrl(item.image_url, item.is_bundle);
               if (!resolvedImg || imageError) return null;
               return (
-                <div className="relative w-full h-48 sm:h-52 rounded-xl overflow-hidden bg-[#F0ECE9] shrink-0">
+                <div className="relative w-full h-48 sm:h-52 rounded-xl overflow-hidden bg-[#F0F5FA] shrink-0">
                   <img
                     src={resolvedImg}
                     alt={item.food_name}
@@ -305,14 +318,14 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                     return (
                       <div key={idx} className="p-2.5 bg-white rounded-xl border border-purple-100 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-stone-900 text-[11px]">
+                          <span className="font-bold text-[#181C2E] text-[11px]">
                             {b.quantity}x {b.food_name}
                           </span>
-                          <span className="text-stone-400 line-through text-[10px]">
+                          <span className="text-[#A0A5BA] line-through text-[10px]">
                             Rp {(b.original_price * b.quantity).toLocaleString("id-ID")}
                           </span>
                         </div>
-                        <p className="text-[10px] text-stone-500 leading-snug">
+                        <p className="text-[10px] text-[#646982] leading-snug">
                           <strong>Bahan:</strong> {info.ingredients}
                         </p>
                         {info.tags.length > 0 && (
@@ -410,14 +423,14 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
 
             {/* Payment Method Selector */}
             <div className="space-y-2.5">
-              <label className="block text-sm font-bold text-[#181C2E]">Pilih Metode Pembayaran:</label>
+              <span className="block text-sm font-bold text-[#181C2E]">Pilih Metode Pembayaran:</span>
               <div className="grid grid-cols-2 gap-2.5 text-sm">
                 <button
                   type="button"
                   onClick={() => setPaymentMethod("CASH_ON_PICKUP")}
                   className={`p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                     paymentMethod === "CASH_ON_PICKUP"
-                      ? "bg-emerald-500 border-emerald-500 text-white font-bold shadow-sm"
+                      ? "bg-emerald-600 border-emerald-600 text-white font-bold shadow-sm"
                       : "bg-white border-slate-200 text-[#181C2E] hover:border-emerald-300"
                   }`}
                 >
@@ -435,7 +448,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                   onClick={() => setPaymentMethod("SIMULATED_QRIS")}
                   className={`p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                     paymentMethod === "SIMULATED_QRIS"
-                      ? "bg-emerald-500 border-emerald-500 text-white font-bold shadow-sm"
+                      ? "bg-emerald-600 border-emerald-600 text-white font-bold shadow-sm"
                       : "bg-white border-slate-200 text-[#181C2E] hover:border-emerald-300"
                   }`}
                 >
@@ -492,7 +505,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                 className={`w-full h-[52px] px-4 rounded-xl text-sm font-bold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer ${
                   isReserving || maxQty <= 0
                     ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                    : "bg-[#10B981] hover:bg-[#059669] text-white shadow-emerald-500/25 active:scale-[0.98]"
+                    : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/25 active:scale-[0.98]"
                 }`}
               >
                 {isReserving ? (
@@ -520,11 +533,11 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
           /* ========================================================================= */
           <div className="space-y-4 text-center animate-in fade-in duration-200">
             {/* Modal Step Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-stone-100">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <button
                 type="button"
                 onClick={() => setModalStep("DETAIL")}
-                className="flex items-center gap-1 text-xs font-semibold text-stone-600 hover:text-stone-900 cursor-pointer"
+                className="flex items-center gap-1 text-xs font-semibold text-[#646982] hover:text-[#181C2E] cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Ubah Pesanan</span>
@@ -533,28 +546,29 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                 <span className="px-2 py-0.5 rounded-md bg-red-600 text-white font-black text-[10px] tracking-widest">
                   QRIS
                 </span>
-                <span className="text-[10px] font-bold text-stone-800">Standar Nasional</span>
+                <span className="text-[10px] font-bold text-[#181C2E]">Standar Nasional</span>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1 rounded-lg text-stone-400 hover:text-stone-700 cursor-pointer"
+                aria-label="Tutup modal QRIS"
+                className="p-1.5 rounded-lg text-[#646982] hover:text-[#181C2E] hover:bg-[#F0F5FA] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Merchant and Item Sub-banner */}
-            <div className="bg-stone-50 p-2.5 rounded-2xl border border-stone-200 text-left text-xs">
-              <span className="text-[10px] text-stone-500 block">Toko / Gerai Penjual:</span>
-              <span className="font-bold text-stone-900 block">{item.store_name}</span>
-              <p className="text-[11px] text-stone-600 mt-0.5">
+            <div className="bg-[#F0F5FA] p-2.5 rounded-xl border border-slate-200 text-left text-xs">
+              <span className="text-[10px] text-[#646982] block">Toko / Gerai Penjual:</span>
+              <span className="font-bold text-[#181C2E] block">{item.store_name}</span>
+              <p className="text-[11px] text-[#646982] mt-0.5">
                 {qty}x {item.food_name}
               </p>
             </div>
 
             {/* QR Matrix Card */}
-            <div className="p-3 bg-white rounded-2xl border-2 border-stone-200 shadow-sm flex items-center justify-center mx-auto w-fit">
+            <div className="p-3 bg-white rounded-2xl border-2 border-slate-200 shadow-sm flex items-center justify-center mx-auto w-fit">
               <QRCodeSVG
                 value={`00020101021226580014ID.CO.NULLWASTED.QRIS|STORE:${item.store_id || "FTUI-001"}|ITEM:${item.id}|AMT:${totalPrice}`}
                 size={180}
@@ -565,7 +579,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
 
             {/* Nominal Tagihan & Timer */}
             <div className="w-full space-y-1">
-              <span className="text-[11px] text-stone-500 block">Total Tagihan Bersih:</span>
+              <span className="text-[11px] text-[#646982] block">Total Tagihan Bersih:</span>
               <span className="text-2xl font-black text-emerald-700 tabular-nums">
                 Rp {totalPrice.toLocaleString("id-ID")}
               </span>
@@ -575,7 +589,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                   <span>Selesaikan dalam {formatCountdown(qrisSecondsLeft)}</span>
                 </span>
               </div>
-              <p className="text-[10px] text-stone-400 pt-1">
+              <p className="text-[10px] text-[#A0A5BA] pt-1">
                 Buka GoPay, OVO, Dana, BCA Mobile, atau aplikasi e-wallet Anda untuk memindai QRIS di atas.
               </p>
             </div>
@@ -615,7 +629,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                   setIsConfirmingQris(false);
                   setModalStep("DETAIL");
                 }}
-                className="w-full py-2.5 px-3 rounded-xl border border-stone-200 text-stone-600 text-xs font-semibold hover:bg-stone-50 transition cursor-pointer"
+                className="w-full py-2.5 px-3 rounded-xl bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] text-xs font-bold transition cursor-pointer"
               >
                 Kembali / Ganti Metode Pembayaran
               </button>

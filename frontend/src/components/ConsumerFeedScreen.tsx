@@ -272,8 +272,13 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
       {/* Search Bar & Radius Toolbar */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
         <div className="relative md:col-span-7">
+          <label htmlFor="consumer-search-input" className="sr-only">
+            Cari makanan surplus
+          </label>
           <Search className="w-[18px] h-[18px] text-[#676767] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
+            id="consumer-search-input"
+            name="searchQuery"
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -342,13 +347,13 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
           <button
             type="button"
             onClick={() => setSelectedCategory("ALL")}
-            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-lg font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-xl font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
               selectedCategory === "ALL"
                 ? "bg-emerald-600 text-white shadow-[0_10px_25px_rgba(5,150,105,0.25)]"
                 : "bg-white text-[#32343E] shadow-[0_8px_24px_rgba(150,150,154,0.14)] hover:bg-slate-50"
             }`}
           >
-            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "ALL" ? "bg-white" : "bg-[#F0ECE9]"}`}>
+            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "ALL" ? "bg-white" : "bg-[#F0F5FA]"}`}>
               <LayoutGrid className="w-4 h-4 text-[#181C2E]" />
             </span>
             <span>Semua ({activeNonExpiredListings.length})</span>
@@ -357,52 +362,52 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
           <button
             type="button"
             onClick={() => setSelectedCategory("BAKERY")}
-            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-lg font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-xl font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
               selectedCategory === "BAKERY"
                 ? "bg-emerald-600 text-white shadow-[0_10px_25px_rgba(5,150,105,0.25)]"
                 : "bg-white text-[#32343E] shadow-[0_8px_24px_rgba(150,150,154,0.14)] hover:bg-slate-50"
             }`}
           >
-            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "BAKERY" ? "bg-white" : "bg-[#F0ECE9]"}`}>
+            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "BAKERY" ? "bg-white" : "bg-[#F0F5FA]"}`}>
               <Croissant className="w-4 h-4 text-emerald-600" />
             </span>
-            <span>Bakery</span>
+            <span>Roti & Kue</span>
           </button>
 
           <button
             type="button"
             onClick={() => setSelectedCategory("HEAVY")}
-            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-lg font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-xl font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
               selectedCategory === "HEAVY"
                 ? "bg-emerald-600 text-white shadow-[0_10px_25px_rgba(5,150,105,0.25)]"
                 : "bg-white text-[#32343E] shadow-[0_8px_24px_rgba(150,150,154,0.14)] hover:bg-slate-50"
             }`}
           >
-            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "HEAVY" ? "bg-white" : "bg-[#F0ECE9]"}`}>
+            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "HEAVY" ? "bg-white" : "bg-[#F0F5FA]"}`}>
               <Utensils className="w-4 h-4 text-emerald-600" />
             </span>
-            <span>Meals</span>
+            <span>Makanan Berat</span>
           </button>
 
           <button
             type="button"
             onClick={() => setSelectedCategory("BEVERAGE")}
-            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-lg font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-xl font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
               selectedCategory === "BEVERAGE"
                 ? "bg-emerald-600 text-white shadow-[0_10px_25px_rgba(5,150,105,0.25)]"
                 : "bg-white text-[#32343E] shadow-[0_8px_24px_rgba(150,150,154,0.14)] hover:bg-slate-50"
             }`}
           >
-            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "BEVERAGE" ? "bg-white" : "bg-[#F0ECE9]"}`}>
+            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "BEVERAGE" ? "bg-white" : "bg-[#F0F5FA]"}`}>
               <Coffee className="w-4 h-4 text-emerald-600" />
             </span>
-            <span>Beverages</span>
+            <span>Minuman</span>
           </button>
 
           <button
             type="button"
             onClick={() => setSelectedCategory("BUNDLE")}
-            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-lg font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-xl font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
               selectedCategory === "BUNDLE"
                 ? "bg-purple-600 text-white shadow-[0_10px_25px_rgba(147,51,234,0.25)]"
                 : "bg-white text-[#32343E] shadow-[0_8px_24px_rgba(150,150,154,0.14)] hover:bg-slate-50"
@@ -481,7 +486,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
               >
                 {/* Food Image Banner */}
                 {hasImage ? (
-                  <div className="relative w-full h-44 overflow-hidden bg-[#F0ECE9] group shrink-0">
+                  <div className="relative w-full h-44 overflow-hidden bg-[#F0F5FA] group shrink-0">
                     <img
                       alt={item.food_name}
                       src={resolvedImg!}
@@ -499,7 +504,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
                     ) : (
                       <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-[11px] font-semibold text-[#181C2E] shadow-sm">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        <span>{item.quantity} porsi</span>
+                        <span>{item.quantity} Porsi</span>
                       </div>
                     )}
 
@@ -517,7 +522,11 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
                           : "bg-[#F0F5FA] text-[#181C2E]"
                       }`}
                     >
-                      {item.quantity} porsi tersisa
+                      {item.quantity <= 2
+                        ? item.is_bundle
+                          ? `Sisa ${item.quantity} Paket`
+                          : `Sisa ${item.quantity} Porsi`
+                        : `${item.quantity} Porsi`}
                     </span>
                     <span className="bg-[#181C2E] text-white font-bold text-[11px] px-2.5 py-1 rounded-lg">
                       {item.discount_percent}% OFF
@@ -541,9 +550,10 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
 
                   {/* Distance & Closing Time Row */}
                   <div className="space-y-2 pt-0.5">
-                    <div className="flex items-center gap-2 text-xs text-[#646982] flex-wrap">
-                      <span className="truncate max-w-[180px] font-medium text-[#32343E]">{distLabel}</span>
-                      <span className="text-slate-300">·</span>
+                    <div className="flex items-center justify-between gap-2 text-xs text-[#646982]">
+                      <span className="min-w-0 flex-1 truncate font-medium text-[#32343E]" title={distLabel}>
+                        {distLabel}
+                      </span>
                       <span className="flex items-center gap-1 shrink-0">
                         <Clock className="w-3.5 h-3.5 text-emerald-600" />
                         Tutup {item.closing_time || "20:30"}
@@ -581,7 +591,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
                         aria-label="Bookmark store"
                         aria-pressed={isBookmarked}
                         title={isBookmarked ? "Hapus dari favorit" : "Simpan ke favorit"}
-                        className="w-10 h-10 rounded-lg border border-[#E3DCD5] flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all cursor-pointer"
+                        className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all cursor-pointer"
                       >
                         <Heart
                           className={`w-4 h-4 transition-colors ${
@@ -596,7 +606,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
                           e.stopPropagation();
                           onSelectItem(item);
                         }}
-                        className="h-10 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs shadow-emerald-500/20 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                        className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-emerald-500/20 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
                       >
                         <ShoppingBag className="w-3.5 h-3.5" />
                         <span>Pesan</span>
