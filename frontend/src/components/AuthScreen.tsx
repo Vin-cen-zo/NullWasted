@@ -549,40 +549,44 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   )}
 
                   <div>
-                    <label className="block text-sm font-semibold text-[#222222] mb-1.5">Email Akun Gerai</label>
+                    <label htmlFor="merchant-login-email" className="block text-sm font-semibold text-[#181C2E] mb-1.5">Email Akun Gerai</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <Mail className="w-4 h-4" />
                       </div>
                       <input
+                        id="merchant-login-email"
+                        name="email"
                         type="email"
                         autoComplete="email"
                         value={merchantEmail}
                         onChange={(e) => setMerchantEmail(e.target.value)}
                         placeholder="Contoh: dapurbarokah@nullwasted.id"
-                        className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-[#222222] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                        className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-[#222222] mb-1.5">Password</label>
+                    <label htmlFor="merchant-login-password" className="block text-sm font-semibold text-[#181C2E] mb-1.5">Password</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <KeyRound className="w-4 h-4" />
                       </div>
                       <input
+                        id="merchant-login-password"
+                        name="password"
                         type={showMerchantPassword ? "text" : "password"}
                         autoComplete="current-password"
                         value={merchantPassword}
                         onChange={(e) => setMerchantPassword(e.target.value)}
                         placeholder="Minimal 6 karakter"
-                        className="w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-[#222222] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                        className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                       />
                       <button
                         type="button"
                         onClick={() => setShowMerchantPassword((prev) => !prev)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
                         aria-label={showMerchantPassword ? "Sembunyikan password" : "Lihat password"}
                       >
                         {showMerchantPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -594,11 +598,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                     <input
                       type="checkbox"
                       id="rememberMerchant"
+                      name="rememberMerchant"
                       checked={rememberMerchant}
                       onChange={(e) => setRememberMerchant(e.target.checked)}
-                      className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                      className="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                     />
-                    <label htmlFor="rememberMerchant" className="text-xs text-stone-600 select-none cursor-pointer">
+                    <label htmlFor="rememberMerchant" className="text-xs text-[#646982] select-none cursor-pointer">
                       Ingat Email Gerai di Perangkat Ini
                     </label>
                   </div>
@@ -612,7 +617,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   <button
                     type="submit"
                     disabled={isSubmittingMerchant}
-                    className="w-full py-3 px-4 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
+                    className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
                   >
                     <span>{isSubmittingMerchant ? "Memverifikasi Akun..." : "Masuk ke Dapur Gerai"}</span>
                     <ArrowRight className="w-4 h-4" />
@@ -621,29 +626,29 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
               ) : (
                 <div>
                   {registeredStoreData ? (
-                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-stone-800 space-y-3">
+                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-[#181C2E] space-y-3">
                       <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
                         <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                         <span>Gerai Berhasil Terdaftar!</span>
                       </div>
-                      <p className="text-xs text-stone-600">
-                        Selamat datang, mitra <strong className="text-stone-900">{registeredStoreData.storeName}</strong> ({registeredStoreData.email}). Store ID internal gerai Anda:
+                      <p className="text-xs text-[#646982]">
+                        Selamat datang, mitra <strong className="text-[#181C2E]">{registeredStoreData.storeName}</strong> ({registeredStoreData.email}). Store ID internal gerai Anda:
                       </p>
                       <div className="p-3 bg-white rounded-xl border border-emerald-200 text-center">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 block mb-0.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#646982] block mb-0.5">
                           Store ID Internal Gerai
                         </span>
                         <span className="text-xl font-mono font-black text-emerald-700 tracking-wider">
                           {registeredStoreData.storeId}
                         </span>
-                        <p className="text-[10px] text-stone-500 mt-1">
+                        <p className="text-[10px] text-[#646982] mt-1">
                           Gunakan email terdaftar dan password Anda untuk login berikutnya.
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => onLogin(registeredStoreData.session)}
-                        className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all"
+                        className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
                       >
                         <span>Lanjut Masuk ke Dapur Gerai</span>
                         <ArrowRight className="w-4 h-4" />
@@ -652,48 +657,56 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   ) : (
                     <form onSubmit={handleMerchantRegister} className="space-y-3">
                       <div>
-                        <label className="block text-xs font-semibold text-[#181C2E] mb-1">Nama Usaha / Gerai</label>
+                        <label htmlFor="merchant-reg-store-name" className="block text-xs font-semibold text-[#181C2E] mb-1">Nama Usaha / Gerai</label>
                         <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                             <Store className="w-4 h-4" />
                           </div>
                           <input
+                            id="merchant-reg-store-name"
+                            name="storeName"
+                            autoComplete="organization"
                             type="text"
                             value={regStoreName}
                             onChange={(e) => setRegStoreName(e.target.value)}
                             placeholder="Contoh: Warung Berkah Nusantara"
-                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-[#181C2E] mb-1">Email Bisnis / Gerai</label>
+                        <label htmlFor="merchant-reg-email" className="block text-xs font-semibold text-[#181C2E] mb-1">Email Bisnis / Gerai</label>
                         <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                             <Mail className="w-4 h-4" />
                           </div>
                           <input
+                            id="merchant-reg-email"
+                            name="email"
+                            autoComplete="email"
                             type="email"
                             value={regMerchantEmail}
                             onChange={(e) => setRegMerchantEmail(e.target.value)}
                             placeholder="Contoh: gerai@warungberkah.id"
-                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-xs font-semibold text-[#181C2E] mb-1">Kategori Kuliner</label>
+                          <label htmlFor="merchant-reg-category" className="block text-xs font-semibold text-[#181C2E] mb-1">Kategori Kuliner</label>
                           <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                               <Utensils className="w-4 h-4" />
                             </div>
                             <select
+                              id="merchant-reg-category"
+                              name="category"
                               value={regCategory}
                               onChange={(e) => setRegCategory(e.target.value)}
-                              className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                              className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                             >
                               <option value="Lauk & Makanan Berat">Lauk Nusantara</option>
                               <option value="Bakery & Pastry">Bakery & Roti</option>
@@ -705,17 +718,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         </div>
 
                         <div>
-                          <label className="block text-xs font-semibold text-[#181C2E] mb-1">Jam Tutup (24 Jam)</label>
+                          <label htmlFor="merchant-reg-closing-time" className="block text-xs font-semibold text-[#181C2E] mb-1">Jam Tutup (24 Jam)</label>
                           <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                               <Clock className="w-4 h-4" />
                             </div>
                             <input
+                              id="merchant-reg-closing-time"
+                              name="closingTime"
                               type="time"
                               step={60}
                               value={regClosingTime}
                               onChange={(e) => setRegClosingTime(e.target.value)}
-                              className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                              className="w-full pl-9 pr-2 py-2 text-xs rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                             />
                           </div>
                         </div>
@@ -723,10 +738,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
                       {regCategory === "CUSTOM" && (
                         <div>
-                          <label className="block text-xs font-semibold text-[#181C2E] mb-1">
+                          <label htmlFor="merchant-reg-custom-category" className="block text-xs font-semibold text-[#181C2E] mb-1">
                             Nama Kategori Kuliner Kustom <span className="text-red-500">*</span>
                           </label>
                           <input
+                            id="merchant-reg-custom-category"
+                            name="customCategory"
                             type="text"
                             value={customCategory}
                             onChange={(e) => setCustomCategory(e.target.value)}
@@ -737,21 +754,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                       )}
 
                       <div>
-                        <p className="text-[10px] text-stone-500 mb-1">
+                        <p className="text-[10px] text-[#646982] mb-1">
                           Format jam tutup 24 jam (00:00 - 23:59), contoh: 20:30
                         </p>
                       </div>
 
                       {/* Pinpoint Lokasi Gerai via Peta Interaktif */}
                       <div>
-                        <label className="block text-xs font-semibold text-[#181C2E] mb-1">
+                        <span className="block text-xs font-semibold text-[#181C2E] mb-1">
                           Pin Lokasi Gerai di Peta{" "}
-                          <span className="text-stone-400 font-normal">(Bisa diubah/dihapus kapan saja)</span>
-                        </label>
+                          <span className="text-[#A0A5BA] font-normal">(Bisa diubah/dihapus kapan saja)</span>
+                        </span>
                         <button
                           type="button"
                           onClick={() => setIsRegPinpointOpen(true)}
-                          className="w-full px-3 py-2.5 rounded-xl border border-[#E4EAF1] bg-white hover:bg-emerald-50/60 text-left flex items-center justify-between gap-2 transition-colors cursor-pointer"
+                          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-emerald-50/60 text-left flex items-center justify-between gap-2 transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -775,24 +792,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-[#181C2E] mb-1">
+                        <label htmlFor="merchant-reg-password" className="block text-xs font-semibold text-[#181C2E] mb-1">
                           Buat Password Gerai (Min. 6 Karakter)
                         </label>
                         <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                             <KeyRound className="w-4 h-4" />
                           </div>
                           <input
+                            id="merchant-reg-password"
+                            name="password"
+                            autoComplete="new-password"
                             type={showRegMerchantPassword ? "text" : "password"}
                             value={regMerchantPassword}
                             onChange={(e) => setRegMerchantPassword(e.target.value)}
                             placeholder="Minimal 6 karakter"
-                            className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                            className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                           />
                           <button
                             type="button"
                             onClick={() => setShowRegMerchantPassword((prev) => !prev)}
-                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
                             aria-label={showRegMerchantPassword ? "Sembunyikan password" : "Lihat password"}
                           >
                             {showRegMerchantPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -904,40 +924,44 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   )}
 
                   <div>
-                    <label className="block text-sm font-semibold text-[#222222] mb-1.5">Email Terdaftar</label>
+                    <label htmlFor="consumer-login-email" className="block text-sm font-semibold text-[#181C2E] mb-1.5">Email Terdaftar</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <Mail className="w-4 h-4" />
                       </div>
                       <input
+                        id="consumer-login-email"
+                        name="email"
                         type="email"
                         autoComplete="email"
                         value={consumerEmail}
                         onChange={(e) => setConsumerEmail(e.target.value)}
                         placeholder="Contoh: budi@nullwasted.id"
-                        className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-[#222222] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                        className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-[#222222] mb-1.5">Password</label>
+                    <label htmlFor="consumer-login-password" className="block text-sm font-semibold text-[#181C2E] mb-1.5">Password</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <KeyRound className="w-4 h-4" />
                       </div>
                       <input
+                        id="consumer-login-password"
+                        name="password"
                         type={showConsumerPassword ? "text" : "password"}
                         autoComplete="current-password"
                         value={consumerPassword}
                         onChange={(e) => setConsumerPassword(e.target.value)}
                         placeholder="Minimal 6 karakter"
-                        className="w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-[#222222] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                        className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                       />
                       <button
                         type="button"
                         onClick={() => setShowConsumerPassword((prev) => !prev)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
                         aria-label={showConsumerPassword ? "Sembunyikan password" : "Lihat password"}
                       >
                         {showConsumerPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -949,11 +973,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                     <input
                       type="checkbox"
                       id="rememberConsumer"
+                      name="rememberConsumer"
                       checked={rememberConsumer}
                       onChange={(e) => setRememberConsumer(e.target.checked)}
-                      className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                      className="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                     />
-                    <label htmlFor="rememberConsumer" className="text-xs text-stone-600 select-none cursor-pointer">
+                    <label htmlFor="rememberConsumer" className="text-xs text-[#646982] select-none cursor-pointer">
                       Ingat Email di Perangkat Ini
                     </label>
                   </div>
@@ -967,7 +992,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   <button
                     type="submit"
                     disabled={isSubmittingConsumer}
-                    className="w-full py-3 px-4 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
+                    className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
                   >
                     <span>{isSubmittingConsumer ? "Memverifikasi..." : "Masuk & Jelajah Surplus"}</span>
                     <ArrowRight className="w-4 h-4" />
@@ -976,56 +1001,65 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
               ) : (
                 <form onSubmit={handleConsumerRegister} className="space-y-3">
                   <div>
-                    <label className="block text-xs font-semibold text-[#181C2E] mb-1">Nama Lengkap</label>
+                    <label htmlFor="consumer-reg-name" className="block text-xs font-semibold text-[#181C2E] mb-1">Nama Lengkap</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                         <User className="w-4 h-4" />
                       </div>
                       <input
+                        id="consumer-reg-name"
+                        name="name"
+                        autoComplete="name"
                         type="text"
                         value={regCustomerName}
                         onChange={(e) => setRegCustomerName(e.target.value)}
                         placeholder="Contoh: Budi Santoso"
-                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#181C2E] mb-1">Email Aktif</label>
+                    <label htmlFor="consumer-reg-email" className="block text-xs font-semibold text-[#181C2E] mb-1">Email Aktif</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                         <Mail className="w-4 h-4" />
                       </div>
                       <input
+                        id="consumer-reg-email"
+                        name="email"
+                        autoComplete="email"
                         type="email"
                         value={regCustomerEmail}
                         onChange={(e) => setRegCustomerEmail(e.target.value)}
                         placeholder="Contoh: nama@email.id"
-                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#181C2E] mb-1">
+                    <label htmlFor="consumer-reg-password" className="block text-xs font-semibold text-[#181C2E] mb-1">
                       Password (Min. 6 Karakter)
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                         <KeyRound className="w-4 h-4" />
                       </div>
                       <input
+                        id="consumer-reg-password"
+                        name="password"
+                        autoComplete="new-password"
                         type={showRegConsumerPassword ? "text" : "password"}
                         value={regCustomerPassword}
                         onChange={(e) => setRegCustomerPassword(e.target.value)}
                         placeholder="Minimal 6 karakter"
-                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                       />
                       <button
                         type="button"
                         onClick={() => setShowRegConsumerPassword((prev) => !prev)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
                         aria-label={showRegConsumerPassword ? "Sembunyikan password" : "Lihat password"}
                       >
                         {showRegConsumerPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -1034,24 +1068,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#181C2E] mb-1">
-                      Nomor WhatsApp <span className="text-stone-400 font-normal">(Opsional untuk kontak tiket)</span>
+                    <label htmlFor="consumer-reg-phone" className="block text-xs font-semibold text-[#181C2E] mb-1">
+                      Nomor WhatsApp <span className="text-[#A0A5BA] font-normal">(Opsional untuk kontak tiket)</span>
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                         <Phone className="w-4 h-4" />
                       </div>
                       <input
+                        id="consumer-reg-phone"
+                        name="tel"
+                        autoComplete="tel"
                         type="tel"
                         value={regCustomerPhone}
                         onChange={(e) => setRegCustomerPhone(e.target.value)}
                         placeholder="Contoh: 0812-8899-0011"
-                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
                       />
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-[#646982] bg-[#F0F5FA] px-3 py-2 rounded-xl border border-[#E7E1D4]">
+                  <p className="text-[11px] text-[#646982] bg-[#F0F5FA] px-3 py-2 rounded-xl border border-slate-200/80">
                     Setelah masuk, aplikasi akan meminta izin GPS perangkat Anda untuk menghitung jarak ke gerai sekitar.
                   </p>
 
@@ -1064,7 +1101,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   <button
                     type="submit"
                     disabled={isSubmittingRegConsumer}
-                    className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
+                    className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
                   >
                     <span>{isSubmittingRegConsumer ? "Mendaftarkan Akun..." : "Daftar & Mulai Belanja Surplus"}</span>
                     <ArrowRight className="w-4 h-4" />
@@ -1076,9 +1113,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         </div>
 
         {/* Footer Info */}
-        <div className="text-center pt-2 border-t border-[#E8E2D5]">
-          <p className="text-[10px] text-[#7C7569]">Platform Marketplace Surplus Food Berbasis Agentic AI</p>
-          <p className="text-[9px] text-[#A8A196] mt-0.5">Hemat Pangan · Temukan Gerai Terdekat di Sekitarmu</p>
+        <div className="text-center pt-2 border-t border-slate-100">
+          <p className="text-[10px] text-[#646982]">Platform Marketplace Surplus Food Berbasis Agentic AI</p>
+          <p className="text-[9px] text-[#A0A5BA] mt-0.5">Hemat Pangan · Temukan Gerai Terdekat di Sekitarmu</p>
         </div>
       </div>
     </div>
