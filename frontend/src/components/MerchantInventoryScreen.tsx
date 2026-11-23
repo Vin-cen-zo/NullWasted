@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ItemListing, getFriendlyCategory } from "../types/listing";
-import { Trash2, PlusCircle, ShieldCheck, Store, Sparkles, Package } from "lucide-react";
+import { Trash2, PlusCircle, ShieldCheck, Sparkles, Package } from "lucide-react";
 import { ClosingCountdownBadge } from "./ClosingCountdownBadge";
 
 interface MerchantInventoryScreenProps {
@@ -55,7 +55,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
       {/* Header Info */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-bold text-[#181C2E]">Inventaris Aktif Gerai</h2>
+          <h2 className="text-sm font-bold text-[#222222]">Inventaris Aktif Gerai</h2>
           <p className="text-xs text-[#646982]">{storeName} · Live Catalog</p>
         </div>
         <button
@@ -69,13 +69,13 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
       </div>
 
       {/* Smart Mystery Bag Bundling Action Banner */}
-      <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-emerald-50 p-3.5 rounded-2xl border border-purple-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-emerald-50 p-3.5 rounded-xl border border-purple-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="space-y-0.5">
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-purple-600" />
             <h3 className="text-xs font-bold text-purple-950">Smart Mystery Bag Bundling</h3>
           </div>
-          <p className="text-[11px] text-purple-800">
+          <p className="text-xs text-purple-800">
             {eligibleItems.length >= 2
               ? `${eligibleItems.length} menu berporsi kecil siap digabung dengan diskon 65%!`
               : "Perlu minimal 2 menu porsi kecil (1-2 porsi) untuk paket kejutan."}
@@ -101,18 +101,22 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
 
       {/* Listing Cards */}
       {listings.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white rounded-2xl border border-dashed border-[#E4EAF1]">
-          <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
-            <Store className="w-6 h-6" />
+        <div className="flex-1 flex flex-col items-center justify-center py-10 px-6 text-center bg-white space-y-2.5">
+          <img
+            src="/assets/empty_store.jpg"
+            alt="Belum ada makanan aktif"
+            className="w-32 h-32 object-contain"
+          />
+          <div className="space-y-1">
+            <p className="text-base font-bold text-[#222222]">Belum Ada Makanan Aktif</p>
+            <p className="text-sm text-[#646982] max-w-xs">
+              Gunakan tab Buat Listing untuk mempublikasikan menu surplus hari ini.
+            </p>
           </div>
-          <p className="text-xs font-bold text-[#181C2E]">Belum Ada Makanan Aktif</p>
-          <p className="text-[11px] text-[#646982] mt-1 max-w-[220px]">
-            Gunakan tab Buat Listing untuk mempublikasikan menu surplus malam ini.
-          </p>
           <button
             type="button"
             onClick={onNavigateToCreate}
-            className="mt-4 text-xs font-bold text-emerald-600 underline cursor-pointer"
+            className="text-sm font-bold text-emerald-600 hover:underline pt-1 cursor-pointer"
           >
             Buat Listing Sekarang
           </button>
@@ -132,7 +136,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
             return (
               <div
                 key={item.id}
-                className={`bg-white p-4 rounded-2xl border shadow-sm transition-all h-full flex flex-col justify-between space-y-3 ${
+                className={`bg-white p-4 rounded-xl border shadow-sm transition-all h-full flex flex-col justify-between space-y-3 ${
                   item.is_bundle
                     ? "border-purple-300 bg-gradient-to-b from-purple-50/40 to-white"
                     : "border-[#EEF0F4] hover:border-emerald-300"
@@ -142,15 +146,15 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                   <div>
                     <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                       {item.is_bundle && (
-                        <span className="px-2 py-0.5 rounded-full bg-purple-600 text-white text-[10px] font-extrabold tracking-wide flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-lg bg-purple-600 text-white text-xs font-extrabold tracking-wide flex items-center gap-1">
                           <Package className="w-3 h-3" />
                           MYSTERY BAG
                         </span>
                       )}
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold">
                         {item.discount_percent}% OFF
                       </span>
-                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-medium">
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-700 font-medium">
                         <ShieldCheck className="w-3 h-3 text-emerald-600" />
                         BPOM Safe
                       </span>
@@ -160,14 +164,14 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                         expiresAt={item.expires_at}
                       />
                     </div>
-                    <h3 className="text-xs font-bold text-[#181C2E] leading-snug">{item.food_name}</h3>
-                    <p className="text-[10px] text-[#646982]">
+                    <h3 className="text-[15px] font-normal text-[#222222] leading-snug">{item.food_name}</h3>
+                    <p className="text-xs text-[#646982]">
                       {getFriendlyCategory(item.category, item.is_bundle).label}
                     </p>
 
                     {/* Rincian item mystery bag jika ada */}
                     {item.is_bundle && bundledList.length > 0 && (
-                      <div className="mt-2 p-2 bg-purple-50/70 border border-purple-200 rounded-xl text-[10px] text-purple-900 space-y-0.5">
+                      <div className="mt-2 p-2 bg-purple-50/70 border border-purple-200 rounded-xl text-xs text-purple-900 space-y-0.5">
                         <span className="font-bold block text-purple-950">Isi Paket Kejutan:</span>
                         <ul className="list-disc list-inside">
                           {bundledList.map((b, idx) => (
@@ -214,7 +218,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
 
                 <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-100">
                   <div>
-                    <span className="text-[10px] text-gray-400 line-through mr-1.5">
+                    <span className="text-xs text-gray-400 line-through mr-1.5">
                       Rp {item.original_price.toLocaleString("id-ID")}
                     </span>
                     <span className="font-bold text-emerald-600">
@@ -222,7 +226,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="text-[11px] font-semibold text-[#181C2E]">
+                    <span className="text-xs font-semibold text-[#222222]">
                       Tersisa: {item.quantity} / {item.initial_quantity} porsi
                     </span>
                   </div>

@@ -179,7 +179,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl bg-stone-50 rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-2xl bg-stone-50 rounded-xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="bg-emerald-700 text-white px-5 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -214,7 +214,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
 
             <div className="grid grid-cols-2 gap-2">
               <div className="col-span-2">
-                <label className="block text-[11px] font-semibold text-stone-600 mb-0.5">
+                <label className="block text-xs font-semibold text-stone-600 mb-0.5">
                   Nama Hidangan <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -228,7 +228,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-stone-600 mb-0.5">
+                <label className="block text-xs font-semibold text-stone-600 mb-0.5">
                   Harga Normal (Rp) <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -244,8 +244,8 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-stone-600 mb-0.5">
-                  Jam Masak Harian (24 Jam) <span className="text-red-500">*</span>
+                <label className="block text-xs font-semibold text-stone-600 mb-0.5">
+                  Jam Masak (24 Jam) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="time"
@@ -258,15 +258,15 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
               </div>
 
               <div className="col-span-2">
-                <p className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <p className="text-xs text-[#646982] bg-[#F0F5FA] rounded-lg px-3 py-2 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>Klasifikasi keamanan & batas simpan BPOM dideteksi otomatis oleh AI dari nama & komposisi menu.</span>
                 </p>
               </div>
 
               <div className="col-span-2">
-                <label className="block text-[11px] font-semibold text-stone-600 mb-0.5">
-                  Komposisi / Bahan Utama (Wajib untuk Guardrail BPOM) <span className="text-red-500">*</span>
+                <label className="block text-xs font-semibold text-stone-600 mb-0.5">
+                  Komposisi / Bahan <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -281,7 +281,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
 
               {/* Optional Photo Upload */}
               <div className="col-span-2 pt-1 border-t border-stone-100">
-                <label className="block text-[11px] font-semibold text-stone-600 mb-1">
+                <label className="block text-xs font-semibold text-stone-600 mb-1">
                   Foto Makanan (Opsional)
                 </label>
                 <div className="flex items-center gap-3">
@@ -291,7 +291,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                       <button
                         type="button"
                         onClick={handleRemoveImage}
-                        className="absolute top-1 right-1 p-0.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition"
+                        className="absolute top-1 right-1 p-0.5 bg-black/60 hover:bg-black/80 text-white rounded-lg transition"
                         title="Hapus Foto"
                       >
                         <X className="w-3 h-3" />
@@ -300,7 +300,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                   ) : (
                     <label className="w-16 h-16 rounded-xl border-2 border-dashed border-stone-300 hover:border-emerald-500 hover:bg-emerald-50/50 flex flex-col items-center justify-center cursor-pointer transition shrink-0 text-stone-400 hover:text-emerald-600">
                       <Camera className="w-5 h-5 mb-0.5" />
-                      <span className="text-[9px] font-semibold">Upload</span>
+                      <span className="text-[11px] font-semibold">Upload</span>
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -313,17 +313,17 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                   )}
                   <div className="flex-1 text-xs">
                     {imageUploading ? (
-                      <div className="flex items-center space-x-1.5 text-emerald-600 font-semibold text-[11px]">
+                      <div className="flex items-center space-x-1.5 text-emerald-600 font-semibold text-xs">
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         <span>Mengompresi & mengunggah foto...</span>
                       </div>
                     ) : imagePreviewUrl ? (
-                      <p className="text-[11px] text-emerald-700 font-semibold">
+                      <p className="text-xs text-emerald-700 font-semibold">
                         Foto siap disimpan {compressedSizeKb ? `(~${compressedSizeKb} KB WebP)` : ""}
                       </p>
                     ) : (
-                      <p className="text-[11px] text-stone-500">
-                        Unggah foto hidangan (JPG, PNG, WebP). Otomatis dikompresi ke 800px (~50-150 KB).
+                      <p className="text-xs text-stone-500">
+                        Upload foto (JPG, PNG, dst).
                       </p>
                     )}
                   </div>
@@ -345,15 +345,23 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
           <div>
             <h3 className="font-bold text-xs uppercase tracking-wider text-stone-600 mb-2 flex items-center justify-between">
               <span>Menu Terdaftar ({menuItems.length})</span>
-              <span className="text-[11px] font-normal text-stone-500">Katalog Rutin Aktif</span>
+              <span className="text-xs font-normal text-stone-500">Katalog Rutin Aktif</span>
             </h3>
 
             {loading ? (
-              <p className="text-xs text-stone-400 py-3 text-center">Memuat daftar menu gerai...</p>
+              <p className="text-sm text-[#646982] py-4 text-center">Memuat daftar menu gerai...</p>
             ) : menuItems.length === 0 ? (
-              <p className="text-xs text-stone-500 py-4 text-center bg-white rounded-xl border border-stone-200">
-                Belum ada menu tersimpan di Buku Menu. Tambahkan hidangan di atas.
-              </p>
+              <div className="py-6 px-4 bg-white rounded-xl flex flex-col items-center justify-center text-center space-y-2">
+                <img
+                  src="/assets/empty_store.jpg"
+                  alt="Belum ada menu tersimpan"
+                  className="w-24 h-24 object-contain"
+                />
+                <p className="text-sm font-bold text-[#222222]">Belum Ada Menu Tersimpan</p>
+                <p className="text-xs text-[#646982]">
+                  Tambahkan hidangan rutin gerai Anda pada form di atas.
+                </p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {menuItems.map((item) => {
@@ -376,13 +384,13 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                         )}
                         <div className="min-w-0">
                           <div className="flex items-center space-x-2">
-                            <span className="font-bold text-xs text-stone-800 truncate">{item.food_name}</span>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 flex items-center space-x-1 shrink-0">
+                            <span className="font-normal text-sm text-[#222222] truncate">{item.food_name}</span>
+                            <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 flex items-center space-x-1 shrink-0">
                               <ShieldCheck className="w-2.5 h-2.5" />
                               <span>BPOM · Maks {item.bpom_max_hours}j</span>
                             </span>
                           </div>
-                          <div className="text-[11px] text-stone-500 flex items-center space-x-3 mt-1">
+                          <div className="text-xs text-stone-500 flex items-center space-x-3 mt-1">
                             <span className="font-semibold text-stone-700">Rp {item.original_price.toLocaleString("id-ID")}</span>
                             <span className="flex items-center space-x-0.5 text-stone-400">
                               <Clock className="w-3 h-3" />
