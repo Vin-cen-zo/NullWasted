@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { UserSession, ItemListing, OrderTicket, DraftResponse, PublishRequest } from "./types/listing";
 import { AuthScreen } from "./components/AuthScreen";
 import { NullWastedLogo } from "./components/NullWastedLogo";
@@ -71,29 +71,39 @@ export const App: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [clockTick, setClockTick] = useState<number>(() => getEffectiveNow().getTime());
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showToast = (message: string, type: "success" | "error" = "success") => {
+  const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
-  };
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
-  // Synchronize data from SQLite
-  const refreshListings = async () => {
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  // Synchronize data from backend
+  const refreshListings = useCallback(async () => {
+    if (!session) return;
     try {
-      const storeFilter = session?.role === "merchant" ? session.storeId : undefined;
+      const storeFilter = session.role === "merchant" ? session.storeId : undefined;
       const data = await fetchActiveListings(storeFilter);
       setActiveListings(data);
     } catch (err) {
       console.error("Gagal memuat katalog:", err);
     }
-  };
+  }, [session]);
 
-  const refreshOrders = async () => {
+  const refreshOrders = useCallback(async () => {
+    if (!session) return;
     try {
       const filters =
-        session?.role === "merchant"
+        session.role === "merchant"
           ? { storeId: session.storeId }
-          : session?.role === "consumer"
+          : session.role === "consumer"
           ? { customerPhone: session.customerPhone, customerName: session.customerName }
           : undefined;
       const data = await fetchActiveOrders(filters);
@@ -101,12 +111,17 @@ export const App: React.FC = () => {
     } catch (err) {
       console.error("Gagal memuat pesanan:", err);
     }
-  };
+  }, [session]);
 
   useEffect(() => {
+    if (!session) {
+      setActiveListings([]);
+      setActiveOrders([]);
+      return;
+    }
     refreshListings();
     refreshOrders();
-  }, [session]);
+  }, [session, refreshListings, refreshOrders]);
 
   useEffect(() => {
     const handleClockChange = () => {
@@ -213,6 +228,7 @@ export const App: React.FC = () => {
       showToast("Listing resmi berhasil diterbitkan ke marketplace!", "success");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Gagal menerbitkan.", "error");
+      throw err;
     } finally {
       setIsPublishing(false);
     }
@@ -287,7 +303,7 @@ export const App: React.FC = () => {
     <div className="min-h-screen bg-white font-sans text-[#181C2E] flex flex-col">
       {/* Toast Notification Float */}
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] animate-bounce pointer-events-none">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] animate-nw-toast pointer-events-none">
           <div
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold shadow-lg flex items-center gap-2 border ${
               toast.type === "error"
@@ -506,6 +522,7 @@ export const App: React.FC = () => {
               <MerchantCashierScreen
                 orders={activeOrders}
                 onCompletePickup={handleCompletePickup}
+                onRefreshOrders={refreshOrders}
                 isVerifying={isVerifying}
               />
             )}

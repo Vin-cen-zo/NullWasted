@@ -172,7 +172,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       setMerchantError("Format email gerai tidak valid.");
       return;
     }
-    if (merchantPassword.trim().length < 6) {
+    if (merchantPassword.length < 6 || !merchantPassword.trim()) {
       setMerchantError("Password akun gerai minimal 6 karakter.");
       return;
     }
@@ -180,7 +180,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     try {
       setIsSubmittingMerchant(true);
       setMerchantError("");
-      const auth = await loginMerchant(cleanedEmail, merchantPassword.trim());
+      const auth = await loginMerchant(cleanedEmail, merchantPassword);
       const effectiveStoreName = auth.store_name || "Gerai Mitra NullWasted";
 
       if (rememberMerchant) {
@@ -229,7 +229,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       return;
     }
 
-    if (regMerchantPassword.trim().length < 6) {
+    if (regMerchantPassword.length < 6 || !regMerchantPassword.trim()) {
       setRegError("Password gerai baru minimal 6 karakter.");
       return;
     }
@@ -257,7 +257,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       const auth = await registerMerchant({
         name: regStoreName.trim(),
         email: cleanedEmail,
-        password: regMerchantPassword.trim(),
+        password: regMerchantPassword,
         location_name: resolvedLocationName,
         closing_time: regClosingTime.trim() || "20:30",
         category: resolvedCategory,
@@ -340,7 +340,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       setConsumerError("Format email konsumen tidak valid.");
       return;
     }
-    if (consumerPassword.trim().length < 6) {
+    if (consumerPassword.length < 6 || !consumerPassword.trim()) {
       setConsumerError("Password minimal 6 karakter.");
       return;
     }
@@ -348,7 +348,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     try {
       setIsSubmittingConsumer(true);
       setConsumerError("");
-      const auth = await loginConsumer(cleanedEmail, consumerPassword.trim());
+      const auth = await loginConsumer(cleanedEmail, consumerPassword);
       const resolvedName = auth.customer_name || "Konsumen NullWasted";
       const resolvedPhone = auth.customer_phone || "";
       const resolvedEmail = auth.email || cleanedEmail;
@@ -389,7 +389,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       setRegConsumerError("Format email tidak valid.");
       return;
     }
-    if (regCustomerPassword.trim().length < 6) {
+    if (regCustomerPassword.length < 6 || !regCustomerPassword.trim()) {
       setRegConsumerError("Password minimal 6 karakter.");
       return;
     }
@@ -400,7 +400,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       const auth = await registerConsumer({
         name: regCustomerName.trim(),
         email: cleanedEmail,
-        password: regCustomerPassword.trim(),
+        password: regCustomerPassword,
         phone: regCustomerPhone.trim() || undefined,
       });
       const resolvedName = auth.customer_name || regCustomerName.trim();
@@ -556,6 +556,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                       </div>
                       <input
                         type="email"
+                        autoComplete="email"
                         value={merchantEmail}
                         onChange={(e) => setMerchantEmail(e.target.value)}
                         placeholder="Contoh: dapurbarokah@nullwasted.id"
@@ -565,17 +566,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#181C2E] mb-1">Password</label>
+                    <label className="block text-sm font-semibold text-[#222222] mb-1.5">Password</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <KeyRound className="w-4 h-4" />
                       </div>
                       <input
                         type={showMerchantPassword ? "text" : "password"}
+                        autoComplete="current-password"
                         value={merchantPassword}
                         onChange={(e) => setMerchantPassword(e.target.value)}
                         placeholder="Minimal 6 karakter"
-                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-[#222222] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                       />
                       <button
                         type="button"
@@ -909,6 +911,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                       </div>
                       <input
                         type="email"
+                        autoComplete="email"
                         value={consumerEmail}
                         onChange={(e) => setConsumerEmail(e.target.value)}
                         placeholder="Contoh: budi@nullwasted.id"
@@ -918,17 +921,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#181C2E] mb-1">Password</label>
+                    <label className="block text-sm font-semibold text-[#222222] mb-1.5">Password</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <KeyRound className="w-4 h-4" />
                       </div>
                       <input
                         type={showConsumerPassword ? "text" : "password"}
+                        autoComplete="current-password"
                         value={consumerPassword}
                         onChange={(e) => setConsumerPassword(e.target.value)}
                         placeholder="Minimal 6 karakter"
-                        className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#E4EAF1] bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
+                        className="w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-[#222222] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                       />
                       <button
                         type="button"

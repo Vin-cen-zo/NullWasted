@@ -7,7 +7,6 @@ import {
   Map as MapIcon,
   Navigation,
   Crosshair,
-  Star,
   Heart,
   Clock,
   ShoppingBag,
@@ -83,16 +82,21 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
   const [nowTick, setNowTick] = useState<number>(() => getEffectiveNow().getTime());
 
-  // Tick every 2s and sync immediately with simulated clock changes
+  // Tick every 15s (paused while map modal is open to prevent unnecessary Leaflet re-renders)
   useEffect(() => {
     const syncNow = () => setNowTick(getEffectiveNow().getTime());
-    const timer = setInterval(syncNow, 2000);
     window.addEventListener(NW_CLOCK_CHANGE_EVENT, syncNow);
+    if (isMapOpen) {
+      return () => {
+        window.removeEventListener(NW_CLOCK_CHANGE_EVENT, syncNow);
+      };
+    }
+    const timer = setInterval(syncNow, 15000);
     return () => {
       clearInterval(timer);
       window.removeEventListener(NW_CLOCK_CHANGE_EVENT, syncNow);
     };
-  }, []);
+  }, [isMapOpen]);
 
   const toggleBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -414,10 +418,10 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
 
       {/* Section Heading */}
       <div className="flex items-center justify-between pt-1">
-        <h2 className="text-[18px] font-normal text-[#32343E]">Penyelamatan Surplus Terdekat</h2>
+        <h2 className="text-[18px] font-medium text-[#32343E]">Surplus Terdekat</h2>
         <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-          <span>{filteredListings.length} Menu Aktif</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span>{filteredListings.length} Tersedia</span>
         </div>
       </div>
 
@@ -535,16 +539,11 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
                     </p>
                   </div>
 
-                  {/* Rating, Distance & Closing Time Row */}
+                  {/* Distance & Closing Time Row */}
                   <div className="space-y-2 pt-0.5">
                     <div className="flex items-center gap-2 text-xs text-[#646982] flex-wrap">
-                      <span className="flex items-center gap-1 font-semibold text-[#181C2E]">
-                        <Star className="w-3.5 h-3.5 fill-[#DFB300] text-[#DFB300]" />
-                        4.8
-                      </span>
-                      <span className="text-slate-300">|</span>
-                      <span className="truncate max-w-[160px]">{distLabel}</span>
-                      <span className="text-slate-300">|</span>
+                      <span className="truncate max-w-[180px] font-medium text-[#32343E]">{distLabel}</span>
+                      <span className="text-slate-300">·</span>
                       <span className="flex items-center gap-1 shrink-0">
                         <Clock className="w-3.5 h-3.5 text-emerald-600" />
                         Tutup {item.closing_time || "20:30"}

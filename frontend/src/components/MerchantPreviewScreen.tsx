@@ -220,8 +220,15 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
     }
   };
 
+  const parsedPriceInput = parseInt(originalPriceInput, 10);
+  const isPriceValid =
+    originalPriceInput.trim() !== "" &&
+    !Number.isNaN(parsedPriceInput) &&
+    parsedPriceInput >= 1000 &&
+    parsedPriceInput <= 2000000;
+
   const handlePublishClick = async () => {
-    if (!isSafe || !draft.can_publish || isStoreClosed || isPublishing) return;
+    if (!isSafe || !draft.can_publish || isStoreClosed || isPublishing || isUploadingImage || !isPriceValid) return;
 
     const payload: PublishRequest = {
       store_id: storeId,
@@ -230,7 +237,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       category: draft.category,
       food_type: draft.food_type || "MEAL",
       quantity: Math.max(1, Math.min(200, quantity)),
-      original_price: Math.max(1000, Math.min(2000000, originalPrice)),
+      original_price: parsedPriceInput,
       discount_percent: discountPercent,
       discounted_price: calculatedDiscountedPrice,
       hours_since_cooked: draft.hours_since_cooked,
@@ -272,7 +279,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
         );
       case "ADHOC_NEEDS_PRICE":
         return (
-          <span className="flex items-center gap-1.5 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-300 animate-pulse">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-300">
             <AlertTriangle className="w-3.5 h-3.5" />
             <span>Menu Ad-Hoc: Lengkapi Harga Normal</span>
           </span>
