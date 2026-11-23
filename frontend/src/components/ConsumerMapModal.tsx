@@ -13,7 +13,28 @@ interface ConsumerMapModalProps {
   userCoords?: [number, number] | null; // [lat, lng]
 }
 
-const DEFAULT_OVERVIEW_CENTER: [number, number] = [-6.2588, 106.8856];
+const DEFAULT_OVERVIEW_CENTER: [number, number] = [-6.3621, 106.8246];
+
+function escapeHtml(raw: string): string {
+  return raw
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function filterOutlierPoints(
+  points: [number, number][],
+  anchor: [number, number] | null
+): [number, number][] {
+  if (points.length <= 1) return points;
+  const refPoint = anchor || DEFAULT_OVERVIEW_CENTER;
+  const nearby = points.filter(
+    ([lat, lng]) => haversineMeters(lat, lng, refPoint[0], refPoint[1]) <= 100_000
+  );
+  return nearby.length > 0 ? nearby : points;
+}
 
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371e3;
@@ -27,7 +48,7 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
+export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
   isOpen,
   onClose,
   listings,
@@ -109,10 +130,11 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
     const points: [number, number][] = [];
     if (userCoords) points.push(userCoords);
     storeMap.forEach((s) => points.push([s.lat, s.lng]));
-    if (points.length === 1) {
-      map.setView(points[0], 14, { animate: true });
-    } else if (points.length > 1) {
-      map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 15, animate: true });
+    const safePoints = filterOutlierPoints(points, userCoords);
+    if (safePoints.length === 1) {
+      map.setView(safePoints[0], 14, { animate: true });
+    } else if (safePoints.length > 1) {
+      map.fitBounds(L.latLngBounds(safePoints), { padding: [48, 48], maxZoom: 15, animate: true });
     }
   };
 
@@ -233,8 +255,8 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
       const storeIcon = L.divIcon({
         className: "custom-store-marker",
         html: `
-          <div style="width:32px;height:40px;display:flex;flex-direction:column;align-items:center;cursor:pointer;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.28));">
-            <div style="width:30px;height:30px;border-radius:9999px;background:${pinColor};border:2.5px solid #ffffff;color:#ffffff;font-family:'Roboto',sans-serif;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;">
+          <div style="width:32px;height:40px;display:flex;flex-direction:column;align-items:center;cursor:pointer;">
+            <div style="width:30px;height:30px;border-radius:9999px;background:${pinColor};border:2.5px solid #ffffff;box-shadow:0 2px 5px rgba(0,0,0,0.25);color:#ffffff;font-family:'Roboto',sans-serif;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;">
               ${storeData.items.length}
             </div>
             <div style="width:0;height:0;margin-top:-3px;border-left:6px solid transparent;border-right:6px solid transparent;border-top:9px solid ${pinColor};"></div>
@@ -249,9 +271,10 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
         zIndexOffset: hasSurplus ? 500 : 100,
       }).addTo(markersLayer);
 
+      const safeStoreName = escapeHtml(storeData.storeName);
       marker.bindTooltip(
         `<div style="font-family:'Roboto',sans-serif;font-size:12px;font-weight:700;color:#181C2E;padding:2px 4px;">
-          ${storeData.storeName} <span style="font-weight:600;color:${hasSurplus ? "#059669" : "#64748B"};">· ${storeData.items.length} Surplus</span>
+          ${safeStoreName} <span style="font-weight:600;color:${hasSurplus ? "#059669" : "#64748B"};">· ${storeData.items.length} Surplus</span>
         </div>`,
         {
           direction: "top",
@@ -268,12 +291,13 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
     // Only auto-position the camera once when store/GPS data first arrives
     if (!hasInitialFitRef.current && (userCoords || storePoints.length > 0)) {
       hasInitialFitRef.current = true;
+      const safeStorePoints = filterOutlierPoints(storePoints, userCoords);
       if (userCoords) {
         map.setView(userCoords, 14);
-      } else if (storePoints.length === 1) {
-        map.setView(storePoints[0], 14);
-      } else if (storePoints.length > 1) {
-        map.fitBounds(L.latLngBounds(storePoints), { padding: [48, 48], maxZoom: 15 });
+      } else if (safeStorePoints.length === 1) {
+        map.setView(safeStorePoints[0], 14);
+      } else if (safeStorePoints.length > 1) {
+        map.fitBounds(L.latLngBounds(safeStorePoints), { padding: [48, 48], maxZoom: 15 });
       }
     }
   }, [isOpen, markersSignature, storeMap, userCoords]);
@@ -301,7 +325,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
   const activeStoreData = selectedStoreId ? storeMap.get(selectedStoreId) : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3">
       <div className="w-full max-w-4xl bg-stone-50 rounded-2xl sm:rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col h-[85vh] sm:h-[82vh]">
         {/* Header */}
         <div className="bg-emerald-700 text-white px-5 py-3.5 flex items-center justify-between shrink-0">
@@ -340,7 +364,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
 
           {/* Quick instructions & floating legend */}
           <div className="absolute top-3 left-3 right-3 z-[400] pointer-events-none space-y-1">
-            <div className="bg-white/95 backdrop-blur-sm px-3.5 py-2 rounded-xl shadow-md border border-stone-200 text-center space-y-1">
+            <div className="bg-white/95 px-3.5 py-2 rounded-xl shadow-md border border-stone-200 text-center space-y-1">
               <div className="text-xs font-bold text-stone-800 flex items-center justify-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
                 <span>Radius Jalan Kaki 500m (± 5 Menit)</span>
@@ -507,4 +531,4 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = ({
       </div>
     </div>
   );
-};
+});

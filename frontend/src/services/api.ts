@@ -68,6 +68,7 @@ async function apiFetch(path: string, init: RequestInit = {}): Promise<Response>
 
   if (
     res.status === 401 &&
+    Boolean(token) &&
     !path.startsWith("/auth/merchant-login") &&
     !path.startsWith("/auth/consumer-login")
   ) {
@@ -178,7 +179,7 @@ export async function loginConsumer(email: string, password: string): Promise<Au
 // ============================================================================
 
 export async function fetchStoreMenu(storeId: string): Promise<StoreMenuItem[]> {
-  const res = await apiFetch(`/menu/${storeId}`);
+  const res = await apiFetch(`/menu/${encodeURIComponent(storeId)}`);
   if (!res.ok) {
     throw new Error("Gagal mengambil buku menu gerai.");
   }
@@ -197,7 +198,7 @@ export async function createStoreMenuItem(
     image_url?: string | null;
   }
 ): Promise<StoreMenuItem> {
-  const res = await apiFetch(`/menu/${storeId}`, {
+  const res = await apiFetch(`/menu/${encodeURIComponent(storeId)}`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -212,7 +213,7 @@ export async function deleteStoreMenuItem(
   storeId: string,
   menuId: string
 ): Promise<{ status: string; id: string }> {
-  const res = await apiFetch(`/menu/${storeId}/${menuId}`, {
+  const res = await apiFetch(`/menu/${encodeURIComponent(storeId)}/${encodeURIComponent(menuId)}`, {
     method: "DELETE",
   });
   if (!res.ok) {
@@ -312,7 +313,7 @@ export async function fetchActiveListings(storeId?: string): Promise<ItemListing
 }
 
 export async function deleteListing(listingId: string): Promise<{ status: string; id: string }> {
-  const res = await apiFetch(`/listings/${listingId}`, {
+  const res = await apiFetch(`/listings/${encodeURIComponent(listingId)}`, {
     method: "DELETE",
   });
   if (!res.ok) {
@@ -373,7 +374,7 @@ export async function fetchActiveOrders(filters?: {
 }
 
 export async function cancelOrder(orderId: string): Promise<OrderTicket> {
-  const res = await apiFetch(`/orders/${orderId}/cancel`, {
+  const res = await apiFetch(`/orders/${encodeURIComponent(orderId)}/cancel`, {
     method: "POST",
   });
   if (!res.ok) {

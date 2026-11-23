@@ -5,8 +5,6 @@ import {
   NW_CLOCK_CHANGE_EVENT,
 } from "../utils/clock";
 
-export const computeSecondsUntilClosing = computeEffectiveSecondsUntilClosing;
-
 interface ClosingCountdownBadgeProps {
   closingTime: string;
   fallbackMinutes?: number;
