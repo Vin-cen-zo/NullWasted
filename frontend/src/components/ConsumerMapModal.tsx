@@ -165,6 +165,13 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
     const map = L.map(mapContainerRef.current, {
       center: userCoords || DEFAULT_OVERVIEW_CENTER,
       zoom: userCoords ? 14 : 11,
+      minZoom: 2,
+      maxBounds: [
+        [-85, -180],
+        [85, 180],
+      ],
+      maxBoundsViscosity: 1.0,
+      worldCopyJump: false,
       zoomControl: true,
     });
     map.on("dragstart", () => {
@@ -174,6 +181,7 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
+      noWrap: true,
       attribution: "© OpenStreetMap",
     }).addTo(map);
 
