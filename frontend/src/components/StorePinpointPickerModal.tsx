@@ -184,12 +184,15 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
 
     return () => {
       clearTimeout(timer);
+      searchAbortRef.current?.abort();
       resizeObserver.disconnect();
       markerRef.current = null;
       map.remove();
       mapInstanceRef.current = null;
     };
   }, [isOpen]);
+
+  const searchAbortRef = useRef<AbortController | null>(null);
 
   if (!isOpen) return null;
 
@@ -200,6 +203,10 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
     }
     const q = searchQuery.trim();
     if (!q) return;
+
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
 
     setStatusError(null);
     const directCoords = parseCoordinatesOrGoogleMapsUrl(q);
@@ -215,7 +222,10 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
       const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&accept-language=id&countrycodes=id&limit=6&q=${encodeURIComponent(q)}`;
       const nomRes = await fetch(nominatimUrl, {
         headers: { Accept: "application/json" },
+        signal: controller.signal,
       }).catch(() => null);
+
+      if (controller.signal.aborted) return;
 
       if (nomRes && nomRes.ok) {
         const nomData: NominatimResult[] = await nomRes.json();
@@ -225,7 +235,8 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
       // Fallback/augment with Photon OSM geocoder for specific street/building queries
       if (results.length === 0) {
         const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lat=-6.2088&lon=106.8456`;
-        const phoRes = await fetch(photonUrl).catch(() => null);
+        const phoRes = await fetch(photonUrl, { signal: controller.signal }).catch(() => null);
+        if (controller.signal.aborted) return;
         if (phoRes && phoRes.ok) {
           const phoJson = await phoRes.json();
           const features = Array.isArray(phoJson?.features) ? phoJson.features : [];
@@ -247,6 +258,8 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
         }
       }
 
+      if (controller.signal.aborted) return;
+
       setSearchResults(results);
       if (results.length > 0) {
         const first = results[0];
@@ -263,9 +276,13 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
         setStatusError("Lokasi tidak ditemukan. Coba nama jalan/kecamatan atau tempel koordinat Google Maps.");
       }
     } catch {
-      setStatusError("Pencarian peta gagal. Ketuk langsung pada peta untuk menaruh pin gerai.");
+      if (!controller.signal.aborted) {
+        setStatusError("Pencarian peta gagal. Ketuk langsung pada peta untuk menaruh pin gerai.");
+      }
     } finally {
-      setIsSearching(false);
+      if (!controller.signal.aborted) {
+        setIsSearching(false);
+      }
     }
   };
 
@@ -307,14 +324,15 @@ export const StorePinpointPickerModal: React.FC<StorePinpointPickerModalProps> =
 
   const handleRemovePin = async () => {
     setIsSaving(true);
+    setStatusError(null);
     try {
+      await onSave(null, null, locationLabel.trim() || undefined);
       if (markerRef.current && mapInstanceRef.current) {
         mapInstanceRef.current.removeLayer(markerRef.current);
         markerRef.current = null;
       }
       setSelectedLat(null);
       setSelectedLng(null);
-      await onSave(null, null, locationLabel.trim() || undefined);
       onClose();
     } catch (err: any) {
       setStatusError(err?.message || "Gagal menghapus pin lokasi.");

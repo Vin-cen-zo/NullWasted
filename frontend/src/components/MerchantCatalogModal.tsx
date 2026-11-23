@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { BookOpen, Camera, Clock, Loader2, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 import { createStoreMenuItem, deleteStoreMenuItem, fetchStoreMenu, uploadMenuImage } from "../services/api";
 import { resolveImageUrl, StoreMenuItem } from "../types/listing";
@@ -35,6 +35,23 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [compressedSizeKb, setCompressedSizeKb] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
+
+  const revokePreviewUrl = () => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      revokePreviewUrl();
+    };
+  }, []);
 
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -46,7 +63,9 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
       const compressed = await compressImageFile(file, 800, 0.8);
       setCompressedSizeKb(Math.round(compressed.size / 1024));
 
+      revokePreviewUrl();
       const preview = URL.createObjectURL(compressed);
+      previewUrlRef.current = preview;
       setImagePreviewUrl(preview);
 
       const res = await uploadMenuImage(compressed);
@@ -54,18 +73,22 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal mengunggah foto makanan.";
       setErrorMsg(msg);
+      revokePreviewUrl();
       setImagePreviewUrl(null);
       setUploadedImageUrl(null);
       setCompressedSizeKb(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } finally {
       setImageUploading(false);
     }
   };
 
   const handleRemoveImage = () => {
+    revokePreviewUrl();
     setUploadedImageUrl(null);
     setImagePreviewUrl(null);
     setCompressedSizeKb(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const loadMenu = async () => {
@@ -138,13 +161,19 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
   };
 
   const handleDelete = async (menuId: string) => {
+    if (deletingId) return;
     try {
+      setDeletingId(menuId);
+      setErrorMsg(null);
       await deleteStoreMenuItem(storeId, menuId);
+      setConfirmDeleteId(null);
       await loadMenu();
       if (onMenuUpdated) onMenuUpdated();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal menghapus menu.";
       setErrorMsg(msg);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -273,6 +302,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                       <Camera className="w-5 h-5 mb-0.5" />
                       <span className="text-[11px] font-semibold">Upload</span>
                       <input
+                        ref={fileInputRef}
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
                         className="hidden"
@@ -357,7 +387,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                             <span className="font-normal text-sm text-[#222222] truncate">{item.food_name}</span>
                             <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 flex items-center space-x-1 shrink-0">
                               <ShieldCheck className="w-2.5 h-2.5" />
-                              <span>Max {item.bpom_max_hours}j</span>
+                              <span>BPOM · Maks {item.bpom_max_hours}j</span>
                             </span>
                           </div>
                           <div className="text-xs text-stone-500 flex items-center space-x-3 mt-1">
@@ -370,13 +400,36 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                           </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition shrink-0"
-                        title="Hapus dari Buku Menu"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {confirmDeleteId === item.id ? (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            disabled={deletingId === item.id}
+                            onClick={() => handleDelete(item.id)}
+                            className="px-2 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold disabled:opacity-50 cursor-pointer"
+                          >
+                            {deletingId === item.id ? "..." : "Ya"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deletingId === item.id}
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="px-2 py-1 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-700 text-[10px] font-bold cursor-pointer"
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={deletingId !== null}
+                          onClick={() => setConfirmDeleteId(item.id)}
+                          className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition shrink-0 disabled:opacity-40 cursor-pointer"
+                          title="Hapus dari Buku Menu"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   );
                 })}

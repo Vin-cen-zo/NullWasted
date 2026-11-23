@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.database import get_session
-from app.core.security import hash_pin, hash_pin_pbkdf2, verify_pin
+from app.core.security import create_access_token, hash_pin, hash_pin_pbkdf2, verify_pin
 from app.core.seed import seed_initial_data
 from app.main import app
 from app.models.listing import ItemListing, OrderTicket
@@ -34,8 +34,15 @@ def client_fixture(session: Session):
         return session
 
     app.dependency_overrides[get_session] = get_session_override
+    default_token = create_access_token({
+        "sub": "FTUI-001",
+        "role": "merchant",
+        "email": "dapurbarokah@nullwasted.id",
+        "store_id": "FTUI-001",
+        "store_name": "Dapur Barokah FTUI",
+    })
     try:
-        with TestClient(app) as client:
+        with TestClient(app, headers={"Authorization": f"Bearer {default_token}"}) as client:
             yield client
     finally:
         app.dependency_overrides.clear()

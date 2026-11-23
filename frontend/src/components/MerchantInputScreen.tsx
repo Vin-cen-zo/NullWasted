@@ -95,16 +95,34 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   const [inputText, setInputText] = useState(initialText);
   const [isRecording, setIsRecording] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
-  const [speechStopFn, setSpeechStopFn] = useState<(() => void) | null>(null);
+  const speechStopRef = useRef<(() => void) | null>(null);
   const baseTextRef = useRef("");
 
   // Catalog & Pinpoint Modal Managers
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isPinpointOpen, setIsPinpointOpen] = useState(false);
 
+  // Stop active microphone when component unmounts or user switches away from AI tab
   useEffect(() => {
-    if (initialText && initialText !== inputText) {
-      setInputText(initialText);
+    if (inputMode !== "ai" && speechStopRef.current) {
+      speechStopRef.current();
+      speechStopRef.current = null;
+      setIsRecording(false);
+    }
+  }, [inputMode]);
+
+  useEffect(() => {
+    return () => {
+      if (speechStopRef.current) {
+        speechStopRef.current();
+        speechStopRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    setInputText(initialText);
+    if (initialText && initialText.trim().length > 0) {
       setInputMode("ai");
     }
   }, [initialText]);
@@ -136,7 +154,10 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
   // Speech Recognition Handler
   const toggleSpeechRecognition = () => {
     if (isRecording) {
-      if (speechStopFn) speechStopFn();
+      if (speechStopRef.current) {
+        speechStopRef.current();
+        speechStopRef.current = null;
+      }
       setIsRecording(false);
       return;
     }
@@ -160,17 +181,24 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
         setIsRecording(false);
       },
       onEnd: () => {
+        speechStopRef.current = null;
         setIsRecording(false);
       },
     });
 
-    setSpeechStopFn(() => recognitionInstance.stop);
+    speechStopRef.current = recognitionInstance.stop;
   };
 
   const handleAiFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || isLoading) return;
     await onAnalyze(inputText.trim());
+  };
+
+  const computeRecommendedBatchDiscount = (minsLeft: number) => {
+    if (minsLeft <= 30) return 70;
+    if (minsLeft >= 160) return 50;
+    return Math.max(50, Math.min(70, Math.round((0.5 + 0.2 * (1 - minsLeft / 160)) * 100)));
   };
 
   // Open Batch Modal for selected item
@@ -180,7 +208,11 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
     const parts = (item.typical_cooking_time || "16:00").split(":");
     setBatchCookHour(parts[0] ? parts[0].padStart(2, "0") : "16");
     setBatchCookMinute(parts[1] ? parts[1].padStart(2, "0") : "00");
-    setBatchDiscountPercent(60);
+    const minsLeft = Math.max(
+      0,
+      Math.round(computeEffectiveSecondsUntilClosing(closingTime || "20:30") / 60)
+    );
+    setBatchDiscountPercent(computeRecommendedBatchDiscount(minsLeft));
   };
 
   const handleSetCurrentTime = () => {
@@ -742,21 +774,39 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                   Waktu simpan: <strong>{diffHours} jam</strong> (Batas aman: {selectedMenuItem.bpom_max_hours} jam hingga tutup gerai pk {closingTime}).
                 </p>
 
-                {/* Price & Discount preview */}
-                <div className="pt-2 border-t border-emerald-200 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-stone-500 block">Harga Normal</span>
-                    <span className="text-xs text-stone-400 line-through">
-                      Rp {selectedMenuItem.original_price.toLocaleString("id-ID")}
-                    </span>
+                {/* Price & Dynamic Discount Slider (50% - 70%) */}
+                <div className="pt-2 border-t border-emerald-200 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <label htmlFor="batchDiscountSlider" className="font-semibold text-emerald-900">
+                      Diskon Surplus (50%–70%)
+                    </label>
+                    <span className="font-extrabold text-emerald-700">{batchDiscountPercent}% OFF</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs font-bold text-emerald-800 block">
-                      Diskon {batchDiscountPercent}%
-                    </span>
-                    <span className="text-base font-black text-emerald-700">
-                      Rp {calculatedDiscountedPrice.toLocaleString("id-ID")}
-                    </span>
+                  <input
+                    id="batchDiscountSlider"
+                    type="range"
+                    min={50}
+                    max={70}
+                    step={1}
+                    value={batchDiscountPercent}
+                    onChange={(e) => setBatchDiscountPercent(Number(e.target.value))}
+                    className="w-full accent-emerald-600 cursor-pointer"
+                  />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-stone-500 block">Harga Normal</span>
+                      <span className="text-xs text-stone-400 line-through">
+                        Rp {selectedMenuItem.original_price.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-bold text-emerald-800 block">
+                        Harga Terkunci ({batchDiscountPercent}% OFF)
+                      </span>
+                      <span className="text-base font-black text-emerald-700">
+                        Rp {calculatedDiscountedPrice.toLocaleString("id-ID")}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

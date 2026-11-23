@@ -7,8 +7,8 @@ from sqlmodel import Session, select
 from app.core.database import get_session
 from app.core.security import (
     create_access_token,
-    get_optional_user,
     hash_password_pbkdf2,
+    require_merchant_user,
     verify_password,
 )
 from app.models.listing import ItemListing, Store, User
@@ -52,16 +52,15 @@ def update_store_location(
     store_id: str,
     payload: StoreLocationUpdateRequest,
     session: Session = Depends(get_session),
-    user_claims: Optional[dict[str, Any]] = Depends(get_optional_user),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
 ) -> StoreProfileResponse:
     """Updates or removes a partner store's permanent map pinpoint coordinates and syncs active listings."""
     target_id = store_id.strip().upper()
-    if user_claims is not None:
-        if user_claims.get("role") != "merchant" or user_claims.get("store_id") != target_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Hanya pemilik gerai terkait yang dapat mengubah atau menghapus lokasi gerai.",
-            )
+    if user_claims.get("store_id") != target_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hanya pemilik gerai terkait yang dapat mengubah atau menghapus lokasi gerai.",
+        )
 
     store = session.exec(select(Store).where(Store.store_id == target_id)).first()
     if not store:
@@ -123,7 +122,7 @@ def merchant_register(
     """Registers a new partner store autonomously with email + password and auto-generates a unique store_id."""
     name = payload.name.strip()
     email = payload.email.strip().lower()
-    password = payload.password.strip()
+    password = payload.password
     has_coords = payload.latitude is not None and payload.longitude is not None
     raw_loc = (payload.location_name or "").strip()
     if raw_loc:
@@ -203,7 +202,7 @@ def merchant_login(
     statement = select(Store).where(Store.email == email, Store.is_active == True)
     store = session.exec(statement).first()
 
-    if not store or not store.password_hash or not verify_password(payload.password.strip(), store.password_hash):
+    if not store or not store.password_hash or not verify_password(payload.password, store.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email atau password akun gerai tidak valid.",
@@ -236,7 +235,7 @@ def consumer_register(
 ) -> AuthResponse:
     """Registers a new consumer using name, email, password, and optional WhatsApp phone."""
     email = payload.email.strip().lower()
-    password = payload.password.strip()
+    password = payload.password
     phone = (payload.phone or "").strip()
     name = payload.name.strip()
 
@@ -284,7 +283,7 @@ def consumer_login(
     email = payload.email.strip().lower()
     user = session.exec(select(User).where(User.email == email)).first()
 
-    if not user or not user.password_hash or not verify_password(payload.password.strip(), user.password_hash):
+    if not user or not user.password_hash or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email atau password akun konsumen tidak valid.",

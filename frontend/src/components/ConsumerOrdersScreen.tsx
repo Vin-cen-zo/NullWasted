@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ItemListing, OrderTicket, cleanLocationBadge, resolveImageUrl } from "../types/listing";
+import { parseBackendUtcMs } from "../utils/clock";
 import {
   CheckCircle2,
   Clock,
@@ -60,6 +61,13 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [orderTab, setOrderTab] = useState<"ALL" | "ONGOING" | "HISTORY">("ALL");
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   const hasActiveReservedTicket = orders.some((o) => o.status === "RESERVED");
 
@@ -81,10 +89,26 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
     };
   }, [hasActiveReservedTicket, onRefreshOrders]);
 
-  const handleCopy = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
+  const handleCopy = async (code: string) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = code;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopiedCode(code);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopiedCode(null), 2000);
+    } catch {
+      // Ignore clipboard permission denial
+    }
   };
 
   const handleCancelClick = async (orderId: string) => {
@@ -208,7 +232,8 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
                         alt={ticket.food_name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = "/assets/foods/default_food.jpg";
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = "/assets/foods/default_food.jpg";
                         }}
                       />
                     </div>
@@ -308,13 +333,13 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
                     {ticket.completed_at && (
                       <div className="flex justify-between text-emerald-700 font-medium pt-1 border-t border-dashed border-slate-200">
                         <span>Waktu Serah Terima</span>
-                        <span>{new Date(ticket.completed_at).toLocaleTimeString("id-ID")}</span>
+                        <span>{new Date(parseBackendUtcMs(ticket.completed_at)).toLocaleTimeString("id-ID")}</span>
                       </div>
                     )}
                     {ticket.cancelled_at && (
                       <div className="flex justify-between text-slate-500 font-medium pt-1 border-t border-dashed border-slate-200">
                         <span>Waktu Dibatalkan</span>
-                        <span>{new Date(ticket.cancelled_at).toLocaleTimeString("id-ID")}</span>
+                        <span>{new Date(parseBackendUtcMs(ticket.cancelled_at)).toLocaleTimeString("id-ID")}</span>
                       </div>
                     )}
                   </div>

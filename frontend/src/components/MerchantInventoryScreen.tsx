@@ -19,6 +19,19 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
   storeName,
 }) => {
   const [isBundling, setIsBundling] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleConfirmDelete = async (id: string) => {
+    if (deletingId) return;
+    try {
+      setDeletingId(id);
+      await onDeleteListing(id);
+      setConfirmDeleteId(null);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   // Count items eligible for mystery bag bundling (qty 1 or 2, not already a bundle, safe)
   const eligibleItems = listings.filter(
@@ -171,14 +184,36 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                     )}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => onDeleteListing(item.id)}
-                    title="Tarik menu dari pasar"
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {confirmDeleteId === item.id ? (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        disabled={deletingId === item.id}
+                        onClick={() => handleConfirmDelete(item.id)}
+                        className="px-2 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold disabled:opacity-50 cursor-pointer"
+                      >
+                        {deletingId === item.id ? "..." : "Tarik"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={deletingId === item.id}
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="px-2 py-1 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-700 text-[10px] font-bold cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={deletingId !== null}
+                      onClick={() => setConfirmDeleteId(item.id)}
+                      title="Tarik menu dari pasar"
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-100">

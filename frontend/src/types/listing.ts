@@ -226,41 +226,26 @@ export function cleanLocationBadge(text?: string): string {
  * Returns null for ad-hoc items without a dedicated image.
  */
 export function resolveImageUrl(imageUrl?: string | null, isBundle?: boolean): string | null {
-  if (isBundle) {
-    return imageUrl || "/assets/foods/mystery_bag.jpg";
-  }
-  if (!imageUrl || !imageUrl.trim()) {
+  const candidate = imageUrl && imageUrl.trim() ? imageUrl.trim() : isBundle ? "/assets/foods/mystery_bag.jpg" : "";
+  if (!candidate) {
     return null;
   }
-  const trimmed = imageUrl.trim();
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    return trimmed;
+  if (candidate.startsWith("http://") || candidate.startsWith("https://")) {
+    return candidate;
   }
-  if (trimmed.startsWith("/assets/")) {
-    return trimmed;
+  if (candidate.startsWith("/assets/")) {
+    return candidate;
   }
-  if (trimmed.startsWith("/static/")) {
+  if (candidate.startsWith("/static/")) {
     const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
     try {
       const url = new URL(apiBase);
-      return `${url.origin}${trimmed}`;
+      return `${url.origin}${candidate}`;
     } catch {
-      return `http://localhost:8000${trimmed}`;
+      return `http://localhost:8000${candidate}`;
     }
   }
-  return trimmed;
-}
-
-/**
- * Backward compatibility helper for legacy screens. Returns resolved image or default fallback.
- * Hardcoded substring keyword guessing for regular dishes is removed.
- */
-export function getFoodImage(item: { food_name?: string; is_bundle?: boolean; image_url?: string | null }): string {
-  if (item.is_bundle) {
-    return "/assets/foods/mystery_bag.jpg";
-  }
-  const resolved = resolveImageUrl(item.image_url, item.is_bundle);
-  return resolved || "/assets/foods/default_food.jpg";
+  return candidate;
 }
 
 

@@ -46,10 +46,18 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
 CORS_ORIGIN_REGEX = os.getenv(
     "CORS_ORIGIN_REGEX",
-    r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|.*\.pages\.dev|.*\.vercel\.app)(:\d+)?$",
+    r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|.*\.pages\.dev|.*\.vercel\.app|.*\.digilabui\.cloud)(:\d+)?$",
 )
-PIN_SALT = os.getenv("PIN_SALT", "nullwasted-v1-salt")
-JWT_SECRET = os.getenv("JWT_SECRET", "nullwasted-jwt-secret-key-2026")
+_DEFAULT_PIN_SALT = "nullwasted-v1-salt"
+_DEFAULT_JWT_SECRET = "nullwasted-jwt-secret-key-2026"
+PIN_SALT = os.getenv("PIN_SALT", _DEFAULT_PIN_SALT)
+JWT_SECRET = os.getenv("JWT_SECRET", _DEFAULT_JWT_SECRET)
+
+if ENVIRONMENT == "production":
+    if not JWT_SECRET or JWT_SECRET == _DEFAULT_JWT_SECRET or JWT_SECRET.startswith("change_me"):
+        raise RuntimeError("SECURITY ERROR: JWT_SECRET must be set to a strong secret in production.")
+    if not PIN_SALT or PIN_SALT == _DEFAULT_PIN_SALT or PIN_SALT.startswith("change_me"):
+        raise RuntimeError("SECURITY ERROR: PIN_SALT must be set to a strong salt in production.")
 
 STATIC_DIR = BASE_DIR / "static"
 STATIC_UPLOADS_DIR = STATIC_DIR / "uploads"

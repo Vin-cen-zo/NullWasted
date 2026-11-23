@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { OrderTicket, resolveImageUrl } from "../types/listing";
+import { getEffectiveNow, getWibComponents, parseBackendUtcMs } from "../utils/clock";
 import {
   QrCode,
   Camera,
@@ -14,11 +15,13 @@ import {
   CreditCard,
   Banknote,
   Receipt,
+  RefreshCw,
 } from "lucide-react";
 
 interface MerchantCashierScreenProps {
   orders: OrderTicket[];
   onCompletePickup: (orderCode: string) => Promise<OrderTicket>;
+  onRefreshOrders?: () => Promise<void>;
   isVerifying: boolean;
 }
 
@@ -59,12 +62,14 @@ function extractOrderCodeFromQr(rawText: string): string | null {
 export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
   orders,
   onCompletePickup,
+  onRefreshOrders,
   isVerifying,
 }) => {
   const [inputCode, setInputCode] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isCrossStoreFraud, setIsCrossStoreFraud] = useState(false);
   const [successTicket, setSuccessTicket] = useState<OrderTicket | null>(null);
+  const [isRefreshingQueue, setIsRefreshingQueue] = useState(false);
 
   // Hardware camera scanner states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -74,9 +79,41 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isProcessingScanRef = useRef<boolean>(false);
+  const isMountedRef = useRef<boolean>(true);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-refresh cashier queue every 10s so incoming customer orders appear live
+  useEffect(() => {
+    if (!onRefreshOrders) return;
+    const timer = setInterval(() => {
+      void onRefreshOrders();
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [onRefreshOrders]);
+
+  const handleManualRefresh = async () => {
+    if (!onRefreshOrders || isRefreshingQueue) return;
+    setIsRefreshingQueue(true);
+    try {
+      await onRefreshOrders();
+    } finally {
+      if (isMountedRef.current) setIsRefreshingQueue(false);
+    }
+  };
+
+  const todayWib = getWibComponents(getEffectiveNow());
+  const isSameWibDay = (iso?: string | null): boolean => {
+    if (!iso) return false;
+    const ms = parseBackendUtcMs(iso);
+    if (Number.isNaN(ms)) return false;
+    const comp = getWibComponents(new Date(ms));
+    return comp.year === todayWib.year && comp.month === todayWib.month && comp.day === todayWib.day;
+  };
 
   const reservedOrders = orders.filter((o) => o.status === "RESERVED");
-  const completedOrders = orders.filter((o) => o.status === "COMPLETED");
+  const completedOrders = orders.filter(
+    (o) => o.status === "COMPLETED" && isSameWibDay(o.completed_at || o.created_at)
+  );
   const rescuedPortionsCount = completedOrders.reduce((sum, o) => sum + o.quantity, 0);
   const cashToCollectTotal = completedOrders
     .filter((o) => o.payment_method !== "SIMULATED_QRIS")
@@ -107,7 +144,10 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
 
   // Ensure camera hardware stream is released when component unmounts
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
       const instance = scannerRef.current;
       scannerRef.current = null;
       if (instance) {
@@ -146,7 +186,10 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
 
       isProcessingScanRef.current = true;
       setScanFlash(true);
-      setTimeout(() => setScanFlash(false), 1200);
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = setTimeout(() => {
+        if (isMountedRef.current) setScanFlash(false);
+      }, 1200);
 
       setInputCode(extractedCode);
       setErrorMessage(null);
@@ -218,14 +261,28 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
         );
       }
 
+      if (!isMountedRef.current) {
+        try {
+          if (html5QrCode.isScanning) await html5QrCode.stop();
+          html5QrCode.clear();
+        } catch {
+          // Ignore late unmount cleanup
+        }
+        return;
+      }
+
       setIsCameraActive(true);
     } catch {
       await stopCamera();
-      setCameraError(
-        "Kamera tidak dapat diakses (izin ditolak atau webcam tidak tersedia). Silakan gunakan form input manual di bawah."
-      );
+      if (isMountedRef.current) {
+        setCameraError(
+          "Kamera tidak dapat diakses (izin ditolak atau webcam tidak tersedia). Silakan gunakan form input manual di bawah."
+        );
+      }
     } finally {
-      setIsStartingCamera(false);
+      if (isMountedRef.current) {
+        setIsStartingCamera(false);
+      }
     }
   };
 
@@ -277,7 +334,6 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
             {!isCameraActive && !isStartingCamera && (
               <div className="relative w-28 h-28 mx-auto mb-3 rounded-xl border-2 border-dashed border-emerald-500 bg-emerald-50/40 flex flex-col items-center justify-center overflow-hidden">
                 <QrCode className="w-12 h-12 text-emerald-600 opacity-80" />
-                <div className="absolute inset-x-0 h-0.5 bg-emerald-500 animate-[bounce_2s_infinite]"></div>
               </div>
             )}
 
@@ -338,7 +394,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
 
             {/* Special Cross-Store Fraud Alert Box */}
             {isCrossStoreFraud && errorMessage && (
-              <div className="p-3 bg-red-50 border-2 border-red-500 rounded-xl text-xs text-red-950 space-y-1.5 animate-pulse">
+              <div className="p-3 bg-red-50 border-2 border-red-500 rounded-xl text-xs text-red-950 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-red-700 font-extrabold text-xs">
                   <ShieldAlert className="w-4 h-4 text-red-600" />
                   <span>PERINGATAN FRAUD / SALAH GERAI</span>
@@ -438,7 +494,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                 {successTicket.completed_at && (
                   <div className="flex justify-between text-xs text-gray-500 pt-1 border-t border-gray-100">
                     <span>Diserahterimakan pada:</span>
-                    <span>{new Date(successTicket.completed_at).toLocaleTimeString("id-ID")}</span>
+                    <span>{new Date(parseBackendUtcMs(successTicket.completed_at)).toLocaleTimeString("id-ID")}</span>
                   </div>
                 )}
               </div>
@@ -453,14 +509,28 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
         <div className="md:col-span-7 space-y-4">
           {/* Cashier POS Daily Shift Summary (Pilar 7) */}
           <div className="bg-white p-4 rounded-xl border border-[#EEF0F4] shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800">
                 <Receipt className="w-4 h-4 text-emerald-600" />
-                <span className="uppercase tracking-wider">Rekapitulasi Shift Kasir Hari Ini (POS Summary)</span>
+                <span className="uppercase tracking-wider">Rekapitulasi Shift Hari Ini</span>
               </div>
-              <span className="text-xs text-stone-500 font-semibold">
-                {completedOrders.length} Pesanan Selesai
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-stone-500 font-semibold">
+                  {completedOrders.length} Selesai
+                </span>
+                {onRefreshOrders && (
+                  <button
+                    type="button"
+                    onClick={handleManualRefresh}
+                    disabled={isRefreshingQueue}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                    title="Segarkan antrean & rekap kasir"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isRefreshingQueue ? "animate-spin" : ""}`} />
+                    <span>Segarkan</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2.5 text-center">
@@ -585,7 +655,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
               <div className="space-y-2">
                 {completedOrders.map((ord) => {
                   const formattedTime = ord.completed_at
-                    ? new Date(ord.completed_at).toLocaleTimeString("id-ID", {
+                    ? new Date(parseBackendUtcMs(ord.completed_at)).toLocaleTimeString("id-ID", {
                         hour: "2-digit",
                         minute: "2-digit",
                       }) + " WIB"
