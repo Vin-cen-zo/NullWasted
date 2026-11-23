@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ItemListing, getFriendlyCategory } from "../types/listing";
-import { Trash2, PlusCircle, ShieldCheck, Sparkles, Package } from "lucide-react";
+import { Trash2, PlusCircle, ShieldCheck, Sparkles, Package, ChevronDown } from "lucide-react";
 import { ClosingCountdownBadge } from "./ClosingCountdownBadge";
 
 interface MerchantInventoryScreenProps {
@@ -21,6 +21,11 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
   const [isBundling, setIsBundling] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [expandedBundleIds, setExpandedBundleIds] = useState<Record<string, boolean>>({});
+
+  const toggleBundleExpanded = (id: string) => {
+    setExpandedBundleIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const handleConfirmDelete = async (id: string) => {
     if (deletingId) return;
@@ -53,7 +58,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
   return (
     <div className="flex-1 flex flex-col space-y-4">
       {/* Header Info */}
-      <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-100 shadow-[0_8px_24px_rgba(150,150,154,0.08)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-[0_4px_16px_rgba(15,23,42,0.05)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="space-y-1">
           <h2 className="text-base font-bold text-[#181C2E]">Inventaris Aktif Gerai</h2>
           <p className="text-xs text-[#646982]">{storeName} · Katalog Live</p>
@@ -133,17 +138,19 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
               }
             }
 
+            const isBundleExpanded = Boolean(expandedBundleIds[item.id]);
+
             return (
               <div
                 key={item.id}
-                className={`bg-white p-4 rounded-xl border shadow-sm transition-all flex flex-col justify-between space-y-3 ${
+                className={`bg-white p-4 rounded-xl border transition-all flex flex-col justify-between space-y-3 ${
                   item.is_bundle
-                    ? "border-purple-300 bg-gradient-to-b from-purple-50/40 to-white"
-                    : "border-slate-100 hover:border-emerald-300"
+                    ? "border-purple-300 bg-gradient-to-b from-purple-50/40 to-white shadow-[0_2px_8px_rgba(147,51,234,0.08)] hover:border-purple-400"
+                    : "border-slate-300/80 shadow-[0_2px_8px_rgba(15,23,42,0.06)] hover:border-emerald-400 hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)]"
                 }`}
               >
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                       {item.is_bundle && (
                         <span className="px-2 py-0.5 rounded-lg bg-purple-600 text-white text-xs font-extrabold tracking-wide flex items-center gap-1">
@@ -169,17 +176,33 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                       {getFriendlyCategory(item.category, item.is_bundle).label}
                     </p>
 
-                    {/* Rincian item mystery bag jika ada */}
+                    {/* Rincian item mystery bag (collapsible) */}
                     {item.is_bundle && bundledList.length > 0 && (
-                      <div className="mt-2 p-2 bg-purple-50/70 border border-purple-200 rounded-xl text-xs text-purple-900 space-y-0.5">
-                        <span className="font-bold block text-purple-950">Isi Paket Kejutan:</span>
-                        <ul className="list-disc list-inside">
-                          {bundledList.map((b, idx) => (
-                            <li key={idx}>
-                              {b.quantity}x {b.food_name}
-                            </li>
-                          ))}
-                        </ul>
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleBundleExpanded(item.id)}
+                          aria-expanded={isBundleExpanded}
+                          className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-purple-50/80 hover:bg-purple-100/70 border border-purple-200/90 text-xs font-semibold text-purple-900 transition-colors cursor-pointer"
+                        >
+                          <span>Isi Paket Kejutan ({bundledList.length} menu)</span>
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 text-purple-700 shrink-0 transition-transform duration-200 ${
+                              isBundleExpanded ? "rotate-180" : ""
+                            }`}
+                          />
+                        </button>
+                        {isBundleExpanded && (
+                          <div className="mt-1.5 p-2.5 bg-purple-50/60 border border-purple-200/80 rounded-xl text-xs text-purple-900">
+                            <ul className="list-disc list-inside space-y-0.5">
+                              {bundledList.map((b, idx) => (
+                                <li key={idx}>
+                                  {b.quantity}x {b.food_name}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -216,7 +239,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                   )}
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-100">
+                <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200/80">
                   <div>
                     <span className="text-xs text-gray-400 line-through mr-1.5">
                       Rp {item.original_price.toLocaleString("id-ID")}
