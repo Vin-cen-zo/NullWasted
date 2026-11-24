@@ -10,7 +10,6 @@ export interface StoreMenuItem {
   category: string;
   food_type?: string;
   bpom_max_hours: number;
-  portion_size?: string;
   image_url?: string | null;
   is_active: boolean;
   expires_at?: string | null;
@@ -65,7 +64,6 @@ export interface DraftResponse {
   similarity_score: number;
   extraction_source: string;
   can_publish: boolean;
-  portion_size?: string;
 
   // New Context-Aware Slot Filling & Multi-Tenant metadata
   store_id?: string;
@@ -96,7 +94,6 @@ export interface PublishRequest {
   similarity_score?: number;
   store_name?: string;
   location_badge?: string;
-  portion_size?: string;
 
   // Multi-tenant & bundling
   store_id?: string;
@@ -120,7 +117,6 @@ export interface ItemListing {
   closing_time?: string;
   is_bundle?: boolean;
   bundled_items_json?: string | null;
-  portion_size?: string;
 
   food_name: string;
   matched_canonical_dish: string;

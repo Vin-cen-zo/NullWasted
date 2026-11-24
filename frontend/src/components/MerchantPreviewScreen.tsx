@@ -207,7 +207,6 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
         original_price: Math.max(1000, Math.min(2000000, originalPrice)),
         typical_cooking_time: typicalCookingTime,
         default_hours_cooked: draft.hours_since_cooked || 1.0,
-        portion_size: draft.portion_size || "Reguler",
         image_url: imageUrl,
       });
       setSavedToCatalog(true);
@@ -253,7 +252,6 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       closing_time: draft.closing_time || closingTime || "20:30",
       latitude,
       longitude,
-      portion_size: draft.portion_size || "Reguler",
       image_url: imageUrl ?? null,
     };
 

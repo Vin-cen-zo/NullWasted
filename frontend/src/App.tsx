@@ -26,6 +26,7 @@ import {
   completeOrderPickup,
   cancelOrder,
   deleteListing,
+  updateListingStock,
 } from "./services/api";
 import {
   NW_CLOCK_CHANGE_EVENT,
@@ -439,6 +440,16 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleUpdateListingStock = async (id: string, quantity: number) => {
+    try {
+      await updateListingStock(id, quantity);
+      await refreshListings();
+      showToast(quantity === 0 ? "Stok diset 0 & listing dinonaktifkan." : `Stok diperbarui menjadi ${quantity} porsi.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal memperbarui stok listing.", "error");
+    }
+  };
+
   const handleCompletePickup = async (orderCode: string): Promise<OrderTicket> => {
     setIsVerifying(true);
     try {
@@ -768,7 +779,11 @@ export const App: React.FC = () => {
               <MerchantInventoryScreen
                 listings={activeListings}
                 onDeleteListing={handleDeleteListing}
-                onNavigateToCreate={() => setMerchantTab("create")}
+                onUpdateStock={handleUpdateListingStock}
+                onNavigateToCreate={() => {
+                  setMerchantTab("create");
+                  navigateToPath("/merchant/create");
+                }}
                 onCreateSmartBundle={handleCreateSmartBundle}
                 storeName={session.storeName || "Dapur Barokah"}
               />
@@ -778,6 +793,7 @@ export const App: React.FC = () => {
               <MerchantCashierScreen
                 orders={activeOrders}
                 onCompletePickup={handleCompletePickup}
+                onCancelOrder={handleCancelOrder}
                 onRefreshOrders={refreshOrders}
                 isVerifying={isVerifying}
               />

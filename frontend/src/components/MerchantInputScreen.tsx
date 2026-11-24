@@ -305,7 +305,6 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
         closing_time: closingTime || "20:30",
         latitude: latitude ?? null,
         longitude: longitude ?? null,
-        portion_size: "Reguler",
         image_url: selectedMenuItem.image_url ?? null,
       };
 

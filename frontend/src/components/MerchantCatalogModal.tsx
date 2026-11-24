@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { BookOpen, Camera, Clock, Loader2, Plus, ShieldCheck, Trash2, X } from "lucide-react";
-import { createStoreMenuItem, deleteStoreMenuItem, fetchStoreMenu, uploadMenuImage } from "../services/api";
+import { BookOpen, Camera, Clock, Loader2, Pencil, Plus, Save, ShieldCheck, Trash2, X } from "lucide-react";
+import {
+  createStoreMenuItem,
+  deleteStoreMenuItem,
+  fetchStoreMenu,
+  updateStoreMenuItem,
+  uploadMenuImage,
+} from "../services/api";
 import { resolveImageUrl, StoreMenuItem } from "../types/listing";
 import { compressImageFile } from "../utils/imageCompressor";
 
@@ -24,6 +30,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Form states
+  const [editingMenuId, setEditingMenuId] = useState<string | null>(null);
   const [foodName, setFoodName] = useState("");
   const [price, setPrice] = useState("");
   const [cookHour, setCookHour] = useState("16");
@@ -126,6 +133,31 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
 
   if (!isOpen) return null;
 
+  const resetForm = () => {
+    setEditingMenuId(null);
+    setFoodName("");
+    setPrice("");
+    setCookHour("16");
+    setCookMinute("00");
+    setIngredients("");
+    handleRemoveImage();
+  };
+
+  const handleStartEdit = (item: StoreMenuItem) => {
+    setEditingMenuId(item.id);
+    setFoodName(item.food_name);
+    setPrice(String(item.original_price));
+    const [h, m] = (item.typical_cooking_time || "16:00").split(":");
+    setCookHour((h || "16").padStart(2, "0"));
+    setCookMinute((m || "00").padStart(2, "0"));
+    setIngredients(item.ingredients || "");
+    revokePreviewUrl();
+    setUploadedImageUrl(item.image_url || null);
+    setImagePreviewUrl(resolveImageUrl(item.image_url));
+    setCompressedSizeKb(null);
+    setErrorMsg(null);
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!foodName.trim() || !price) return;
@@ -151,23 +183,29 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
     try {
       setSubmitting(true);
       setErrorMsg(null);
-      await createStoreMenuItem(storeId, {
-        food_name: foodName.trim(),
-        original_price: numPrice,
-        typical_cooking_time: cookingTime,
-        default_hours_cooked: 1.0,
-        ingredients: ingredients.trim(),
-        portion_size: "Reguler",
-        image_url: uploadedImageUrl,
-      });
-      setFoodName("");
-      setPrice("");
-      setIngredients("");
-      handleRemoveImage();
+      if (editingMenuId) {
+        await updateStoreMenuItem(storeId, editingMenuId, {
+          food_name: foodName.trim(),
+          original_price: numPrice,
+          typical_cooking_time: cookingTime,
+          ingredients: ingredients.trim(),
+          image_url: uploadedImageUrl,
+        });
+      } else {
+        await createStoreMenuItem(storeId, {
+          food_name: foodName.trim(),
+          original_price: numPrice,
+          typical_cooking_time: cookingTime,
+          default_hours_cooked: 1.0,
+          ingredients: ingredients.trim(),
+          image_url: uploadedImageUrl,
+        });
+      }
+      resetForm();
       await loadMenu();
       if (onMenuUpdated) onMenuUpdated();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal menambah menu.";
+      const msg = err instanceof Error ? err.message : "Gagal menyimpan menu.";
       setErrorMsg(msg);
     } finally {
       setSubmitting(false);
@@ -230,10 +268,21 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
 
           {/* Form Tambah Menu Rutin */}
           <form onSubmit={handleCreate} className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3">
-            <h3 className="font-bold text-xs uppercase tracking-wider text-[#181C2E] flex items-center gap-1.5">
-              <Plus className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Tambah Hidangan Rutin ke Katalog</span>
-            </h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-bold text-xs uppercase tracking-wider text-[#181C2E] flex items-center gap-1.5">
+                {editingMenuId ? <Pencil className="w-3.5 h-3.5 text-emerald-600" /> : <Plus className="w-3.5 h-3.5 text-emerald-600" />}
+                <span>{editingMenuId ? "Edit Hidangan Buku Menu" : "Tambah Hidangan Rutin ke Katalog"}</span>
+              </h3>
+              {editingMenuId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="text-xs font-bold text-[#646982] hover:text-[#181C2E] cursor-pointer"
+                >
+                  Batal Edit
+                </button>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="sm:col-span-2">
@@ -392,8 +441,14 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
               disabled={submitting || imageUploading}
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>{submitting ? "Menyimpan ke BPOM Guardrail..." : "Simpan ke Buku Menu"}</span>
+              {editingMenuId ? <Save className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+              <span>
+                {submitting
+                  ? "Menyimpan ke BPOM Guardrail..."
+                  : editingMenuId
+                  ? "Simpan Perubahan Menu"
+                  : "Simpan ke Buku Menu"}
+              </span>
             </button>
           </form>
 
@@ -482,15 +537,28 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                           </button>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          disabled={deletingId !== null}
-                          onClick={() => setConfirmDeleteId(item.id)}
-                          className="text-[#A0A5BA] hover:text-red-500 p-1.5 rounded-lg hover:bg-[#F0F5FA] transition shrink-0 disabled:opacity-40 cursor-pointer"
-                          title="Hapus dari Buku Menu"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            disabled={deletingId !== null}
+                            onClick={() => handleStartEdit(item)}
+                            className="text-[#646982] hover:text-emerald-600 p-1.5 rounded-lg hover:bg-emerald-50 transition shrink-0 disabled:opacity-40 cursor-pointer"
+                            title="Edit menu"
+                            aria-label={`Edit ${item.food_name}`}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deletingId !== null}
+                            onClick={() => setConfirmDeleteId(item.id)}
+                            className="text-[#A0A5BA] hover:text-red-500 p-1.5 rounded-lg hover:bg-[#F0F5FA] transition shrink-0 disabled:opacity-40 cursor-pointer"
+                            title="Hapus dari Buku Menu"
+                            aria-label={`Hapus ${item.food_name}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   );

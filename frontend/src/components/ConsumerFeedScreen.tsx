@@ -72,6 +72,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<"ALL" | "FAVORITES" | "BAKERY" | "HEAVY" | "BEVERAGE" | "BUNDLE">("ALL");
   const [selectedRadius, setSelectedRadius] = useState<"ALL" | "500" | "1500">("ALL");
+  const [sortBy, setSortBy] = useState<"NEAREST" | "CHEAPEST" | "BIGGEST_DISCOUNT" | "CLOSING_SOON">("NEAREST");
   const [searchQuery, setSearchQuery] = useState("");
   const [isMapOpen, setIsMapOpen] = useState(false);
 
@@ -188,6 +189,18 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   });
 
   const sortedListings = [...filteredListings].sort((a, b) => {
+    if (sortBy === "CHEAPEST") {
+      return a.discounted_price - b.discounted_price;
+    }
+    if (sortBy === "BIGGEST_DISCOUNT") {
+      return b.discount_percent - a.discount_percent;
+    }
+    if (sortBy === "CLOSING_SOON") {
+      const secA = computeEffectiveSecondsUntilClosing(a.closing_time || "20:30", a.expires_at);
+      const secB = computeEffectiveSecondsUntilClosing(b.closing_time || "20:30", b.expires_at);
+      return secA - secB;
+    }
+
     const aFav = a.store_id && favoriteStoreIds.includes(a.store_id) ? 1 : 0;
     const bFav = b.store_id && favoriteStoreIds.includes(b.store_id) ? 1 : 0;
     if (aFav !== bFav) return bFav - aFav;
@@ -456,12 +469,30 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
         </nav>
       </div>
 
-      {/* Section Heading */}
-      <div className="flex items-center justify-between pt-1">
-        <h2 className="text-[18px] font-medium text-[#32343E]">Surplus Terdekat</h2>
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-          <span>{filteredListings.length} Tersedia</span>
+      {/* Section Heading & Sort Control */}
+      <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[18px] font-medium text-[#32343E]">Surplus Terdekat</h2>
+          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span>{filteredListings.length} Tersedia</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <label htmlFor="consumer-sort-select" className="text-xs font-semibold text-[#646982]">
+            Urutkan:
+          </label>
+          <select
+            id="consumer-sort-select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="text-xs font-bold text-[#181C2E] bg-[#F0F5FA] border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 cursor-pointer"
+          >
+            <option value="NEAREST">Terdekat (GPS)</option>
+            <option value="CHEAPEST">Termurah</option>
+            <option value="BIGGEST_DISCOUNT">Diskon Terbesar</option>
+            <option value="CLOSING_SOON">Paling Cepat Tutup</option>
+          </select>
         </div>
       </div>
 

@@ -303,7 +303,6 @@ export async function createStoreMenuItem(
     typical_cooking_time?: string;
     default_hours_cooked?: number;
     ingredients?: string;
-    portion_size?: string;
     image_url?: string | null;
   }
 ): Promise<StoreMenuItem> {
@@ -314,6 +313,29 @@ export async function createStoreMenuItem(
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(formatApiError(errorData.detail, "Gagal menambahkan menu ke buku menu gerai."));
+  }
+  return res.json();
+}
+
+export async function updateStoreMenuItem(
+  storeId: string,
+  menuId: string,
+  payload: {
+    food_name?: string;
+    original_price?: number;
+    typical_cooking_time?: string;
+    default_hours_cooked?: number;
+    ingredients?: string;
+    image_url?: string | null;
+  }
+): Promise<StoreMenuItem> {
+  const res = await apiFetch(`/menu/${encodeURIComponent(storeId)}/${encodeURIComponent(menuId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memperbarui menu di buku menu gerai."));
   }
   return res.json();
 }
@@ -417,6 +439,21 @@ export async function fetchActiveListings(storeId?: string): Promise<ItemListing
   const res = await apiFetch(path);
   if (!res.ok) {
     throw new Error("Gagal mengambil katalog aktif.");
+  }
+  return res.json();
+}
+
+export async function updateListingStock(
+  listingId: string,
+  quantity: number
+): Promise<ItemListing> {
+  const res = await apiFetch(`/listings/${encodeURIComponent(listingId)}/stock`, {
+    method: "PATCH",
+    body: JSON.stringify({ quantity }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memperbarui stok listing."));
   }
   return res.json();
 }

@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { ItemListing, getFriendlyCategory } from "../types/listing";
-import { Trash2, PlusCircle, ShieldCheck, Sparkles, Package, ChevronDown } from "lucide-react";
+import { Trash2, PlusCircle, ShieldCheck, Sparkles, Package, ChevronDown, Minus, Plus } from "lucide-react";
 import { ClosingCountdownBadge } from "./ClosingCountdownBadge";
 
 interface MerchantInventoryScreenProps {
   listings: ItemListing[];
   onDeleteListing: (id: string) => Promise<void>;
+  onUpdateStock?: (id: string, quantity: number) => Promise<void>;
   onNavigateToCreate: () => void;
   onCreateSmartBundle?: () => Promise<void>;
   storeName: string;
@@ -14,6 +15,7 @@ interface MerchantInventoryScreenProps {
 export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = ({
   listings,
   onDeleteListing,
+  onUpdateStock,
   onNavigateToCreate,
   onCreateSmartBundle,
   storeName,
@@ -21,7 +23,23 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
   const [isBundling, setIsBundling] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [updatingStockId, setUpdatingStockId] = useState<string | null>(null);
   const [expandedBundleIds, setExpandedBundleIds] = useState<Record<string, boolean>>({});
+
+  const handleStepStock = async (id: string, nextQty: number) => {
+    if (!onUpdateStock || updatingStockId) return;
+    if (nextQty < 0 || nextQty > 200) return;
+    if (nextQty === 0) {
+      const ok = window.confirm("Set stok ke 0 akan menonaktifkan listing ini dari katalog. Lanjutkan?");
+      if (!ok) return;
+    }
+    try {
+      setUpdatingStockId(id);
+      await onUpdateStock(id, nextQty);
+    } finally {
+      setUpdatingStockId(null);
+    }
+  };
 
   const toggleBundleExpanded = (id: string) => {
     setExpandedBundleIds((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -239,7 +257,7 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                   )}
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200/80">
+                <div className="flex items-center justify-between gap-2 text-xs pt-2 border-t border-slate-200/80">
                   <div>
                     <span className="text-xs text-gray-400 line-through mr-1.5">
                       Rp {item.original_price.toLocaleString("id-ID")}
@@ -248,11 +266,37 @@ export const MerchantInventoryScreen: React.FC<MerchantInventoryScreenProps> = (
                       Rp {item.discounted_price.toLocaleString("id-ID")}
                     </span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs font-semibold text-[#222222]">
-                      Tersisa: {item.quantity} / {item.initial_quantity} porsi
-                    </span>
-                  </div>
+                  {onUpdateStock ? (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={updatingStockId === item.id || item.quantity <= 0}
+                        onClick={() => handleStepStock(item.id, item.quantity - 1)}
+                        aria-label={`Kurangi stok ${item.food_name}`}
+                        className="w-7 h-7 rounded-lg bg-[#F0F5FA] hover:bg-slate-200 flex items-center justify-center text-[#181C2E] disabled:opacity-40 cursor-pointer"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-xs font-bold text-[#181C2E] tabular-nums min-w-[54px] text-center">
+                        {item.quantity} porsi
+                      </span>
+                      <button
+                        type="button"
+                        disabled={updatingStockId === item.id || item.quantity >= 200}
+                        onClick={() => handleStepStock(item.id, item.quantity + 1)}
+                        aria-label={`Tambah stok ${item.food_name}`}
+                        className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center disabled:opacity-40 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-right">
+                      <span className="text-xs font-semibold text-[#222222]">
+                        Tersisa: {item.quantity} / {item.initial_quantity} porsi
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             );
