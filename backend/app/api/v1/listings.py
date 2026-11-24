@@ -21,6 +21,7 @@ from app.schemas.listing import (
     CompletePickupRequest,
     DraftRequest,
     DraftResponse,
+    ListingStockUpdateRequest,
     MenuItemCreateRequest,
     MenuItemResponse,
     MenuItemUpdateRequest,
@@ -82,7 +83,6 @@ def get_store_menu(store_id: str, session: Session = Depends(get_session)) -> Li
             category=item.category,
             food_type=getattr(item, "food_type", "MEAL") or "MEAL",
             bpom_max_hours=item.bpom_max_hours,
-            portion_size=getattr(item, "portion_size", "Reguler") or "Reguler",
             image_url=item.image_url,
             is_active=item.is_active,
             created_at=item.created_at,
@@ -144,7 +144,6 @@ async def create_store_menu_item(
         category=safety["category"],
         food_type=safety["food_type"],
         bpom_max_hours=safety["bpom_max_hours"],
-        portion_size=payload.portion_size or "Reguler",
         image_url=payload.image_url,
         is_active=True,
     )
@@ -164,7 +163,6 @@ async def create_store_menu_item(
         category=menu_item.category,
         food_type=menu_item.food_type,
         bpom_max_hours=menu_item.bpom_max_hours,
-        portion_size=menu_item.portion_size or "Reguler",
         image_url=menu_item.image_url,
         is_active=menu_item.is_active,
         created_at=menu_item.created_at,
@@ -195,8 +193,6 @@ async def update_store_menu_item(
         item.default_hours_cooked = payload.default_hours_cooked
     if payload.ingredients is not None:
         item.ingredients = payload.ingredients
-    if payload.portion_size is not None:
-        item.portion_size = payload.portion_size
     if payload.image_url is not None:
         item.image_url = payload.image_url
     if payload.is_active is not None:
@@ -442,7 +438,6 @@ async def create_draft_listing(
         similarity_score=safety["similarity_score"],
         extraction_source=extracted["extraction_source"],
         can_publish=safety["can_publish"],
-        portion_size=extracted.get("portion_size", "Reguler") or "Reguler",
         store_id=target_store_id,
         catalog_match_status=catalog_match_status,
         matched_menu_item_id=matched_menu_item_id,
@@ -590,7 +585,6 @@ async def publish_listing(
         hazard_description=server_eval["hazard_description"],
         regulation_ref=server_eval["regulation_ref"],
         similarity_score=server_eval["similarity_score"],
-        portion_size=payload.portion_size or "Reguler",
         image_url=image_url,
         expires_at=expires_at,
         is_active=True,
@@ -1162,6 +1156,62 @@ def complete_order_pickup(
     session.commit()
     session.refresh(ticket)
     return ticket
+
+
+@router.patch("/listings/{listing_id}/stock", response_model=ItemListing)
+def update_listing_stock(
+    listing_id: str,
+    payload: ListingStockUpdateRequest,
+    session: Session = Depends(get_session),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
+) -> ItemListing:
+    """Atomically updates a live listing's stock quantity (0..200) while keeping price & discount locked.
+    Guardrail #3: Rejects expired listings and executes an atomic conditional SQL UPDATE.
+    """
+    listing = session.get(ItemListing, listing_id)
+    if not listing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing tidak ditemukan.")
+
+    _require_merchant_store_access(user_claims, listing.store_id)
+
+    now_utc = get_effective_now_utc()
+    if listing.expires_at is not None:
+        exp_utc = (
+            listing.expires_at
+            if listing.expires_at.tzinfo
+            else listing.expires_at.replace(tzinfo=timezone.utc)
+        )
+        if exp_utc <= now_utc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Listing sudah melewati batas aman konsumsi atau jam tutup dan tidak dapat diperbarui stoknya.",
+            )
+
+    new_qty = payload.quantity
+    next_initial = max(listing.initial_quantity, new_qty)
+    stmt = (
+        update(ItemListing)
+        .where(
+            ItemListing.id == listing_id,
+            ItemListing.store_id == listing.store_id,
+            or_(ItemListing.expires_at.is_(None), ItemListing.expires_at > now_utc),
+        )
+        .values(
+            quantity=new_qty,
+            initial_quantity=next_initial,
+            is_active=(new_qty > 0),
+        )
+    )
+    res = session.execute(stmt)
+    if res.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Stok listing tidak dapat diperbarui karena sudah kedaluwarsa.",
+        )
+
+    session.commit()
+    session.refresh(listing)
+    return listing
 
 
 @router.delete("/listings/{listing_id}")

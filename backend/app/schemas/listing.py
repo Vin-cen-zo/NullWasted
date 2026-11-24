@@ -29,7 +29,6 @@ class DraftResponse(BaseModel):
     similarity_score: float
     extraction_source: str  # "gemini-3.5-flash-lite" | "local-fallback-parser"
     can_publish: bool
-    portion_size: str = "Reguler"
 
     # New Context-Aware Slot Filling & Multi-Tenant metadata
     store_id: str = "FTUI-001"
@@ -60,7 +59,6 @@ class PublishRequest(BaseModel):
     similarity_score: float = 0.95
     store_name: str = "Dapur Barokah"
     location_badge: Optional[str] = Field(default=None, max_length=200)
-    portion_size: str = Field(default="Reguler")
 
     # Multi-tenant & Bundling extensions
     store_id: str = "FTUI-001"
@@ -116,7 +114,6 @@ class MenuItemCreateRequest(BaseModel):
     typical_cooking_time: str = Field(default="16:00")
     default_hours_cooked: float = Field(default=2.0, ge=0.0)
     ingredients: str = Field(default="", max_length=500)
-    portion_size: str = Field(default="Reguler")
     image_url: Optional[str] = Field(default=None)
 
     @field_validator("typical_cooking_time")
@@ -133,7 +130,6 @@ class MenuItemUpdateRequest(BaseModel):
     typical_cooking_time: Optional[str] = None
     default_hours_cooked: Optional[float] = None
     ingredients: Optional[str] = None
-    portion_size: Optional[str] = None
     image_url: Optional[str] = None
     is_active: Optional[bool] = None
 
@@ -157,10 +153,13 @@ class MenuItemResponse(BaseModel):
     category: str
     food_type: str = "MEAL"
     bpom_max_hours: float
-    portion_size: str = "Reguler"
     image_url: Optional[str] = None
     is_active: bool
     created_at: str
+
+
+class ListingStockUpdateRequest(BaseModel):
+    quantity: int = Field(..., ge=0, le=200)
 
 
 class SmartBundleRequest(BaseModel):
