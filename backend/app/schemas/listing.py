@@ -18,6 +18,7 @@ class DraftResponse(BaseModel):
     quantity: int
     original_price: int
     recommended_discount_percent: int
+    pricing_reason: Optional[str] = None
     discounted_price: int
     hours_since_cooked: float
     bpom_max_hours: float
@@ -96,7 +97,19 @@ class ReserveOrderRequest(BaseModel):
     quantity: int = Field(default=1, ge=1, le=200)
     customer_name: str = Field(default="Budi Santoso", min_length=1)
     customer_phone: str = Field(default="0812-8899-0011")
-    payment_method: str = Field(default="CASH_ON_PICKUP")  # "CASH_ON_PICKUP" | "SIMULATED_QRIS"
+    payment_method: str = Field(default="CASH_ON_PICKUP")  # "CASH_ON_PICKUP" | "MIDTRANS_QRIS" | "SIMULATED_QRIS"
+
+
+class CartOrderItemRequest(BaseModel):
+    listing_id: str
+    quantity: int = Field(default=1, ge=1, le=200)
+
+
+class ReserveCartRequest(BaseModel):
+    items: list[CartOrderItemRequest] = Field(..., min_length=1, max_length=30)
+    customer_name: str = Field(default="Budi Santoso", min_length=1)
+    customer_phone: str = Field(default="0812-8899-0011")
+    payment_method: str = Field(default="CASH_ON_PICKUP")
 
 
 class CompletePickupRequest(BaseModel):
@@ -164,8 +177,9 @@ class ListingStockUpdateRequest(BaseModel):
 
 class SmartBundleRequest(BaseModel):
     store_id: str = Field(default="FTUI-001")
+    listing_ids: Optional[list[str]] = Field(default=None, description="Opsional daftar ID listing spesifik yang dipilih mitra")
     custom_bundle_name: Optional[str] = None
-    discount_percent: int = Field(default=65, ge=50, le=70)
+    discount_percent: int = Field(default=65, ge=60, le=70)
 
 
 _EMAIL_REGEX = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")

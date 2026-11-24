@@ -101,6 +101,8 @@ def init_db() -> None:
                         conn.execute(text("ALTER TABLE order_tickets ADD COLUMN user_id TEXT DEFAULT NULL"))
                     if "expires_at" not in order_cols:
                         conn.execute(text("ALTER TABLE order_tickets ADD COLUMN expires_at DATETIME DEFAULT NULL"))
+                    if "items_json" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN items_json TEXT DEFAULT NULL"))
                     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_order_tickets_user_id ON order_tickets (user_id)"))
 
                 # 3b. stores & users auth migrations (Email + PBKDF2 Password) + nullable lat/lng
@@ -212,6 +214,7 @@ def init_db() -> None:
                 conn.execute(text("ALTER TABLE stores ADD COLUMN IF NOT EXISTS description VARCHAR DEFAULT ''"))
                 conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS user_id VARCHAR DEFAULT NULL"))
                 conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP DEFAULT NULL"))
+                conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS items_json TEXT DEFAULT NULL"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_order_tickets_user_id ON order_tickets (user_id)"))
                 conn.commit()
             except Exception as exc:

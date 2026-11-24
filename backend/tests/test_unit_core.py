@@ -66,10 +66,14 @@ def test_pricing_happy_path_pill_1():
 
 
 def test_pricing_boundary_critical_pill_3():
-    """Pill 3: Nasi Bento Ayam (Rp30.000, 15 menit menjelang tutup) -> 70% (Rp9.000)."""
-    result = calculate_dynamic_pricing(original_price=30000, minutes_until_closing=15)
-    assert result["discount_percent"] == 70
-    assert result["discounted_price"] == 9000
+    """Pill 3: Nasi Bento Ayam (Rp30.000, 15 menit menjelang tutup) -> 65% (qty 1) / 70% (qty 10)."""
+    result = calculate_dynamic_pricing(original_price=30000, minutes_until_closing=15, quantity=1)
+    assert result["discount_percent"] == 65
+    assert result["discounted_price"] == 10500
+
+    result_high_vol = calculate_dynamic_pricing(original_price=30000, minutes_until_closing=15, quantity=10)
+    assert result_high_vol["discount_percent"] == 70
+    assert result_high_vol["discounted_price"] == 9000
 
 
 def test_pricing_bounds_and_rounding():

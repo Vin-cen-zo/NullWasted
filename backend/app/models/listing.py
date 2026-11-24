@@ -110,6 +110,7 @@ class OrderTicket(SQLModel, table=True):
     customer_name: str = Field(default="Konsumen NullWasted")
     customer_phone: str = Field(default="0812-8899-0011", index=True)
     listing_id: str = Field(index=True)
+    items_json: Optional[str] = Field(default=None)
     food_name: str
     store_name: str
     location_badge: str
