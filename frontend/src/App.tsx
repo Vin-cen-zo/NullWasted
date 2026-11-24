@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { UserSession, ItemListing, OrderTicket, DraftResponse, PublishRequest } from "./types/listing";
+import { CartItem, UserSession, ItemListing, OrderTicket, DraftResponse, PublishRequest } from "./types/listing";
 import { AuthScreen } from "./components/AuthScreen";
 import { NullWastedLogo } from "./components/NullWastedLogo";
 import { MerchantInputScreen } from "./components/MerchantInputScreen";
@@ -8,6 +8,7 @@ import { MerchantInventoryScreen } from "./components/MerchantInventoryScreen";
 import { MerchantCashierScreen } from "./components/MerchantCashierScreen";
 import { ConsumerFeedScreen } from "./components/ConsumerFeedScreen";
 import { ConsumerDetailModal } from "./components/ConsumerDetailModal";
+import { ConsumerCartModal } from "./components/ConsumerCartModal";
 import { ConsumerOrdersScreen } from "./components/ConsumerOrdersScreen";
 import { ProfileModal } from "./components/ProfileModal";
 import { PublicStoreModal } from "./components/PublicStoreModal";
@@ -22,6 +23,7 @@ import {
   fetchActiveOrders,
   fetchFavoriteStores,
   removeFavoriteStore,
+  reserveCartOrder,
   reserveOrder,
   completeOrderPickup,
   cancelOrder,
@@ -45,6 +47,7 @@ import {
   MapPin,
   Store,
   UserCircle2,
+  ShoppingCart,
 } from "lucide-react";
 
 export const App: React.FC = () => {
@@ -84,6 +87,24 @@ export const App: React.FC = () => {
   const [activeOrders, setActiveOrders] = useState<OrderTicket[]>([]);
   const [favoriteStoreIds, setFavoriteStoreIds] = useState<string[]>([]);
   const [selectedFeedItem, setSelectedFeedItem] = useState<ItemListing | null>(null);
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    try {
+      const raw = localStorage.getItem("nw_cart_items");
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("nw_cart_items", JSON.stringify(cartItems));
+    } catch {
+      // ignore storage errors
+    }
+  }, [cartItems]);
 
   // Loading States
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
@@ -419,14 +440,19 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleCreateSmartBundle = async () => {
+  const handleCreateSmartBundle = async (
+    discountPercent: number = 65,
+    customName?: string,
+    listingIds?: string[]
+  ) => {
     try {
       const storeId = session?.storeId || "FTUI-001";
-      const newBundle = await createSmartBundle(storeId, 65);
+      const newBundle = await createSmartBundle(storeId, discountPercent, customName, listingIds);
       await refreshListings();
-      showToast(`Sukses membuat ${newBundle.food_name} dengan diskon 65%!`, "success");
+      showToast(`Sukses membuat ${newBundle.food_name} dengan diskon ${discountPercent}%!`, "success");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Gagal membuat Mystery Bag.", "error");
+      throw err;
     }
   };
 
@@ -478,6 +504,76 @@ export const App: React.FC = () => {
       showToast(`Reservasi sukses! Tiket ${ticket.order_code} siap diambil.`, "success");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Gagal melakukan reservasi.", "error");
+    } finally {
+      setIsReserving(false);
+    }
+  };
+
+  const handleAddToCart = (item: ItemListing, quantity: number) => {
+    if (cartItems.length > 0 && cartItems[0].listing.store_id !== item.store_id) {
+      const confirmed = window.confirm(
+        `Keranjang Anda saat ini berisi menu dari ${cartItems[0].listing.store_name}. Ganti keranjang dengan menu dari ${item.store_name}?`
+      );
+      if (!confirmed) return;
+      setCartItems([{ listing: item, quantity: Math.min(quantity, item.quantity) }]);
+      showToast(`Keranjang diganti ke ${item.store_name} (+${quantity} ${item.food_name}).`, "success");
+      return;
+    }
+
+    setCartItems((prev) => {
+      const existing = prev.find((c) => c.listing.id === item.id);
+      if (existing) {
+        const nextQty = Math.min(item.quantity, existing.quantity + quantity);
+        return prev.map((c) => (c.listing.id === item.id ? { listing: item, quantity: nextQty } : c));
+      }
+      return [...prev, { listing: item, quantity: Math.min(quantity, item.quantity) }];
+    });
+    showToast(`+${quantity} ${item.food_name} ditambahkan ke keranjang.`, "success");
+  };
+
+  const handleUpdateCartQty = (listingId: string, nextQty: number) => {
+    if (nextQty <= 0) {
+      setCartItems((prev) => prev.filter((c) => c.listing.id !== listingId));
+      return;
+    }
+    setCartItems((prev) =>
+      prev.map((c) =>
+        c.listing.id === listingId
+          ? { ...c, quantity: Math.min(c.listing.quantity, nextQty) }
+          : c
+      )
+    );
+  };
+
+  const handleCheckoutCart = async (paymentMethod: string = "CASH_ON_PICKUP") => {
+    if (!session) {
+      setIsCartOpen(false);
+      setLoginNotice("Masuk sebagai Konsumen untuk menyelesaikan checkout keranjang Anda.");
+      setShowAuthScreen(true);
+      navigateToPath("/login");
+      return;
+    }
+    if (cartItems.length === 0) return;
+
+    setIsReserving(true);
+    try {
+      const custName = session.customerName || "Budi Santoso";
+      const custPhone = session.customerPhone || "0812-8899-0011";
+      const ticket = await reserveCartOrder(
+        cartItems.map((c) => ({ listing_id: c.listing.id, quantity: c.quantity })),
+        custName,
+        custPhone,
+        paymentMethod
+      );
+      setCartItems([]);
+      setIsCartOpen(false);
+      await refreshListings();
+      await refreshOrders();
+      setConsumerTab("orders");
+      navigateToPath("/orders");
+      showToast(`Checkout keranjang sukses! Tiket terpadu ${ticket.order_code} diterbitkan.`, "success");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal checkout keranjang.", "error");
     } finally {
       setIsReserving(false);
     }
@@ -714,6 +810,7 @@ export const App: React.FC = () => {
               item={selectedFeedItem}
               onClose={() => setSelectedFeedItem(null)}
               onReserve={handleReserve}
+              onAddToCart={handleAddToCart}
               isReserving={isReserving}
               isGuest={true}
               onRequireLogin={handleRequireLoginForOrder}
@@ -828,11 +925,58 @@ export const App: React.FC = () => {
               item={selectedFeedItem}
               onClose={() => setSelectedFeedItem(null)}
               onReserve={handleReserve}
+              onAddToCart={handleAddToCart}
               isReserving={isReserving}
               onOpenStoreProfile={handleOpenStoreProfile}
             />
           </>
         )}
+
+        {/* Floating Single-Store Cart Trigger Bar (Consumer & Guest Mode) */}
+        {(!session || session.role === "consumer") && !showAuthScreen && cartItems.length > 0 && (
+          <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md">
+            <button
+              type="button"
+              onClick={() => setIsCartOpen(true)}
+              className="w-full px-4 py-3 rounded-2xl bg-[#181C2E] hover:bg-[#252a44] text-white shadow-xl flex items-center justify-between gap-3 cursor-pointer transition-all"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-8 h-8 rounded-xl bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center shrink-0">
+                  {cartItems.reduce((s, c) => s + c.quantity, 0)}
+                </span>
+                <div className="text-left min-w-0">
+                  <p className="text-xs font-bold truncate">
+                    Keranjang · {cartItems[0]?.listing.store_name}
+                  </p>
+                  <p className="text-[11px] text-emerald-300 font-semibold">
+                    {cartItems.length} menu · Ketuk untuk Checkout
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-sm font-extrabold tabular-nums">
+                  Rp{" "}
+                  {cartItems
+                    .reduce((s, c) => s + c.listing.discounted_price * c.quantity, 0)
+                    .toLocaleString("id-ID")}
+                </span>
+                <ShoppingCart className="w-4 h-4 text-emerald-400" />
+              </div>
+            </button>
+          </div>
+        )}
+
+        <ConsumerCartModal
+          isOpen={isCartOpen}
+          items={cartItems}
+          onClose={() => setIsCartOpen(false)}
+          onUpdateQty={handleUpdateCartQty}
+          onRemoveItem={(lid) => setCartItems((prev) => prev.filter((c) => c.listing.id !== lid))}
+          onClearCart={() => setCartItems([])}
+          onCheckout={handleCheckoutCart}
+          isCheckingOut={isReserving}
+          isGuest={!session}
+        />
 
         {/* Global Modals: User/Merchant Profile & Public Store Profile */}
         <ProfileModal

@@ -265,6 +265,32 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
                     </div>
                   </div>
 
+                  {/* Multi-Item Cart Breakdown (if ticket was created from Cart) */}
+                  {(() => {
+                    if (!ticket.items_json) return null;
+                    try {
+                      const parsed = JSON.parse(ticket.items_json) as Array<{
+                        food_name: string;
+                        quantity: number;
+                        subtotal: number;
+                      }>;
+                      if (!Array.isArray(parsed) || parsed.length <= 1) return null;
+                      return (
+                        <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 text-xs space-y-1">
+                          <span className="font-bold text-emerald-900 block">Rincian Keranjang ({parsed.length} menu):</span>
+                          {parsed.map((ci, idx) => (
+                            <div key={idx} className="flex justify-between text-[#32343E]">
+                              <span className="truncate pr-2">{ci.quantity}x {ci.food_name}</span>
+                              <span className="font-semibold tabular-nums shrink-0">Rp {ci.subtotal.toLocaleString("id-ID")}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    } catch {
+                      return null;
+                    }
+                  })()}
+
                   {/* Unique Order Code & Copy */}
                   <div className="p-3 bg-[#F0F5FA] rounded-xl flex items-center justify-between">
                     <div>

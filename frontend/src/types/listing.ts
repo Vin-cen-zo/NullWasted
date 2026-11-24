@@ -53,6 +53,7 @@ export interface DraftResponse {
   quantity: number;
   original_price: number;
   recommended_discount_percent: number;
+  pricing_reason?: string | null;
   discounted_price: number;
   hours_since_cooked: number;
   bpom_max_hours: number;
@@ -149,6 +150,7 @@ export interface OrderTicket {
   customer_name: string;
   customer_phone?: string;
   listing_id: string;
+  items_json?: string | null;
   food_name: string;
   store_name: string;
   location_badge: string;
@@ -165,6 +167,11 @@ export interface OrderTicket {
   created_at: string;
   completed_at?: string | null;
   cancelled_at?: string | null;
+}
+
+export interface CartItem {
+  listing: ItemListing;
+  quantity: number;
 }
 
 export interface UserSession {

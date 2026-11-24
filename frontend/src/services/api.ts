@@ -414,7 +414,8 @@ export async function publishListing(payload: PublishRequest): Promise<ItemListi
 export async function createSmartBundle(
   storeId: string = "FTUI-001",
   discountPercent: number = 65,
-  customName?: string
+  customName?: string,
+  listingIds?: string[]
 ): Promise<ItemListing> {
   const res = await apiFetch("/listings/smart-bundle", {
     method: "POST",
@@ -422,6 +423,7 @@ export async function createSmartBundle(
       store_id: storeId,
       discount_percent: discountPercent,
       custom_bundle_name: customName || null,
+      listing_ids: listingIds && listingIds.length > 0 ? listingIds : null,
     }),
   });
 
@@ -494,6 +496,28 @@ export async function reserveOrder(
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(formatApiError(errorData.detail, "Gagal melakukan reservasi porsi."));
+  }
+  return res.json();
+}
+
+export async function reserveCartOrder(
+  items: Array<{ listing_id: string; quantity: number }>,
+  customerName: string = "Budi Santoso",
+  customerPhone: string = "0812-8899-0011",
+  paymentMethod: string = "CASH_ON_PICKUP"
+): Promise<OrderTicket> {
+  const res = await apiFetch("/orders/reserve-cart", {
+    method: "POST",
+    body: JSON.stringify({
+      items,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      payment_method: paymentMethod,
+    }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memproses checkout keranjang."));
   }
   return res.json();
 }

@@ -25,6 +25,7 @@ interface ConsumerDetailModalProps {
   item: ItemListing | null;
   onClose: () => void;
   onReserve: (listingId: string, quantity: number, paymentMethod: string) => Promise<void>;
+  onAddToCart?: (item: ItemListing, quantity: number) => void;
   isReserving: boolean;
   isGuest?: boolean;
   onRequireLogin?: (item: ItemListing) => void;
@@ -91,6 +92,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
   item,
   onClose,
   onReserve,
+  onAddToCart,
   isReserving,
   isGuest = false,
   onRequireLogin,
@@ -520,33 +522,53 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                 )}
               </div>
 
-              <button
-                type="button"
-                disabled={isReserving || maxQty <= 0}
-                onClick={handleMainActionClick}
-                className={`w-full h-[52px] px-4 rounded-xl text-sm font-bold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                  isReserving || maxQty <= 0
-                    ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                    : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/25 active:scale-[0.98]"
-                }`}
-              >
-                {isReserving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Memproses Reservasi Stok...</span>
-                  </>
-                ) : paymentMethod === "SIMULATED_QRIS" ? (
-                  <>
-                    <QrCode className="w-4 h-4" />
-                    <span>Bayar</span>
-                  </>
-                ) : (
-                  <>
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>Bayar</span>
-                  </>
+              <div className="flex items-center gap-2">
+                {onAddToCart && (
+                  <button
+                    type="button"
+                    disabled={isReserving || maxQty <= 0}
+                    onClick={() => {
+                      if (isExpiredOrClosed()) {
+                        setClosingError("Maaf, waktu pengambilan atau batas aman hidangan ini baru saja berakhir.");
+                        return;
+                      }
+                      onAddToCart(item, qty);
+                      onClose();
+                    }}
+                    className="h-[52px] px-4 rounded-xl border border-emerald-600 bg-white hover:bg-emerald-50 text-emerald-700 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Keranjang</span>
+                  </button>
                 )}
-              </button>
+                <button
+                  type="button"
+                  disabled={isReserving || maxQty <= 0}
+                  onClick={handleMainActionClick}
+                  className={`flex-1 h-[52px] px-4 rounded-xl text-sm font-bold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    isReserving || maxQty <= 0
+                      ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                      : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/25 active:scale-[0.98]"
+                  }`}
+                >
+                  {isReserving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Memproses...</span>
+                    </>
+                  ) : paymentMethod === "SIMULATED_QRIS" ? (
+                    <>
+                      <QrCode className="w-4 h-4" />
+                      <span>Bayar</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>Pesan Sekarang</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </>
         ) : (

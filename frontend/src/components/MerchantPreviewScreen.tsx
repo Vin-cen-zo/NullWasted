@@ -641,6 +641,11 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                 <span>Rekomendasi AI: {liveRecommendedDiscount}%</span>
                 <span>70% (Menjelang Tutup)</span>
               </div>
+              {draft.pricing_reason && (
+                <p className="text-[11px] font-medium text-emerald-700 bg-emerald-50/70 px-2.5 py-1 rounded-lg">
+                  Alasan AI: {draft.pricing_reason}
+                </p>
+              )}
             </div>
           </div>
 
