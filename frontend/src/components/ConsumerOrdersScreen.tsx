@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ItemListing, OrderTicket, cleanLocationBadge, resolveImageUrl } from "../types/listing";
-import { fetchQrisConfig } from "../services/api";
-import { parseBackendUtcMs } from "../utils/clock";
+import { fetchPaymentStatus, fetchQrisConfig } from "../services/api";
+import { getEffectiveNow, parseBackendUtcMs } from "../utils/clock";
 import {
   CheckCircle2,
   Clock,
@@ -69,7 +69,7 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
   const [activeQrisTicketId, setActiveQrisTicketId] = useState<string | null>(null);
   const [simulatorUrl, setSimulatorUrl] = useState<string | null>(null);
   const [copiedQrisUrl, setCopiedQrisUrl] = useState(false);
-  const [nowTickMs, setNowTickMs] = useState(() => Date.now());
+  const [nowTickMs, setNowTickMs] = useState(() => getEffectiveNow().getTime());
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -98,7 +98,8 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
       setActiveQrisTicketId(null);
       return;
     }
-    const tick = setInterval(() => setNowTickMs(Date.now()), 1000);
+    setNowTickMs(getEffectiveNow().getTime());
+    const tick = setInterval(() => setNowTickMs(getEffectiveNow().getTime()), 1000);
     return () => clearInterval(tick);
   }, [activeQrisTicketId, activeQrisTicket]);
 
@@ -139,17 +140,31 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
     return true;
   });
 
+  const pendingQrisIdsKey = orders
+    .filter(
+      (o) =>
+        o.status === "RESERVED" &&
+        o.payment_method === "MIDTRANS_QRIS" &&
+        o.payment_status === "PENDING"
+    )
+    .map((o) => o.id)
+    .join(",");
+
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null;
     if (hasActiveReservedTicket && onRefreshOrders) {
-      timer = setInterval(() => {
-        onRefreshOrders();
+      timer = setInterval(async () => {
+        if (pendingQrisIdsKey) {
+          const ids = pendingQrisIdsKey.split(",").filter(Boolean);
+          await Promise.allSettled(ids.map((id) => fetchPaymentStatus(id)));
+        }
+        await onRefreshOrders();
       }, 3500);
     }
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [hasActiveReservedTicket, onRefreshOrders]);
+  }, [hasActiveReservedTicket, onRefreshOrders, pendingQrisIdsKey]);
 
   const handleCopy = async (code: string) => {
     try {
