@@ -16,7 +16,7 @@ import { TimeSimulatorPill } from "./components/TimeSimulatorPill";
 import {
   NW_AUTH_EXPIRED_EVENT,
   addFavoriteStore,
-  createDraft,
+  createBatchDraft,
   publishListing,
   createSmartBundle,
   fetchActiveListings,
@@ -82,6 +82,7 @@ export const App: React.FC = () => {
 
   // Data States
   const [activeDraft, setActiveDraft] = useState<DraftResponse | null>(null);
+  const [batchDrafts, setBatchDrafts] = useState<DraftResponse[]>([]);
   const [lastInputText, setLastInputText] = useState<string>("");
   const [activeListings, setActiveListings] = useState<ItemListing[]>([]);
   const [activeOrders, setActiveOrders] = useState<OrderTicket[]>([]);
@@ -400,19 +401,30 @@ export const App: React.FC = () => {
     navigateToPath("/login");
   };
 
-  // Merchant Actions
+  // Merchant Actions (Supports single or multi-menu AI voice/text batch extraction)
   const handleAnalyzeText = async (text: string) => {
     setIsLoadingDraft(true);
     setDraftError(null);
     setLastInputText(text);
     try {
       const storeId = session?.storeId || "FTUI-001";
-      const draft = await createDraft(text, undefined, storeId);
-      setActiveDraft(draft);
-      if (draft.safety_status === "REJECTED") {
-        showToast("Peringatan: Makanan ditolak oleh Guardrail BPOM!", "error");
+      const batch = await createBatchDraft(text, undefined, storeId);
+      if (batch.items.length === 1) {
+        const draft = batch.items[0];
+        setBatchDrafts([]);
+        setActiveDraft(draft);
+        if (draft.safety_status === "REJECTED") {
+          showToast("Peringatan: Makanan ditolak oleh Guardrail BPOM!", "error");
+        } else {
+          showToast("Analisis AI sukses. Periksa hasil audit BPOM.", "success");
+        }
       } else {
-        showToast("Analisis AI sukses. Periksa hasil audit BPOM.", "success");
+        setActiveDraft(null);
+        setBatchDrafts(batch.items);
+        showToast(
+          `AI mengekstrak ${batch.total_count} menu (${batch.safe_count} lolos BPOM). Tinjau sebelum terbitkan.`,
+          batch.safe_count > 0 ? "success" : "error"
+        );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Gagal menganalisis.";
@@ -420,6 +432,53 @@ export const App: React.FC = () => {
       showToast(msg, "error");
     } finally {
       setIsLoadingDraft(false);
+    }
+  };
+
+  const handlePublishBatchDrafts = async () => {
+    const safeDrafts = batchDrafts.filter((d) => d.safety_status === "SAFE" && d.can_publish);
+    if (safeDrafts.length === 0 || !session) return;
+    setIsPublishing(true);
+    try {
+      let publishedCount = 0;
+      for (const d of safeDrafts) {
+        await publishListing({
+          store_id: session.storeId || "FTUI-001",
+          food_name: d.food_name,
+          matched_canonical_dish: d.matched_canonical_dish,
+          category: d.category,
+          food_type: d.food_type || "MEAL",
+          quantity: d.quantity,
+          original_price: d.original_price,
+          discount_percent: d.recommended_discount_percent,
+          discounted_price: d.discounted_price,
+          hours_since_cooked: d.hours_since_cooked,
+          bpom_max_hours: d.bpom_max_hours,
+          minutes_until_closing: d.minutes_until_closing,
+          safety_status: d.safety_status,
+          safety_reason: d.safety_reason,
+          hazard_description: d.hazard_description,
+          regulation_ref: d.regulation_ref,
+          similarity_score: d.similarity_score,
+          store_name: session.storeName || "Dapur Barokah",
+          location_badge: session.locationName,
+          closing_time: d.closing_time || session.closingTime || "20:30",
+          latitude: session.latitude,
+          longitude: session.longitude,
+          image_url: d.image_url ?? null,
+        });
+        publishedCount += 1;
+      }
+      setBatchDrafts([]);
+      setLastInputText("");
+      await refreshListings();
+      setMerchantTab("inventory");
+      navigateToPath("/merchant/inventory");
+      showToast(`${publishedCount} menu surplus berhasil diterbitkan sekaligus!`, "success");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal menerbitkan sebagian menu.", "error");
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -821,7 +880,93 @@ export const App: React.FC = () => {
           /* Merchant Screens */
           <>
             {merchantTab === "create" &&
-              (activeDraft ? (
+              (batchDrafts.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <h2 className="text-base font-bold text-[#181C2E]">
+                        Pratinjau Multi-Menu AI ({batchDrafts.length} Menu Terdeteksi)
+                      </h2>
+                      <p className="text-xs text-[#646982]">
+                        Periksa hasil validasi BPOM & diskon dinamis tiap menu sebelum diterbitkan.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBatchDrafts([])}
+                      className="px-3 py-1.5 rounded-lg bg-[#F0F5FA] hover:bg-slate-200 text-xs font-bold text-[#181C2E] cursor-pointer"
+                    >
+                      &larr; Ubah Prompt
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {batchDrafts.map((d, idx) => {
+                      const isSafe = d.safety_status === "SAFE" && d.can_publish;
+                      return (
+                        <div
+                          key={`${d.food_name}-${idx}`}
+                          className={`p-4 rounded-xl border bg-white space-y-2.5 ${
+                            isSafe ? "border-emerald-200" : "border-red-300 bg-red-50/40"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-bold mb-1 ${
+                                  isSafe ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {isSafe ? "BPOM SAFE" : "DITOLAK BPOM"}
+                              </span>
+                              <h3 className="text-sm font-bold text-[#181C2E]">{d.food_name}</h3>
+                              <p className="text-xs text-[#646982]">
+                                {d.quantity} porsi · Normal Rp {d.original_price.toLocaleString("id-ID")}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setBatchDrafts((prev) => prev.filter((_, i) => i !== idx))}
+                              className="text-xs font-bold text-slate-400 hover:text-red-600 cursor-pointer"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+
+                          <p className="text-xs text-[#646982]">{d.safety_reason}</p>
+
+                          {isSafe && (
+                            <div className="p-2.5 rounded-lg bg-[#F0F5FA] flex items-center justify-between text-xs">
+                              <span className="font-semibold text-emerald-700">
+                                Diskon {d.recommended_discount_percent}% OFF
+                              </span>
+                              <span className="font-extrabold text-[#181C2E] tabular-nums">
+                                Rp {d.discounted_price.toLocaleString("id-ID")} / porsi
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={
+                      isPublishing ||
+                      batchDrafts.filter((d) => d.safety_status === "SAFE" && d.can_publish).length === 0
+                    }
+                    onClick={() => void handlePublishBatchDrafts()}
+                    className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-md disabled:opacity-50 cursor-pointer"
+                  >
+                    {isPublishing
+                      ? "Menerbitkan Semua Menu..."
+                      : `Terbitkan Semua yang Lolos BPOM (${
+                          batchDrafts.filter((d) => d.safety_status === "SAFE" && d.can_publish).length
+                        } Menu)`}
+                  </button>
+                </div>
+              ) : activeDraft ? (
                 <MerchantPreviewScreen
                   draft={activeDraft}
                   onBack={() => setActiveDraft(null)}
@@ -926,6 +1071,16 @@ export const App: React.FC = () => {
               onClose={() => setSelectedFeedItem(null)}
               onReserve={handleReserve}
               onAddToCart={handleAddToCart}
+              onQrisPaid={async (orderCode) => {
+                setSelectedFeedItem(null);
+                await refreshListings();
+                await refreshOrders();
+                setConsumerTab("orders");
+                navigateToPath("/orders");
+                showToast(`Pembayaran QRIS lunas! Tiket ${orderCode} siap diambil.`, "success");
+              }}
+              customerName={session.customerName || "Konsumen NullWasted"}
+              customerPhone={session.customerPhone || "0812-8899-0011"}
               isReserving={isReserving}
               onOpenStoreProfile={handleOpenStoreProfile}
             />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ItemListing, cleanLocationBadge, getFriendlyCategory, humanizeBpomText, resolveImageUrl } from "../types/listing";
+import { createQrisPayment, fetchPaymentStatus, fetchQrisConfig } from "../services/api";
 import { computeEffectiveSecondsUntilClosing } from "../utils/clock";
 import {
   X,
@@ -15,7 +16,6 @@ import {
   QrCode,
   Banknote,
   Loader2,
-  ArrowRight,
   ArrowLeft,
   AlertTriangle,
 } from "lucide-react";
@@ -26,6 +26,9 @@ interface ConsumerDetailModalProps {
   onClose: () => void;
   onReserve: (listingId: string, quantity: number, paymentMethod: string) => Promise<void>;
   onAddToCart?: (item: ItemListing, quantity: number) => void;
+  onQrisPaid?: (orderCode: string) => Promise<void>;
+  customerName?: string;
+  customerPhone?: string;
   isReserving: boolean;
   isGuest?: boolean;
   onRequireLogin?: (item: ItemListing) => void;
@@ -93,32 +96,79 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
   onClose,
   onReserve,
   onAddToCart,
+  onQrisPaid,
+  customerName = "Konsumen NullWasted",
+  customerPhone = "0812-8899-0011",
   isReserving,
   isGuest = false,
   onRequireLogin,
   onOpenStoreProfile,
 }) => {
   const [qty, setQty] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState<"CASH_ON_PICKUP" | "SIMULATED_QRIS">("CASH_ON_PICKUP");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH_ON_PICKUP" | "MIDTRANS_QRIS">("CASH_ON_PICKUP");
+  const [qrisEnabled, setQrisEnabled] = useState(false);
 
-  // Single-Modal Step Transition (Eliminating nested backdrop stacking)
+  // Real Midtrans Sandbox QRIS state (zero fake confirmation)
   const [modalStep, setModalStep] = useState<"DETAIL" | "QRIS">("DETAIL");
   const [qrisSecondsLeft, setQrisSecondsLeft] = useState(900); // 15 minutes
-  const [isConfirmingQris, setIsConfirmingQris] = useState(false);
+  const [isCreatingQris, setIsCreatingQris] = useState(false);
+  const [qrisData, setQrisData] = useState<{
+    orderId: string;
+    orderCode: string;
+    qrisUrl?: string | null;
+    qrisString?: string | null;
+    simulatorUrl?: string | null;
+  } | null>(null);
   const [imageError, setImageError] = useState(false);
   const [closingError, setClosingError] = useState<string | null>(null);
   const qrisSessionRef = useRef(0);
+
+  useEffect(() => {
+    fetchQrisConfig()
+      .then((cfg) => setQrisEnabled(Boolean(cfg.qris_enabled)))
+      .catch(() => setQrisEnabled(false));
+  }, []);
 
   useEffect(() => {
     qrisSessionRef.current += 1;
     setQty(1);
     setPaymentMethod("CASH_ON_PICKUP");
     setModalStep("DETAIL");
-    setIsConfirmingQris(false);
+    setIsCreatingQris(false);
+    setQrisData(null);
     setQrisSecondsLeft(900);
     setImageError(false);
     setClosingError(null);
   }, [item?.id]);
+
+  // Poll Midtrans payment status every 3s while on QRIS step
+  useEffect(() => {
+    if (modalStep !== "QRIS" || !qrisData) return;
+    let active = true;
+    const poller = setInterval(async () => {
+      try {
+        const st = await fetchPaymentStatus(qrisData.orderId);
+        if (!active) return;
+        if (st.payment_status === "PAID") {
+          clearInterval(poller);
+          setModalStep("DETAIL");
+          setQrisData(null);
+          if (onQrisPaid) {
+            await onQrisPaid(st.order_code);
+          }
+        } else if (st.status === "CANCELLED") {
+          clearInterval(poller);
+          setClosingError("Tagihan QRIS kedaluwarsa atau dibatalkan. Stok telah dikembalikan.");
+        }
+      } catch {
+        // ignore transient polling error
+      }
+    }, 3000);
+    return () => {
+      active = false;
+      clearInterval(poller);
+    };
+  }, [modalStep, qrisData, onQrisPaid]);
 
   // Invalidate any pending QRIS handshake when modal unmounts
   useEffect(() => {
@@ -136,7 +186,6 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
       if (e.key === "Escape") {
         if (modalStep === "QRIS") {
           qrisSessionRef.current += 1;
-          setIsConfirmingQris(false);
           setModalStep("DETAIL");
         } else {
           onClose();
@@ -198,7 +247,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
     computeEffectiveSecondsUntilClosing(item.closing_time || "20:30", item.expires_at) <= 0;
 
   const handleMainActionClick = async () => {
-    if (isReserving) return;
+    if (isReserving || isCreatingQris) return;
     if (isGuest && onRequireLogin) {
       onRequireLogin(item);
       return;
@@ -208,38 +257,31 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
       return;
     }
     setClosingError(null);
-    if (paymentMethod === "SIMULATED_QRIS") {
-      qrisSessionRef.current += 1;
-      setQrisSecondsLeft(900);
-      setModalStep("QRIS");
+    if (paymentMethod === "MIDTRANS_QRIS") {
+      try {
+        setIsCreatingQris(true);
+        const res = await createQrisPayment({
+          listing_id: item.id,
+          quantity: qty,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+        });
+        setQrisData({
+          orderId: res.ticket.id,
+          orderCode: res.ticket.order_code,
+          qrisUrl: res.qris_url,
+          qrisString: res.qris_string,
+          simulatorUrl: res.simulator_url,
+        });
+        setQrisSecondsLeft(900);
+        setModalStep("QRIS");
+      } catch (err) {
+        setClosingError(err instanceof Error ? err.message : "Gagal membuat tagihan QRIS Midtrans.");
+      } finally {
+        setIsCreatingQris(false);
+      }
     } else {
       await onReserve(item.id, qty, "CASH_ON_PICKUP");
-    }
-  };
-
-  const handleConfirmQrisPayment = async () => {
-    if (isConfirmingQris || isReserving || qrisSecondsLeft <= 0) return;
-    if (isExpiredOrClosed()) {
-      setClosingError("Maaf, waktu pengambilan atau batas aman hidangan ini baru saja berakhir.");
-      return;
-    }
-    const activeSession = qrisSessionRef.current;
-    try {
-      setIsConfirmingQris(true);
-      setClosingError(null);
-      // Realistic payment settlement handshake delay (1200ms)
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      if (qrisSessionRef.current !== activeSession) return;
-      await onReserve(item.id, qty, "SIMULATED_QRIS");
-      if (qrisSessionRef.current === activeSession) {
-        setModalStep("DETAIL");
-      }
-    } catch (err) {
-      console.error("Gagal memproses pembayaran QRIS:", err);
-    } finally {
-      if (qrisSessionRef.current === activeSession) {
-        setIsConfirmingQris(false);
-      }
     }
   };
 
@@ -469,19 +511,22 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod("SIMULATED_QRIS")}
-                  className={`p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
-                    paymentMethod === "SIMULATED_QRIS"
-                      ? "bg-emerald-600 border-emerald-600 text-white font-bold shadow-sm"
-                      : "bg-white border-slate-200 text-[#181C2E] hover:border-emerald-300"
+                  disabled={!qrisEnabled}
+                  onClick={() => setPaymentMethod("MIDTRANS_QRIS")}
+                  className={`p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                    !qrisEnabled
+                      ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-75"
+                      : paymentMethod === "MIDTRANS_QRIS"
+                      ? "bg-emerald-600 border-emerald-600 text-white font-bold shadow-sm cursor-pointer"
+                      : "bg-white border-slate-200 text-[#181C2E] hover:border-emerald-300 cursor-pointer"
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <QrCode className={`w-4 h-4 ${paymentMethod === "SIMULATED_QRIS" ? "text-white" : "text-emerald-600"}`} />
-                    <span className="font-bold text-sm">QRIS Instan</span>
+                    <QrCode className={`w-4 h-4 ${paymentMethod === "MIDTRANS_QRIS" ? "text-white" : qrisEnabled ? "text-emerald-600" : "text-slate-400"}`} />
+                    <span className="font-bold text-sm">QRIS Midtrans</span>
                   </div>
-                  <span className={`text-[13px] font-normal ${paymentMethod === "SIMULATED_QRIS" ? "text-emerald-100" : "text-[#646982]"}`}>
-                    Pembayaran Digital
+                  <span className={`text-[12px] font-normal ${paymentMethod === "MIDTRANS_QRIS" ? "text-emerald-100" : "text-[#646982]"}`}>
+                    {qrisEnabled ? "Sandbox Live Webhook" : "Belum Aktif (Pakai Tunai)"}
                   </span>
                 </button>
               </div>
@@ -551,15 +596,15 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                       : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/25 active:scale-[0.98]"
                   }`}
                 >
-                  {isReserving ? (
+                  {isReserving || isCreatingQris ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span>Memproses...</span>
                     </>
-                  ) : paymentMethod === "SIMULATED_QRIS" ? (
+                  ) : paymentMethod === "MIDTRANS_QRIS" ? (
                     <>
                       <QrCode className="w-4 h-4" />
-                      <span>Bayar</span>
+                      <span>Buat QRIS</span>
                     </>
                   ) : (
                     <>
@@ -611,19 +656,25 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
               </p>
             </div>
 
-            {/* QR Matrix Card */}
+            {/* QR Matrix Card (Real Midtrans Sandbox QRIS) */}
             <div className="p-3 bg-white rounded-2xl border-2 border-slate-200 shadow-sm flex items-center justify-center mx-auto w-fit">
-              <QRCodeSVG
-                value={`00020101021226580014ID.CO.NULLWASTED.QRIS|STORE:${item.store_id || "FTUI-001"}|ITEM:${item.id}|AMT:${totalPrice}`}
-                size={180}
-                level="M"
-                includeMargin={true}
-              />
+              {qrisData?.qrisUrl ? (
+                <img src={qrisData.qrisUrl} alt="Midtrans QRIS" className="w-48 h-48 object-contain" />
+              ) : (
+                <QRCodeSVG
+                  value={qrisData?.qrisString || `MIDTRANS-QRIS:${qrisData?.orderCode || item.id}`}
+                  size={180}
+                  level="M"
+                  includeMargin={true}
+                />
+              )}
             </div>
 
             {/* Nominal Tagihan & Timer */}
             <div className="w-full space-y-1">
-              <span className="text-[11px] text-[#646982] block">Total Tagihan Bersih:</span>
+              <span className="text-[11px] text-[#646982] block">
+                Total Tagihan ({qrisData?.orderCode || "QRIS"}):
+              </span>
               <span className="text-2xl font-black text-emerald-700 tabular-nums">
                 Rp {totalPrice.toLocaleString("id-ID")}
               </span>
@@ -633,49 +684,36 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
                   <span>Selesaikan dalam {formatCountdown(qrisSecondsLeft)}</span>
                 </span>
               </div>
-              <p className="text-[10px] text-[#A0A5BA] pt-1">
-                Buka GoPay, OVO, Dana, BCA Mobile, atau aplikasi e-wallet Anda untuk memindai QRIS di atas.
+              <p className="text-[11px] text-[#646982] pt-1 flex items-center justify-center gap-1.5">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                <span>Menunggu konfirmasi otomatis dari Midtrans Webhook...</span>
               </p>
             </div>
 
-            {/* Action Buttons */}
             {closingError && (
               <div className="w-full p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold text-center">
                 {closingError}
               </div>
             )}
-            <div className="w-full space-y-2 pt-1">
-              <button
-                type="button"
-                disabled={isConfirmingQris || isReserving || qrisSecondsLeft <= 0}
-                onClick={handleConfirmQrisPayment}
-                className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {qrisSecondsLeft <= 0 ? (
-                  <span>Waktu Pembayaran QRIS Habis</span>
-                ) : isConfirmingQris ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Memverifikasi Status Pembayaran QRIS...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Saya Sudah Selesai Bayar via E-Wallet</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
 
+            <div className="w-full space-y-2 pt-1">
+              {qrisData?.simulatorUrl && (
+                <a
+                  href={qrisData.simulatorUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-3 px-4 rounded-xl bg-[#181C2E] hover:bg-[#252a44] text-white text-xs font-bold flex items-center justify-center gap-2 transition"
+                >
+                  <span>Buka Midtrans QRIS Sandbox Simulator</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
               <button
                 type="button"
-                onClick={() => {
-                  qrisSessionRef.current += 1;
-                  setIsConfirmingQris(false);
-                  setModalStep("DETAIL");
-                }}
+                onClick={onClose}
                 className="w-full py-2.5 px-3 rounded-xl bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] text-xs font-bold transition cursor-pointer"
               >
-                Kembali / Ganti Metode Pembayaran
+                Tutup (Cek Status di Pesanan Saya)
               </button>
             </div>
           </div>

@@ -398,6 +398,74 @@ export async function createDraft(
   return res.json();
 }
 
+export async function createBatchDraft(
+  text: string,
+  audioBase64?: string,
+  storeId: string = "FTUI-001"
+): Promise<{ items: DraftResponse[]; total_count: number; safe_count: number }> {
+  const res = await apiFetch("/listings/draft-batch", {
+    method: "POST",
+    body: JSON.stringify({ text, audio_base64: audioBase64 || null, store_id: storeId }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal menganalisis draf multi-menu."));
+  }
+  return res.json();
+}
+
+export async function fetchQrisConfig(): Promise<{
+  qris_enabled: boolean;
+  mode: string;
+  simulator_url?: string | null;
+}> {
+  const res = await apiFetch("/payments/qris/config");
+  if (!res.ok) return { qris_enabled: false, mode: "disabled", simulator_url: null };
+  return res.json();
+}
+
+export async function createQrisPayment(payload: {
+  listing_id?: string;
+  quantity?: number;
+  items?: Array<{ listing_id: string; quantity: number }>;
+  customer_name: string;
+  customer_phone: string;
+}): Promise<{
+  ticket: OrderTicket;
+  qris_url?: string | null;
+  qris_string?: string | null;
+  midtrans_transaction_id?: string | null;
+  payment_expires_at?: string | null;
+  simulator_url?: string | null;
+}> {
+  const res = await apiFetch("/payments/qris/create", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal membuat tagihan QRIS Midtrans."));
+  }
+  return res.json();
+}
+
+export async function fetchPaymentStatus(orderId: string): Promise<{
+  order_id: string;
+  order_code: string;
+  status: string;
+  payment_status: string;
+  payment_method: string;
+  payment_expires_at?: string | null;
+}> {
+  const res = await apiFetch(`/payments/${encodeURIComponent(orderId)}/status`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memeriksa status pembayaran."));
+  }
+  return res.json();
+}
+
 export async function publishListing(payload: PublishRequest): Promise<ItemListing> {
   const res = await apiFetch("/listings/publish", {
     method: "POST",
