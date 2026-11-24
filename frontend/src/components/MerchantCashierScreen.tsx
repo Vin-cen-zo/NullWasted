@@ -804,7 +804,7 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
 
                       <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between">
                         <span className="text-xs text-[#646982]">Metode Pembayaran:</span>
-                        {ord.payment_method === "SIMULATED_QRIS" ? (
+                        {ord.payment_method === "MIDTRANS_QRIS" || ord.payment_method === "SIMULATED_QRIS" ? (
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
                             <CreditCard className="w-3 h-3 text-emerald-600" />
                             <span>Lunas QRIS</span>
