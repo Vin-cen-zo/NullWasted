@@ -18,6 +18,7 @@ from app.core.security import (
 )
 from app.models.listing import ItemListing, OrderTicket, Store, StoreMenuItem, User, utc_now_iso
 from app.schemas.listing import (
+    BatchDraftResponse,
     CompletePickupRequest,
     DraftRequest,
     DraftResponse,
@@ -30,7 +31,12 @@ from app.schemas.listing import (
     ReserveOrderRequest,
     SmartBundleRequest,
 )
-from app.services.extractor import classify_dish_with_ai, extract_listing_entities
+from app.services.extractor import (
+    classify_dish_with_ai,
+    extract_listing_entities,
+    extract_multiple_listing_entities,
+)
+from app.api.v1.payments import sync_pending_qris_expiry
 from app.services.guardrail import evaluate_food_safety
 from app.services.pricing import calculate_dynamic_pricing
 from app.services.vector_store import vector_store
@@ -450,6 +456,155 @@ async def create_draft_listing(
     )
 
 
+@router.post("/listings/draft-batch", response_model=BatchDraftResponse)
+async def create_batch_draft_listings(
+    request: DraftRequest,
+    session: Session = Depends(get_session),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
+) -> BatchDraftResponse:
+    """Extracts 1 or multiple dishes from a single merchant voice/text prompt and evaluates each independently.
+    Guardrail #6: Separate endpoint preserving 100% backward compatibility of POST /api/v1/listings/draft.
+    """
+    target_store_id = request.store_id or user_claims.get("store_id") or "FTUI-001"
+    _require_merchant_store_access(user_claims, target_store_id)
+    extracted_list = await extract_multiple_listing_entities(request.text, request.audio_base64)
+
+    store = session.exec(select(Store).where(Store.store_id == target_store_id)).first()
+    store_closing = store.closing_time if store else (request.store_closing_time or "20:30")
+    catalog_items = session.exec(
+        select(StoreMenuItem).where(
+            StoreMenuItem.store_id == target_store_id, StoreMenuItem.is_active == True
+        )
+    ).all()
+
+    from difflib import SequenceMatcher
+    stop_tokens = {
+        "dan", "dengan", "yang", "di", "ke", "dari", "ada", "sisa",
+        "porsi", "pcs", "pack", "box", "paket", "botol", "gelas",
+    }
+
+    drafts: list[DraftResponse] = []
+    for extracted in extracted_list:
+        if extracted.get("has_negative_value", False):
+            continue
+
+        extracted_name_lower = extracted["food_name"].lower().strip()
+        extracted_tokens = [t for t in re.findall(r"[a-z]{2,}", extracted_name_lower) if t not in stop_tokens]
+        extracted_token_set = set(extracted_tokens)
+
+        matched_menu: Optional[StoreMenuItem] = None
+        best_match_score = 0.0
+        best_similarity = 0.0
+        for item in catalog_items:
+            item_lower = item.food_name.lower().strip()
+            item_tokens = [t for t in re.findall(r"[a-z]{2,}", item_lower) if t not in stop_tokens]
+            if not item_tokens:
+                continue
+            item_token_set = set(item_tokens)
+            primary_noun = item_tokens[0]
+            similarity = SequenceMatcher(None, extracted_name_lower, item_lower).ratio()
+            has_primary = primary_noun in extracted_token_set
+            overlap = item_token_set & extracted_token_set
+            is_high = item_lower == extracted_name_lower or similarity >= 0.80
+            is_subset = has_primary and bool(extracted_token_set) and extracted_token_set.issubset(item_token_set)
+            is_multi = has_primary and len(overlap) >= 2 and (len(overlap) / len(item_token_set)) >= 0.5
+            if is_high or is_subset or is_multi:
+                score = similarity + (1.0 if is_high else 0.25 * len(overlap))
+                if score > best_match_score:
+                    best_match_score = score
+                    best_similarity = similarity
+                    matched_menu = item
+
+        if matched_menu:
+            food_name = matched_menu.food_name if best_similarity >= 0.80 else extracted["food_name"]
+            image_url = matched_menu.image_url
+            original_price = matched_menu.original_price if not extracted.get("price_mentioned") else extracted["original_price"]
+            needs_manual_price = False
+            if not extracted.get("cooking_time_mentioned"):
+                hours_since_cooked = matched_menu.default_hours_cooked
+                catalog_match_status = "MATCHED_CATALOG"
+            else:
+                hours_since_cooked = extracted["hours_since_cooked"]
+                catalog_match_status = "MATCHED_WITH_OVERRIDE"
+            can_save_to_catalog = False
+            matched_menu_item_id = matched_menu.id
+        else:
+            food_name = extracted["food_name"]
+            image_url = None
+            can_save_to_catalog = True
+            matched_menu_item_id = None
+            hours_since_cooked = extracted["hours_since_cooked"]
+            original_price = extracted["original_price"]
+            needs_manual_price = not bool(extracted.get("price_mentioned"))
+            catalog_match_status = "ADHOC_COMPLETE" if not needs_manual_price else "ADHOC_NEEDS_PRICE"
+
+        qty = max(1, min(200, int(extracted.get("quantity", 1))))
+        original_price = max(1000, min(2000000, int(original_price)))
+        minutes_until_closing = (
+            extracted["minutes_until_closing"]
+            if extracted.get("explicit_closing_mentioned")
+            else compute_minutes_until_closing(store_closing)
+        )
+
+        safety = await asyncio.to_thread(
+            evaluate_food_safety,
+            food_name=food_name,
+            raw_text=extracted.get("clause_text", request.text),
+            hours_since_cooked=hours_since_cooked,
+            ai_is_edible=extracted.get("is_edible_food"),
+            ai_food_type=extracted.get("food_type"),
+            ai_inferred_risk=extracted.get("inferred_risk"),
+            future_cooking_time=bool(extracted.get("future_cooking_time", False)),
+        )
+        can_save_to_catalog = bool(can_save_to_catalog and safety["safety_status"] == "SAFE" and safety["can_publish"])
+        resolved_food_type = (getattr(matched_menu, "food_type", None) if matched_menu else None) or safety.get("food_type", "MEAL")
+        pricing = calculate_dynamic_pricing(
+            original_price=original_price,
+            minutes_until_closing=minutes_until_closing,
+            quantity=qty,
+        )
+
+        drafts.append(
+            DraftResponse(
+                food_name=food_name,
+                matched_canonical_dish=safety["matched_canonical_dish"],
+                category=safety["category"],
+                food_type=resolved_food_type,
+                quantity=qty,
+                original_price=original_price,
+                recommended_discount_percent=pricing["discount_percent"],
+                pricing_reason=pricing.get("pricing_reason"),
+                discounted_price=pricing["discounted_price"],
+                hours_since_cooked=hours_since_cooked,
+                bpom_max_hours=safety["bpom_max_hours"],
+                minutes_until_closing=minutes_until_closing,
+                safety_status=safety["safety_status"],
+                safety_reason=safety["safety_reason"],
+                hazard_description=safety["hazard_description"],
+                regulation_ref=safety["regulation_ref"],
+                similarity_score=safety["similarity_score"],
+                extraction_source=extracted["extraction_source"],
+                can_publish=safety["can_publish"],
+                store_id=target_store_id,
+                catalog_match_status=catalog_match_status,
+                matched_menu_item_id=matched_menu_item_id,
+                needs_manual_price=needs_manual_price,
+                can_save_to_catalog=can_save_to_catalog,
+                closing_time=store_closing,
+                image_url=image_url,
+            )
+        )
+
+    if not drafts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tidak ada menu valid yang berhasil diekstrak dari input Anda.",
+        )
+
+    safe_count = sum(1 for d in drafts if d.safety_status == "SAFE" and d.can_publish)
+    return BatchDraftResponse(items=drafts, total_count=len(drafts), safe_count=safe_count)
+
+
 @router.post("/listings/publish", response_model=ItemListing)
 async def publish_listing(
     payload: PublishRequest,
@@ -801,9 +956,11 @@ def get_active_listings(
 
 
 def _sync_expired_tickets(session: Session, tickets: list[OrderTicket]) -> list[OrderTicket]:
-    """Lazily transitions RESERVED tickets whose expires_at has passed to EXPIRED.
+    """Lazily transitions RESERVED tickets whose expires_at has passed to EXPIRED,
+    and cancels abandoned PENDING QRIS tickets past payment_expires_at (Guardrail #5).
     Guardrail #1: EXPIRED tickets DO NOT restore stock and DO NOT auto-refund PAID orders.
     """
+    sync_pending_qris_expiry(session, tickets)
     now_utc = get_effective_now_utc()
     changed = False
     for ticket in tickets:
@@ -1330,6 +1487,12 @@ def complete_order_pickup(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Tiket pesanan ini sudah pernah diverifikasi dan diserahterimakan sebelumnya.",
+        )
+
+    if ticket.payment_status == "PENDING":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Pembayaran QRIS untuk tiket ini masih PENDING (belum lunas). Minta pembeli menyelesaikan pembayaran terlebih dahulu.",
         )
 
     # Cross-Store Cashier Fraud Validation

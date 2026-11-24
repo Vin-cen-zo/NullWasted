@@ -388,3 +388,35 @@ class PublicStoreDetailResponse(BaseModel):
 
 class FavoriteStoresResponse(BaseModel):
     store_ids: list[str]
+
+
+class BatchDraftResponse(BaseModel):
+    items: list[DraftResponse]
+    total_count: int
+    safe_count: int
+
+
+class QrisCreateRequest(BaseModel):
+    listing_id: Optional[str] = None
+    quantity: int = Field(default=1, ge=1, le=200)
+    items: Optional[list[CartOrderItemRequest]] = None
+    customer_name: str = Field(default="Konsumen NullWasted", min_length=1)
+    customer_phone: str = Field(default="0812-8899-0011")
+
+
+class QrisCreateResponse(BaseModel):
+    ticket: Any
+    qris_url: Optional[str] = None
+    qris_string: Optional[str] = None
+    midtrans_transaction_id: Optional[str] = None
+    payment_expires_at: Optional[str] = None
+    simulator_url: Optional[str] = None
+
+
+class PaymentStatusResponse(BaseModel):
+    order_id: str
+    order_code: str
+    status: str
+    payment_status: str
+    payment_method: str
+    payment_expires_at: Optional[str] = None

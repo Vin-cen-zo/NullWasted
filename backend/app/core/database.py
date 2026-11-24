@@ -103,6 +103,14 @@ def init_db() -> None:
                         conn.execute(text("ALTER TABLE order_tickets ADD COLUMN expires_at DATETIME DEFAULT NULL"))
                     if "items_json" not in order_cols:
                         conn.execute(text("ALTER TABLE order_tickets ADD COLUMN items_json TEXT DEFAULT NULL"))
+                    if "payment_expires_at" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN payment_expires_at DATETIME DEFAULT NULL"))
+                    if "midtrans_transaction_id" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN midtrans_transaction_id TEXT DEFAULT NULL"))
+                    if "qris_url" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN qris_url TEXT DEFAULT NULL"))
+                    if "qris_string" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN qris_string TEXT DEFAULT NULL"))
                     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_order_tickets_user_id ON order_tickets (user_id)"))
 
                 # 3b. stores & users auth migrations (Email + PBKDF2 Password) + nullable lat/lng
@@ -215,6 +223,10 @@ def init_db() -> None:
                 conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS user_id VARCHAR DEFAULT NULL"))
                 conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP DEFAULT NULL"))
                 conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS items_json TEXT DEFAULT NULL"))
+                conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS payment_expires_at TIMESTAMP DEFAULT NULL"))
+                conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS midtrans_transaction_id VARCHAR DEFAULT NULL"))
+                conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS qris_url TEXT DEFAULT NULL"))
+                conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS qris_string TEXT DEFAULT NULL"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_order_tickets_user_id ON order_tickets (user_id)"))
                 conn.commit()
             except Exception as exc:

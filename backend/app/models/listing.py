@@ -123,6 +123,10 @@ class OrderTicket(SQLModel, table=True):
     qr_payload: str
     payment_method: str = Field(default="CASH_ON_PICKUP")  # CASH_ON_PICKUP | MIDTRANS_QRIS | SIMULATED_QRIS
     payment_status: str = Field(default="UNPAID")          # UNPAID | PENDING | PAID | REFUNDED
+    payment_expires_at: Optional[datetime] = Field(default=None)
+    midtrans_transaction_id: Optional[str] = Field(default=None, index=True)
+    qris_url: Optional[str] = Field(default=None)
+    qris_string: Optional[str] = Field(default=None)
     status: str = Field(default="RESERVED")                # RESERVED | COMPLETED | CANCELLED | EXPIRED
     created_at: str = Field(default_factory=utc_now_iso)
     completed_at: Optional[str] = Field(default=None)
