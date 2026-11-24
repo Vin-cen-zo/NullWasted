@@ -48,6 +48,17 @@ def client_fixture(session: Session):
         app.dependency_overrides.clear()
 
 
+def _consumer_headers(name: str = "Budi", phone: str = "0812-8899-0011") -> dict[str, str]:
+    token = create_access_token({
+        "sub": f"usr-edge-{phone}",
+        "role": "consumer",
+        "email": f"{name.lower().replace(' ', '')}@nullwasted.id",
+        "name": name,
+        "phone": phone,
+    })
+    return {"Authorization": f"Bearer {token}"}
+
+
 def _insert_listing(
     session: Session,
     *,
@@ -96,6 +107,7 @@ def test_atomic_checkout_exhausted_stock_returns_409(client: TestClient, session
 
     res1 = client.post(
         "/api/v1/orders/reserve",
+        headers=_consumer_headers("Budi", "0812-8899-0011"),
         json={
             "listing_id": single_item.id,
             "quantity": 1,
@@ -108,6 +120,7 @@ def test_atomic_checkout_exhausted_stock_returns_409(client: TestClient, session
 
     res2 = client.post(
         "/api/v1/orders/reserve",
+        headers=_consumer_headers("Siti", "0813-9988-7766"),
         json={
             "listing_id": single_item.id,
             "quantity": 1,
@@ -121,6 +134,7 @@ def test_atomic_checkout_exhausted_stock_returns_409(client: TestClient, session
     multi_item = _insert_listing(session, food_name="Choco Muffin", quantity=2, expires_at=future)
     res_oversell = client.post(
         "/api/v1/orders/reserve",
+        headers=_consumer_headers("Siti", "0813-9988-7766"),
         json={
             "listing_id": multi_item.id,
             "quantity": 5,
@@ -143,6 +157,7 @@ def test_cashier_order_code_normalization_variants(client: TestClient, session: 
     for idx in range(3):
         res = client.post(
             "/api/v1/orders/reserve",
+            headers=_consumer_headers(f"Pembeli {idx}", f"08128899001{idx}"),
             json={
                 "listing_id": item.id,
                 "quantity": 1,
@@ -187,6 +202,7 @@ def test_cross_store_pickup_rejection_403(client: TestClient, session: Session):
 
     order = client.post(
         "/api/v1/orders/reserve",
+        headers=_consumer_headers("Budi", "081288990011"),
         json={
             "listing_id": item.id,
             "quantity": 1,
@@ -250,6 +266,7 @@ def test_order_cancel_does_not_revive_expired_listing(client: TestClient, sessio
 
     order = client.post(
         "/api/v1/orders/reserve",
+        headers=_consumer_headers("Budi", "081288990011"),
         json={
             "listing_id": item.id,
             "quantity": 1,
@@ -870,7 +887,7 @@ def test_reserve_expired_rejected_wib_deadline_and_init_db_pinpoint(
     r_exp = client.post(
         "/api/v1/orders/reserve",
         json={"listing_id": "RESV-EXPIRED-1", "quantity": 1, "customer_name": "Budi", "customer_phone": "081211122233"},
-        headers={"X-Simulated-Time": "2026-11-12T12:00:00+07:00"},
+        headers={**_consumer_headers("Budi", "081211122233"), "X-Simulated-Time": "2026-11-12T12:00:00+07:00"},
     )
     assert r_exp.status_code == 400
     session.refresh(expired_item)
@@ -879,7 +896,7 @@ def test_reserve_expired_rejected_wib_deadline_and_init_db_pinpoint(
     r_ok = client.post(
         "/api/v1/orders/reserve",
         json={"listing_id": "RESV-VALID-1", "quantity": 1, "customer_name": "Budi", "customer_phone": "081211122233"},
-        headers={"X-Simulated-Time": "2026-11-12T12:00:00+07:00"},
+        headers={**_consumer_headers("Budi", "081211122233"), "X-Simulated-Time": "2026-11-12T12:00:00+07:00"},
     )
     assert r_ok.status_code == 200
     assert "WIB" in r_ok.json()["pickup_deadline"]

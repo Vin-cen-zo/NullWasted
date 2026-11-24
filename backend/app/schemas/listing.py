@@ -282,6 +282,8 @@ class AuthResponse(BaseModel):
     user_id: Optional[str] = None
     store_id: Optional[str] = None
     store_name: Optional[str] = None
+    store_category: Optional[str] = None
+    store_description: Optional[str] = None
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
     closing_time: Optional[str] = None
@@ -300,9 +302,76 @@ class StoreProfileResponse(BaseModel):
     id: str
     store_id: str
     name: str
+    category: str = "Kuliner & Makanan"
+    description: str = ""
     location_name: str
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     closing_time: str
     maps_url: str = ""
     is_active: bool
+
+
+class ConsumerProfileResponse(BaseModel):
+    id: str
+    name: str
+    email: Optional[str] = None
+    phone: str = ""
+    role: str = "consumer"
+    created_at: str
+
+
+class ConsumerProfileUpdateRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=2, max_length=120)
+    phone: Optional[str] = Field(default=None, max_length=30)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_profile_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        stripped = v.strip()
+        if not stripped:
+            return ""
+        digits_norm = re.sub(r"[\s\-]+", "", stripped)
+        if not re.match(r"^(?:\+62|62|0)8[1-9][0-9]{7,11}$", digits_norm):
+            raise ValueError("Format nomor WhatsApp Indonesia tidak valid (contoh: 081234567890).")
+        return stripped
+
+
+class StoreProfileUpdateRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=2, max_length=120)
+    category: Optional[str] = Field(default=None, min_length=2, max_length=80)
+    closing_time: Optional[str] = Field(default=None)
+    location_name: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("closing_time")
+    @classmethod
+    def validate_profile_closing_time(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        cleaned = v.strip()
+        if not re.match(r"^(?:[01]\d|2[0-3]):[0-5]\d$", cleaned):
+            raise ValueError("Format jam tutup harus HH:MM (00:00 - 23:59).")
+        return cleaned
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        return _validate_password_value(v)
+
+
+class PublicStoreDetailResponse(BaseModel):
+    store: StoreProfileResponse
+    active_listings: list[Any]
+    active_listing_count: int
+
+
+class FavoriteStoresResponse(BaseModel):
+    store_ids: list[str]

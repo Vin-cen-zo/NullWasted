@@ -13,6 +13,7 @@ from app.core.database import get_session
 from app.core.security import (
     compute_minutes_until_closing,
     require_authenticated_user,
+    require_consumer_user,
     require_merchant_user,
 )
 from app.models.listing import ItemListing, OrderTicket, Store, StoreMenuItem, User, utc_now_iso
@@ -792,11 +793,35 @@ def get_active_listings(
     return active_results
 
 
+def _sync_expired_tickets(session: Session, tickets: list[OrderTicket]) -> list[OrderTicket]:
+    """Lazily transitions RESERVED tickets whose expires_at has passed to EXPIRED.
+    Guardrail #1: EXPIRED tickets DO NOT restore stock and DO NOT auto-refund PAID orders.
+    """
+    now_utc = get_effective_now_utc()
+    changed = False
+    for ticket in tickets:
+        if ticket.status == "RESERVED" and ticket.expires_at is not None:
+            exp_utc = (
+                ticket.expires_at
+                if ticket.expires_at.tzinfo
+                else ticket.expires_at.replace(tzinfo=timezone.utc)
+            )
+            if exp_utc <= now_utc:
+                ticket.status = "EXPIRED"
+                session.add(ticket)
+                changed = True
+    if changed:
+        session.commit()
+        for ticket in tickets:
+            session.refresh(ticket)
+    return tickets
+
+
 @router.post("/orders/reserve", response_model=OrderTicket)
 def reserve_order(
     payload: ReserveOrderRequest,
     session: Session = Depends(get_session),
-    user_claims: dict[str, Any] = Depends(require_authenticated_user),
+    user_claims: dict[str, Any] = Depends(require_consumer_user),
 ) -> OrderTicket:
     """Reserves surplus food items atomically and issues a digital pickup pass with QR payload."""
     listing = session.get(ItemListing, payload.listing_id)
@@ -866,20 +891,25 @@ def reserve_order(
     payment_method = payload.payment_method or "CASH_ON_PICKUP"
     payment_status = "PAID" if payment_method == "SIMULATED_QRIS" else "UNPAID"
 
+    ticket_expires_at: Optional[datetime] = None
     if listing.expires_at is not None:
         exp_utc = listing.expires_at if listing.expires_at.tzinfo else listing.expires_at.replace(tzinfo=timezone.utc)
+        ticket_expires_at = exp_utc
         exp_wib = exp_utc.astimezone(WIB_TZ)
         pickup_deadline = f"Sebelum pukul {exp_wib.strftime('%H:%M')} WIB"
     elif listing.closing_time:
         pickup_deadline = f"Sebelum pukul {listing.closing_time} WIB"
+        ticket_expires_at = now_utc + timedelta(minutes=max(1, listing.minutes_until_closing))
     else:
         pickup_deadline = f"Sebelum toko tutup ({listing.minutes_until_closing} menit lagi)"
+        ticket_expires_at = now_utc + timedelta(minutes=max(1, listing.minutes_until_closing))
 
     qr_payload = f"NULLWASTED|ORDER:{order_code}|STORE:{listing.store_id}|ITEM:{listing.id}|QTY:{payload.quantity}|USER:{customer}"
 
     ticket = OrderTicket(
         order_code=order_code,
         store_id=listing.store_id,
+        user_id=user_claims.get("sub"),
         customer_name=customer,
         customer_phone=phone,
         listing_id=listing.id,
@@ -891,6 +921,7 @@ def reserve_order(
         unit_price=listing.discounted_price,
         total_price=total_price,
         pickup_deadline=pickup_deadline,
+        expires_at=ticket_expires_at,
         qr_payload=qr_payload,
         payment_method=payment_method,
         payment_status=payment_status,
@@ -923,21 +954,28 @@ def get_active_orders(
             )
         statement = statement.where(OrderTicket.store_id == token_store_id)
     elif role == "consumer":
-        user_row = session.get(User, user_claims.get("sub")) if user_claims.get("sub") else None
+        user_sub = user_claims.get("sub")
+        user_row = session.get(User, user_sub) if user_sub else None
         claim_phone = (user_claims.get("phone") or (user_row.phone if user_row else "") or "").strip()
         claim_name = (user_claims.get("name") or (user_row.name if user_row else "") or "").strip()
+
+        conditions = []
+        if user_sub:
+            conditions.append(OrderTicket.user_id == user_sub)
         if claim_phone:
-            statement = statement.where(OrderTicket.customer_phone == claim_phone)
+            conditions.append((OrderTicket.user_id.is_(None)) & (OrderTicket.customer_phone == claim_phone))
         elif claim_name:
-            statement = statement.where(OrderTicket.customer_name == claim_name)
-        else:
+            conditions.append((OrderTicket.user_id.is_(None)) & (OrderTicket.customer_name == claim_name))
+
+        if not conditions:
             return []
+        statement = statement.where(or_(*conditions))
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Peran pengguna tidak valid.")
 
     statement = statement.order_by(OrderTicket.created_at.desc())
-    results = session.exec(statement).all()
-    return list(results)
+    results = list(session.exec(statement).all())
+    return _sync_expired_tickets(session, results)
 
 
 @router.post("/orders/{order_id}/cancel", response_model=OrderTicket)
@@ -946,7 +984,7 @@ def cancel_order(
     session: Session = Depends(get_session),
     user_claims: dict[str, Any] = Depends(require_authenticated_user),
 ) -> OrderTicket:
-    """Cancels a reserved order and atomically rolls back stock to the listing."""
+    """Cancels a reserved order and atomically rolls back stock to unexpired listings."""
     ticket = session.get(OrderTicket, order_id)
     if not ticket:
         # Search by order_code as fallback
@@ -964,23 +1002,39 @@ def cancel_order(
                 detail="Akses ditolak: Anda hanya dapat membatalkan pesanan milik gerai Anda.",
             )
     elif role == "consumer":
-        user_row = session.get(User, user_claims.get("sub")) if user_claims.get("sub") else None
-        claim_phone = (user_claims.get("phone") or (user_row.phone if user_row else "") or "").strip()
-        claim_name = (user_claims.get("name") or (user_row.name if user_row else "") or "").strip()
-        phone_match = bool(claim_phone and ticket.customer_phone and claim_phone == ticket.customer_phone)
-        name_match = bool(
-            not claim_phone
-            and claim_name
-            and ticket.customer_name
-            and claim_name.lower() == ticket.customer_name.lower()
-        )
-        if not (phone_match or name_match):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Akses ditolak: Tiket pesanan ini bukan milik akun Anda.",
+        user_sub = user_claims.get("sub")
+        if ticket.user_id:
+            if ticket.user_id != user_sub:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Akses ditolak: Tiket pesanan ini bukan milik akun Anda.",
+                )
+        else:
+            user_row = session.get(User, user_sub) if user_sub else None
+            claim_phone = (user_claims.get("phone") or (user_row.phone if user_row else "") or "").strip()
+            claim_name = (user_claims.get("name") or (user_row.name if user_row else "") or "").strip()
+            phone_match = bool(claim_phone and ticket.customer_phone and claim_phone == ticket.customer_phone)
+            name_match = bool(
+                not claim_phone
+                and claim_name
+                and ticket.customer_name
+                and claim_name.lower() == ticket.customer_name.lower()
             )
+            if not (phone_match or name_match):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Akses ditolak: Tiket pesanan ini bukan milik akun Anda.",
+                )
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Peran pengguna tidak valid.")
+
+    _sync_expired_tickets(session, [ticket])
+
+    if ticket.status == "EXPIRED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tiket sudah kedaluwarsa melewati batas pengambilan dan tidak dapat dibatalkan.",
+        )
 
     if ticket.status == "CANCELLED":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tiket sudah berstatus DIBATALKAN.")
@@ -1012,17 +1066,17 @@ def cancel_order(
             detail="Tiket sudah diproses atau dibatalkan sebelumnya.",
         )
 
-    # Atomic SQL stock rollback preventing lost updates under concurrent checkouts
+    # Atomic SQL stock rollback ONLY when listing has not expired (Guardrail #1)
     now_utc = get_effective_now_utc()
     rollback_stmt = (
         update(ItemListing)
-        .where(ItemListing.id == ticket.listing_id)
+        .where(
+            ItemListing.id == ticket.listing_id,
+            or_(ItemListing.expires_at.is_(None), ItemListing.expires_at > now_utc),
+        )
         .values(
             quantity=ItemListing.quantity + ticket.quantity,
-            is_active=case(
-                (or_(ItemListing.expires_at.is_(None), ItemListing.expires_at > now_utc), True),
-                else_=ItemListing.is_active,
-            ),
+            is_active=True,
         )
     )
     session.execute(rollback_stmt)
@@ -1065,6 +1119,14 @@ def complete_order_pickup(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Kode pesanan tidak ditemukan di database.",
+        )
+
+    _sync_expired_tickets(session, [ticket])
+
+    if ticket.status == "EXPIRED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tiket pesanan ini telah kedaluwarsa melewati batas waktu pengambilan.",
         )
 
     if ticket.status == "CANCELLED":

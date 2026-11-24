@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -21,6 +22,8 @@ class Store(SQLModel, table=True):
     latitude: Optional[float] = Field(default=None)
     longitude: Optional[float] = Field(default=None)
     closing_time: str = Field(default="20:30")
+    category: str = Field(default="Kuliner & Makanan")
+    description: str = Field(default="")
     maps_url: str = Field(default="")
     is_active: bool = Field(default=True)
     created_at: str = Field(default_factory=utc_now_iso)
@@ -103,6 +106,7 @@ class OrderTicket(SQLModel, table=True):
     id: str = Field(default_factory=lambda: f"ord-{uuid4().hex[:8]}", primary_key=True)
     order_code: str = Field(index=True)  # Format: #NW-XXXX
     store_id: str = Field(default="FTUI-001", index=True)
+    user_id: Optional[str] = Field(default=None, index=True)
     customer_name: str = Field(default="Konsumen NullWasted")
     customer_phone: str = Field(default="0812-8899-0011", index=True)
     listing_id: str = Field(index=True)
@@ -114,10 +118,23 @@ class OrderTicket(SQLModel, table=True):
     unit_price: int = Field(gt=0)
     total_price: int = Field(gt=0)
     pickup_deadline: str
+    expires_at: Optional[datetime] = Field(default=None, index=True)
     qr_payload: str
-    payment_method: str = Field(default="CASH_ON_PICKUP")  # CASH_ON_PICKUP | SIMULATED_QRIS
-    payment_status: str = Field(default="UNPAID")          # UNPAID | PAID | REFUNDED
-    status: str = Field(default="RESERVED")                # RESERVED | COMPLETED | CANCELLED
+    payment_method: str = Field(default="CASH_ON_PICKUP")  # CASH_ON_PICKUP | MIDTRANS_QRIS | SIMULATED_QRIS
+    payment_status: str = Field(default="UNPAID")          # UNPAID | PENDING | PAID | REFUNDED
+    status: str = Field(default="RESERVED")                # RESERVED | COMPLETED | CANCELLED | EXPIRED
     created_at: str = Field(default_factory=utc_now_iso)
     completed_at: Optional[str] = Field(default=None)
     cancelled_at: Optional[str] = Field(default=None)
+
+
+class UserFavoriteStore(SQLModel, table=True):
+    __tablename__ = "user_favorite_stores"
+    __table_args__ = (
+        UniqueConstraint("user_id", "store_id", name="uq_user_favorite_store"),
+    )
+
+    id: str = Field(default_factory=lambda: f"fav-{uuid4().hex[:8]}", primary_key=True)
+    user_id: str = Field(index=True)
+    store_id: str = Field(index=True)
+    created_at: str = Field(default_factory=utc_now_iso)
