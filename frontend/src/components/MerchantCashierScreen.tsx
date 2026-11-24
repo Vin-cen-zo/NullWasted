@@ -149,6 +149,12 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
   const qrisSettledTotal = completedOrders
     .filter((o) => o.payment_method === "SIMULATED_QRIS" || o.payment_method === "MIDTRANS_QRIS")
     .reduce((sum, o) => sum + o.total_price, 0);
+  const qrisPaidWaitingOrders = reservedOrders.filter(
+    (o) =>
+      (o.payment_method === "MIDTRANS_QRIS" || o.payment_method === "SIMULATED_QRIS") &&
+      o.payment_status === "PAID"
+  );
+  const qrisPaidWaitingTotal = qrisPaidWaitingOrders.reduce((sum, o) => sum + o.total_price, 0);
 
   const stopCamera = useCallback(async () => {
     const instance = scannerRef.current;
@@ -512,7 +518,10 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                 <div className="flex justify-between items-center pt-1 border-t border-slate-200">
                   <span className="text-[#646982]">Metode Pembayaran:</span>
                   <span className="font-bold text-emerald-700">
-                    {successTicket.payment_method === "SIMULATED_QRIS" ? "QRIS Instan (Lunas)" : "Bayar Tunai di Kasir"}
+                    {successTicket.payment_method === "SIMULATED_QRIS" ||
+                    successTicket.payment_method === "MIDTRANS_QRIS"
+                      ? "QRIS (Lunas)"
+                      : "Bayar Tunai di Kasir"}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -604,9 +613,27 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
               </div>
 
               <div className="p-3 bg-[#F0F5FA] rounded-xl space-y-1">
-                <span className="text-xs text-[#646982] font-medium block">QRIS</span>
+                <span className="text-xs text-[#646982] font-medium block">QRIS Selesai</span>
                 <span className="text-sm font-bold text-emerald-600 tabular-nums block">
                   Rp {qrisSettledTotal.toLocaleString("id-ID")}
+                </span>
+              </div>
+            </div>
+
+            {/* QRIS Paid Waiting Pickup (Escrow) Indicator */}
+            <div className="px-3 py-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-between gap-2 flex-wrap text-xs">
+              <div className="flex items-center gap-1.5 text-emerald-900">
+                <CreditCard className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span className="font-semibold">
+                  QRIS Lunas Menunggu Diambil ({qrisPaidWaitingOrders.length} pesanan)
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="font-extrabold text-emerald-700 tabular-nums">
+                  Rp {qrisPaidWaitingTotal.toLocaleString("id-ID")}
+                </span>
+                <span className="block text-[10px] text-emerald-800/80">
+                  Masuk rekap QRIS Selesai setelah serah terima
                 </span>
               </div>
             </div>
@@ -636,6 +663,8 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
               <div className="space-y-2">
                 {reservedOrders.map((ord) => {
                   const isPaid = ord.payment_status === "PAID" || ord.payment_method === "SIMULATED_QRIS";
+                  const isPendingQris =
+                    ord.payment_method === "MIDTRANS_QRIS" && ord.payment_status === "PENDING";
 
                   return (
                     <div
@@ -676,6 +705,11 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg">
                             <CreditCard className="w-3 h-3 text-emerald-600" />
                             SUDAH LUNAS VIA QRIS (Jangan Tagih Tunai)
+                          </span>
+                        ) : isPendingQris ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded-lg">
+                            <QrCode className="w-3 h-3 text-indigo-600" />
+                            MENUNGGU PEMBAYARAN QRIS (Belum Lunas)
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-lg">
