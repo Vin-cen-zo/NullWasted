@@ -1069,7 +1069,11 @@ export const App: React.FC = () => {
             {/* Detail Sheet Modal */}
             <ConsumerDetailModal
               item={selectedFeedItem}
-              onClose={() => setSelectedFeedItem(null)}
+              onClose={() => {
+                setSelectedFeedItem(null);
+                void refreshOrders();
+                void refreshListings();
+              }}
               onReserve={handleReserve}
               onAddToCart={handleAddToCart}
               onQrisPaid={async (orderCode) => {

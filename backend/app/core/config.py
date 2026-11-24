@@ -105,7 +105,7 @@ def get_midtrans_config() -> dict[str, Any] | None:
         "server_key": server_key,
         "is_production": is_prod,
         "base_url": base_url,
-        "simulator_url": "https://simulator.sandbox.midtrans.com/qris/index" if not is_prod else None,
+        "simulator_url": "https://simulator.sandbox.midtrans.com/v2/qris/index" if not is_prod else None,
     }
 
 
