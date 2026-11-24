@@ -18,6 +18,8 @@ import {
   Loader2,
   ArrowLeft,
   AlertTriangle,
+  Copy,
+  Check,
 } from "lucide-react";
 import { ClosingCountdownBadge } from "./ClosingCountdownBadge";
 
@@ -107,6 +109,8 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
   const [qty, setQty] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<"CASH_ON_PICKUP" | "MIDTRANS_QRIS">("CASH_ON_PICKUP");
   const [qrisEnabled, setQrisEnabled] = useState(false);
+  const [qrisMode, setQrisMode] = useState<"sandbox" | "production" | "disabled">("disabled");
+  const [copiedQrisUrl, setCopiedQrisUrl] = useState(false);
 
   // Real Midtrans Sandbox QRIS state (zero fake confirmation)
   const [modalStep, setModalStep] = useState<"DETAIL" | "QRIS">("DETAIL");
@@ -125,9 +129,37 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
 
   useEffect(() => {
     fetchQrisConfig()
-      .then((cfg) => setQrisEnabled(Boolean(cfg.qris_enabled)))
-      .catch(() => setQrisEnabled(false));
+      .then((cfg) => {
+        setQrisEnabled(Boolean(cfg.qris_enabled));
+        setQrisMode(cfg.mode === "production" ? "production" : cfg.qris_enabled ? "sandbox" : "disabled");
+      })
+      .catch(() => {
+        setQrisEnabled(false);
+        setQrisMode("disabled");
+      });
   }, []);
+
+  const copyQrisUrlToClipboard = async (url?: string | null) => {
+    if (!url) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopiedQrisUrl(true);
+      window.setTimeout(() => setCopiedQrisUrl(false), 2500);
+    } catch {
+      // Ignore clipboard permission denial
+    }
+  };
 
   useEffect(() => {
     qrisSessionRef.current += 1;
@@ -656,6 +688,13 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
               </p>
             </div>
 
+            {/* Sandbox Notice Badge */}
+            {(qrisMode === "sandbox" || Boolean(qrisData?.simulatorUrl)) && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-800 text-[11px] font-bold">
+                <span>Mode Sandbox (Simulasi) · Gunakan Simulator Midtrans, bukan m-banking asli</span>
+              </div>
+            )}
+
             {/* QR Matrix Card (Real Midtrans Sandbox QRIS) */}
             <div className="p-3 bg-white rounded-2xl border-2 border-slate-200 shadow-sm flex items-center justify-center mx-auto w-fit">
               {qrisData?.qrisUrl ? (
@@ -690,6 +729,18 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
               </p>
             </div>
 
+            {/* 3-Step Sandbox Payment Guide */}
+            {qrisData?.simulatorUrl && (
+              <div className="w-full p-3 rounded-xl bg-indigo-50/70 border border-indigo-200/80 text-left text-[11px] text-indigo-950 space-y-1">
+                <p className="font-bold text-indigo-900">Cara Bayar Cepat (Midtrans Sandbox):</p>
+                <ol className="list-decimal list-inside space-y-0.5 text-indigo-900/90">
+                  <li>Klik <strong>Salin URL QR &amp; Buka Simulator</strong> di bawah.</li>
+                  <li>Tempel (<em>Paste</em>) URL di kolom <strong>QR Code Image URL</strong>.</li>
+                  <li>Klik <strong>Scan QR</strong> lalu <strong>Pay</strong> — tiket otomatis lunas dalam 2–3 detik.</li>
+                </ol>
+              </div>
+            )}
+
             {closingError && (
               <div className="w-full p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold text-center">
                 {closingError}
@@ -698,22 +749,48 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
 
             <div className="w-full space-y-2 pt-1">
               {qrisData?.simulatorUrl && (
-                <a
-                  href={qrisData.simulatorUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full py-3 px-4 rounded-xl bg-[#181C2E] hover:bg-[#252a44] text-white text-xs font-bold flex items-center justify-center gap-2 transition"
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await copyQrisUrlToClipboard(qrisData.qrisUrl);
+                    window.open(qrisData.simulatorUrl!, "_blank", "noopener,noreferrer");
+                  }}
+                  className="w-full py-3 px-4 rounded-xl bg-[#181C2E] hover:bg-[#252a44] text-white text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
                 >
-                  <span>Buka Midtrans QRIS Sandbox Simulator</span>
+                  {copiedQrisUrl ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>
+                    {copiedQrisUrl
+                      ? "URL QR Tersalin! Simulator Dibuka"
+                      : "Salin URL QR & Buka Simulator Midtrans"}
+                  </span>
                   <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                </button>
+              )}
+              {qrisData?.qrisUrl && (
+                <button
+                  type="button"
+                  onClick={() => void copyQrisUrlToClipboard(qrisData.qrisUrl)}
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-[#181C2E] text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  {copiedQrisUrl ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-emerald-700">URL QR Berhasil Disalin</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Salin URL QR Saja</span>
+                    </>
+                  )}
+                </button>
               )}
               <button
                 type="button"
                 onClick={onClose}
                 className="w-full py-2.5 px-3 rounded-xl bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] text-xs font-bold transition cursor-pointer"
               >
-                Tutup (Cek Status di Pesanan Saya)
+                Tutup (Lanjutkan Bayar di Pesanan Saya)
               </button>
             </div>
           </div>

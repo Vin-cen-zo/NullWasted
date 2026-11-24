@@ -163,6 +163,9 @@ export interface OrderTicket {
   qr_payload: string;
   payment_method?: string;  // CASH_ON_PICKUP | MIDTRANS_QRIS | SIMULATED_QRIS
   payment_status?: string;  // UNPAID | PENDING | PAID | REFUNDED
+  payment_expires_at?: string | null;
+  qris_url?: string | null;
+  qris_string?: string | null;
   status: string;           // RESERVED | COMPLETED | CANCELLED | EXPIRED
   created_at: string;
   completed_at?: string | null;

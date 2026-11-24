@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ItemListing, OrderTicket, cleanLocationBadge, resolveImageUrl } from "../types/listing";
+import { fetchQrisConfig } from "../services/api";
 import { parseBackendUtcMs } from "../utils/clock";
 import {
   CheckCircle2,
@@ -10,6 +11,10 @@ import {
   Ticket,
   MapPin,
   XCircle,
+  QrCode,
+  ExternalLink,
+  Loader2,
+  X,
 } from "lucide-react";
 
 interface ConsumerOrdersScreenProps {
@@ -61,13 +66,70 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [orderTab, setOrderTab] = useState<"ALL" | "ONGOING" | "HISTORY">("ALL");
+  const [activeQrisTicketId, setActiveQrisTicketId] = useState<string | null>(null);
+  const [simulatorUrl, setSimulatorUrl] = useState<string | null>(null);
+  const [copiedQrisUrl, setCopiedQrisUrl] = useState(false);
+  const [nowTickMs, setNowTickMs] = useState(() => Date.now());
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    fetchQrisConfig()
+      .then((cfg) => setSimulatorUrl(cfg.simulator_url || null))
+      .catch(() => setSimulatorUrl(null));
+  }, []);
 
   useEffect(() => {
     return () => {
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     };
   }, []);
+
+  const activeQrisTicket = activeQrisTicketId
+    ? orders.find((o) => o.id === activeQrisTicketId) || null
+    : null;
+
+  useEffect(() => {
+    if (!activeQrisTicketId) return;
+    if (
+      !activeQrisTicket ||
+      activeQrisTicket.status !== "RESERVED" ||
+      activeQrisTicket.payment_status === "PAID"
+    ) {
+      setActiveQrisTicketId(null);
+      return;
+    }
+    const tick = setInterval(() => setNowTickMs(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, [activeQrisTicketId, activeQrisTicket]);
+
+  const copyQrisUrlToClipboard = async (url?: string | null) => {
+    if (!url) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopiedQrisUrl(true);
+      window.setTimeout(() => setCopiedQrisUrl(false), 2500);
+    } catch {
+      // Ignore clipboard permission denial
+    }
+  };
+
+  const formatCountdown = (sec: number) => {
+    const safe = Math.max(0, sec);
+    const m = Math.floor(safe / 60);
+    const s = safe % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
 
   const hasActiveReservedTicket = orders.some((o) => o.status === "RESERVED");
 
@@ -187,6 +249,10 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
             const isExpired = ticket.status === "EXPIRED";
             const isClosedTicket = isCancelled || isExpired;
             const isPaid = ticket.payment_status === "PAID" || ticket.payment_method === "SIMULATED_QRIS";
+            const isPendingQris =
+              ticket.status === "RESERVED" &&
+              ticket.payment_method === "MIDTRANS_QRIS" &&
+              ticket.payment_status === "PENDING";
 
             return (
               <div
@@ -217,6 +283,11 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg">
                           <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                           SELESAI
+                        </span>
+                      ) : isPendingQris ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-800 bg-indigo-100 px-2.5 py-0.5 rounded-lg">
+                          <QrCode className="w-3 h-3 text-indigo-600" />
+                          MENUNGGU BAYAR QRIS
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-lg">
@@ -324,8 +395,27 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
                     )}
                   </div>
 
-                  {/* ISO-Standard QR Code Matrix View */}
-                  {!isClosedTicket && (
+                  {/* ISO-Standard QR Code Matrix View OR Resume Pending QRIS CTA */}
+                  {!isClosedTicket && isPendingQris && (
+                    <div className="p-3.5 rounded-xl bg-indigo-50/80 border border-indigo-200 space-y-2.5 text-center">
+                      <p className="text-xs font-semibold text-indigo-950">
+                        Selesaikan pembayaran QRIS agar tiket pengambilan aktif.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCopiedQrisUrl(false);
+                          setActiveQrisTicketId(ticket.id);
+                        }}
+                        className="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
+                      >
+                        <QrCode className="w-4 h-4" />
+                        <span>Lanjutkan Bayar QRIS</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {!isClosedTicket && !isPendingQris && (
                     <div className="flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-slate-200 space-y-2">
                       <QRCodeSVG
                         value={ticket.qr_payload}
@@ -348,7 +438,11 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
                       <div className="flex justify-between text-[#646982]">
                         <span>Metode Pembayaran</span>
                         <span className="font-medium text-[#222222]">
-                          {isPaid ? "Lunas (QRIS)" : "Tunai di Kasir"}
+                          {isPaid
+                            ? "Lunas (QRIS)"
+                            : isPendingQris
+                            ? "Menunggu Bayar (QRIS)"
+                            : "Tunai di Kasir"}
                         </span>
                       </div>
                     )}
@@ -397,6 +491,151 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Resume Pending Midtrans QRIS Modal */}
+      {activeQrisTicket && (
+        <div
+          onClick={() => setActiveQrisTicketId(null)}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4 text-center"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-md bg-red-600 text-white font-black text-[10px] tracking-widest">
+                  QRIS
+                </span>
+                <span className="text-xs font-bold text-[#181C2E]">
+                  Lanjutkan Bayar {activeQrisTicket.order_code}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveQrisTicketId(null)}
+                aria-label="Tutup modal lanjut bayar QRIS"
+                className="p-1.5 rounded-lg text-[#646982] hover:text-[#181C2E] hover:bg-[#F0F5FA] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {simulatorUrl && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-800 text-[11px] font-bold">
+                <span>Mode Sandbox (Simulasi) · Gunakan Simulator Midtrans, bukan m-banking asli</span>
+              </div>
+            )}
+
+            <div className="p-3 bg-white rounded-2xl border-2 border-slate-200 shadow-sm flex items-center justify-center mx-auto w-fit">
+              {activeQrisTicket.qris_url ? (
+                <img
+                  src={activeQrisTicket.qris_url}
+                  alt="Midtrans QRIS"
+                  className="w-48 h-48 object-contain"
+                />
+              ) : (
+                <QRCodeSVG
+                  value={activeQrisTicket.qris_string || activeQrisTicket.qr_payload}
+                  size={180}
+                  level="M"
+                  includeMargin={true}
+                />
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[11px] text-[#646982] block">
+                {activeQrisTicket.store_name} · {activeQrisTicket.food_name}
+              </span>
+              <span className="text-2xl font-black text-emerald-700 tabular-nums">
+                Rp {activeQrisTicket.total_price.toLocaleString("id-ID")}
+              </span>
+              {activeQrisTicket.payment_expires_at && (
+                <div className="pt-1">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold tabular-nums">
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                    <span>
+                      Sisa waktu{" "}
+                      {formatCountdown(
+                        Math.floor(
+                          (parseBackendUtcMs(activeQrisTicket.payment_expires_at) - nowTickMs) / 1000
+                        )
+                      )}
+                    </span>
+                  </span>
+                </div>
+              )}
+              <p className="text-[11px] text-[#646982] pt-1 flex items-center justify-center gap-1.5">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                <span>Menunggu konfirmasi otomatis dari Midtrans Webhook...</span>
+              </p>
+            </div>
+
+            {simulatorUrl && (
+              <div className="w-full p-3 rounded-xl bg-indigo-50/70 border border-indigo-200/80 text-left text-[11px] text-indigo-950 space-y-1">
+                <p className="font-bold text-indigo-900">Cara Bayar Cepat (Midtrans Sandbox):</p>
+                <ol className="list-decimal list-inside space-y-0.5 text-indigo-900/90">
+                  <li>Klik <strong>Salin URL QR &amp; Buka Simulator</strong> di bawah.</li>
+                  <li>Tempel (<em>Paste</em>) URL di kolom <strong>QR Code Image URL</strong>.</li>
+                  <li>Klik <strong>Scan QR</strong> lalu <strong>Pay</strong> — tiket otomatis lunas dalam 2–3 detik.</li>
+                </ol>
+              </div>
+            )}
+
+            <div className="w-full space-y-2 pt-1">
+              {simulatorUrl && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await copyQrisUrlToClipboard(activeQrisTicket.qris_url);
+                    window.open(simulatorUrl, "_blank", "noopener,noreferrer");
+                  }}
+                  className="w-full py-3 px-4 rounded-xl bg-[#181C2E] hover:bg-[#252a44] text-white text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
+                >
+                  {copiedQrisUrl ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                  <span>
+                    {copiedQrisUrl
+                      ? "URL QR Tersalin! Simulator Dibuka"
+                      : "Salin URL QR & Buka Simulator Midtrans"}
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {activeQrisTicket.qris_url && (
+                <button
+                  type="button"
+                  onClick={() => void copyQrisUrlToClipboard(activeQrisTicket.qris_url)}
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-[#181C2E] text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  {copiedQrisUrl ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-emerald-700">URL QR Berhasil Disalin</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Salin URL QR Saja</span>
+                    </>
+                  )}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setActiveQrisTicketId(null)}
+                className="w-full py-2.5 px-3 rounded-xl bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] text-xs font-bold transition cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
