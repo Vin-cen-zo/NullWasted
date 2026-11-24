@@ -27,6 +27,11 @@ interface ConsumerFeedScreenProps {
   listings: ItemListing[];
   onSelectItem: (item: ItemListing) => void;
   customerName: string;
+  isGuest?: boolean;
+  onOpenLogin?: () => void;
+  favoriteStoreIds?: string[];
+  onToggleFavoriteStore?: (storeId: string) => void;
+  onOpenStoreProfile?: (storeId: string) => void;
 }
 
 export function resolveItemCoords(item: ItemListing): [number, number] | null {
@@ -59,20 +64,16 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   listings,
   onSelectItem,
   customerName,
+  isGuest = false,
+  onOpenLogin,
+  favoriteStoreIds = [],
+  onToggleFavoriteStore,
+  onOpenStoreProfile,
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<"ALL" | "BAKERY" | "HEAVY" | "BEVERAGE" | "BUNDLE">("ALL");
+  const [selectedCategory, setSelectedCategory] = useState<"ALL" | "FAVORITES" | "BAKERY" | "HEAVY" | "BEVERAGE" | "BUNDLE">("ALL");
   const [selectedRadius, setSelectedRadius] = useState<"ALL" | "500" | "1500">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [isMapOpen, setIsMapOpen] = useState(false);
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(() => {
-    try {
-      const raw = localStorage.getItem("nullwasted_favorite_listings");
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
 
   // Live Device GPS (auto-requested after consumer enters feed)
   const [userCoords, setUserCoords] = useState<[number, number] | null>(null);
@@ -98,17 +99,12 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
     };
   }, [isMapOpen]);
 
-  const toggleBookmark = (id: string, e: React.MouseEvent) => {
+  const toggleBookmark = (storeId: string | undefined, e: React.MouseEvent) => {
     e.stopPropagation();
-    setBookmarkedIds((prev) => {
-      const updated = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      try {
-        localStorage.setItem("nullwasted_favorite_listings", JSON.stringify(updated));
-      } catch {
-        // ignore storage failure
-      }
-      return updated;
-    });
+    if (!storeId) return;
+    if (onToggleFavoriteStore) {
+      onToggleFavoriteStore(storeId);
+    }
   };
 
   const requestLiveGps = () => {
@@ -158,8 +154,10 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   const filteredListings = activeNonExpiredListings.filter((item) => {
     const foodType = (item.food_type || "MEAL").toUpperCase();
 
-    // 1. Food Type Filter (semantic/AI food_type decoupled from BPOM risk category)
-    if (selectedCategory === "BUNDLE") {
+    // 1. Food Type & Favorite Store Filter
+    if (selectedCategory === "FAVORITES") {
+      if (!item.store_id || !favoriteStoreIds.includes(item.store_id)) return false;
+    } else if (selectedCategory === "BUNDLE") {
       if (!item.is_bundle) return false;
     } else if (selectedCategory === "BAKERY") {
       if (item.is_bundle || foodType !== "BAKERY") return false;
@@ -190,8 +188,8 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   });
 
   const sortedListings = [...filteredListings].sort((a, b) => {
-    const aFav = bookmarkedIds.includes(a.id) ? 1 : 0;
-    const bFav = bookmarkedIds.includes(b.id) ? 1 : 0;
+    const aFav = a.store_id && favoriteStoreIds.includes(a.store_id) ? 1 : 0;
+    const bFav = b.store_id && favoriteStoreIds.includes(b.store_id) ? 1 : 0;
     if (aFav !== bFav) return bFav - aFav;
 
     if (!userCoords) return 0;
@@ -261,13 +259,35 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
         </button>
       </div>
 
-      {/* Clean Greeting */}
-      <div>
-        <p className="text-[16px] text-[#1A1817]">
-          Halo <span className="font-normal">{customerName},</span>{" "}
-          <span className="font-bold text-[#181C2E]">Siap Selamatkan Surplus?</span>
-        </p>
-      </div>
+      {/* Clean Greeting / Guest Welcome Banner */}
+      {isGuest ? (
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <p className="text-sm sm:text-base font-bold text-[#181C2E]">
+              Selamatkan Makanan Surplus Hemat 50%–70%
+            </p>
+            <p className="text-xs text-[#646982]">
+              Jelajahi menu surplus tervalidasi BPOM di sekitar Anda. Masuk saat siap memesan.
+            </p>
+          </div>
+          {onOpenLogin && (
+            <button
+              type="button"
+              onClick={onOpenLogin}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0 cursor-pointer transition-colors"
+            >
+              Masuk / Daftar
+            </button>
+          )}
+        </div>
+      ) : (
+        <div>
+          <p className="text-[16px] text-[#1A1817]">
+            Halo <span className="font-normal">{customerName},</span>{" "}
+            <span className="font-bold text-[#181C2E]">Siap Selamatkan Surplus?</span>
+          </p>
+        </div>
+      )}
 
       {/* Search Bar & Radius Toolbar */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
@@ -357,6 +377,21 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
               <LayoutGrid className="w-4 h-4 text-[#181C2E]" />
             </span>
             <span>Semua ({activeNonExpiredListings.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("FAVORITES")}
+            className={`shrink-0 h-[52px] pl-2 pr-5 rounded-xl font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+              selectedCategory === "FAVORITES"
+                ? "bg-rose-600 text-white shadow-[0_10px_25px_rgba(225,29,72,0.25)]"
+                : "bg-white text-[#32343E] shadow-[0_8px_24px_rgba(150,150,154,0.14)] hover:bg-slate-50"
+            }`}
+          >
+            <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedCategory === "FAVORITES" ? "bg-white/20" : "bg-rose-50"}`}>
+              <Heart className={`w-4 h-4 ${selectedCategory === "FAVORITES" ? "text-white fill-white" : "text-rose-500"}`} />
+            </span>
+            <span>Gerai Favorit ({favoriteStoreIds.length})</span>
           </button>
 
           <button
@@ -474,7 +509,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
                 : cleanLocationBadge(item.location_badge) || "Lokasi via peta";
             const resolvedImg = resolveImageUrl(item.image_url, item.is_bundle);
             const hasImage = Boolean(resolvedImg && !failedImageIds.has(item.id));
-            const isBookmarked = bookmarkedIds.includes(item.id);
+            const isBookmarked = Boolean(item.store_id && favoriteStoreIds.includes(item.store_id));
 
             return (
               <article
@@ -536,14 +571,29 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
 
                 {/* Card Content (ShopeeFood-inspired Unified Headline) */}
                 <div className="p-4 flex flex-col space-y-3.5 flex-1 justify-between">
-                  <div className="space-y-2.5">
-                    {/* Dish + Store Name in One Unified Headline (ShopeeFood Style) */}
-                    <h4 className="font-normal text-[18px] text-[#222222] leading-snug line-clamp-2">
-                      {item.food_name} - {item.store_name}
+                  <div className="space-y-1.5">
+                    {/* Dish Name + Clickable Store Profile Link */}
+                    <h4 className="font-normal text-[18px] text-[#222222] leading-snug line-clamp-1">
+                      {item.food_name}
                     </h4>
+                    {item.store_id && onOpenStoreProfile ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenStoreProfile(item.store_id!);
+                        }}
+                        className="text-xs font-semibold text-emerald-700 hover:underline truncate block text-left cursor-pointer"
+                        title={`Lihat profil ${item.store_name}`}
+                      >
+                        {item.store_name} &rarr;
+                      </button>
+                    ) : (
+                      <p className="text-xs font-semibold text-[#646982] truncate">{item.store_name}</p>
+                    )}
 
                     {/* Clean 1-Line Subtitle */}
-                    <p className="text-[14px] leading-relaxed text-[#646982] line-clamp-1">
+                    <p className="text-[13px] leading-relaxed text-[#646982] line-clamp-1">
                       {humanizeBpomText(item.safety_reason) || item.hazard_description || "Makanan surplus higienis berstandar BPOM."}
                     </p>
                   </div>
@@ -587,10 +637,10 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={(e) => toggleBookmark(item.id, e)}
-                        aria-label="Bookmark store"
+                        onClick={(e) => toggleBookmark(item.store_id, e)}
+                        aria-label="Favoritkan gerai"
                         aria-pressed={isBookmarked}
-                        title={isBookmarked ? "Hapus dari favorit" : "Simpan ke favorit"}
+                        title={isBookmarked ? "Hapus gerai dari favorit" : "Simpan gerai ke favorit"}
                         className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all cursor-pointer"
                       >
                         <Heart

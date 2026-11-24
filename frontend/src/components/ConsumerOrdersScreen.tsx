@@ -184,13 +184,15 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
           {filteredOrders.map((ticket) => {
             const isCompleted = ticket.status === "COMPLETED";
             const isCancelled = ticket.status === "CANCELLED";
+            const isExpired = ticket.status === "EXPIRED";
+            const isClosedTicket = isCancelled || isExpired;
             const isPaid = ticket.payment_status === "PAID" || ticket.payment_method === "SIMULATED_QRIS";
 
             return (
               <div
                 key={ticket.id}
                 className={`bg-white rounded-xl border shadow-[0_4px_16px_rgba(15,23,42,0.06)] p-5 space-y-4 transition-all h-full flex flex-col justify-between ${
-                  isCancelled
+                  isClosedTicket
                     ? "border-slate-200 bg-slate-50/70 opacity-80"
                     : isCompleted
                     ? "border-emerald-300"
@@ -201,7 +203,12 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
                   {/* Status & Payment Badges Header */}
                   <div className="flex items-center justify-between flex-wrap gap-1.5 pb-3 border-b border-[#EEF2F6]">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {isCancelled ? (
+                      {isExpired ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 bg-rose-100 px-2.5 py-0.5 rounded-lg">
+                          <Clock className="w-3 h-3 text-rose-600" />
+                          KEDALUWARSA
+                        </span>
+                      ) : isCancelled ? (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 bg-slate-200 px-2.5 py-0.5 rounded-lg">
                           <XCircle className="w-3 h-3 text-slate-500" />
                           DIBATALKAN
@@ -264,13 +271,13 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
                       <span className="text-xs text-[#646982] block font-medium">KODE PENGAMBILAN</span>
                       <span
                         className={`text-base font-extrabold tracking-wider tabular-nums ${
-                          isCancelled ? "text-slate-400 line-through" : "text-[#181C2E]"
+                          isClosedTicket ? "text-slate-400 line-through" : "text-[#181C2E]"
                         }`}
                       >
                         {ticket.order_code}
                       </span>
                     </div>
-                    {!isCancelled && (
+                    {!isClosedTicket && (
                       <button
                         type="button"
                         onClick={() => handleCopy(ticket.order_code)}
@@ -292,7 +299,7 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
                   </div>
 
                   {/* ISO-Standard QR Code Matrix View */}
-                  {!isCancelled && (
+                  {!isClosedTicket && (
                     <div className="flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-slate-200 space-y-2">
                       <QRCodeSVG
                         value={ticket.qr_payload}

@@ -9,14 +9,19 @@ import { MerchantCashierScreen } from "./components/MerchantCashierScreen";
 import { ConsumerFeedScreen } from "./components/ConsumerFeedScreen";
 import { ConsumerDetailModal } from "./components/ConsumerDetailModal";
 import { ConsumerOrdersScreen } from "./components/ConsumerOrdersScreen";
+import { ProfileModal } from "./components/ProfileModal";
+import { PublicStoreModal } from "./components/PublicStoreModal";
 import { TimeSimulatorPill } from "./components/TimeSimulatorPill";
 import {
   NW_AUTH_EXPIRED_EVENT,
+  addFavoriteStore,
   createDraft,
   publishListing,
   createSmartBundle,
   fetchActiveListings,
   fetchActiveOrders,
+  fetchFavoriteStores,
+  removeFavoriteStore,
   reserveOrder,
   completeOrderPickup,
   cancelOrder,
@@ -35,8 +40,10 @@ import {
   UtensilsCrossed,
   Ticket,
   LogOut,
+  LogIn,
   MapPin,
   Store,
+  UserCircle2,
 } from "lucide-react";
 
 export const App: React.FC = () => {
@@ -50,15 +57,31 @@ export const App: React.FC = () => {
     }
   });
 
-  // Tab Navigation State
-  const [merchantTab, setMerchantTab] = useState<"create" | "inventory" | "cashier">("create");
-  const [consumerTab, setConsumerTab] = useState<"explore" | "orders">("explore");
+  // Tab & Route Navigation State
+  const [showAuthScreen, setShowAuthScreen] = useState<boolean>(() => window.location.pathname === "/login");
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
+  const [pendingItemAfterLogin, setPendingItemAfterLogin] = useState<ItemListing | null>(null);
+  const [merchantTab, setMerchantTab] = useState<"create" | "inventory" | "cashier">(() => {
+    const p = window.location.pathname;
+    if (p === "/merchant/inventory") return "inventory";
+    if (p === "/merchant/cashier") return "cashier";
+    return "create";
+  });
+  const [consumerTab, setConsumerTab] = useState<"explore" | "orders">(() =>
+    window.location.pathname === "/orders" ? "orders" : "explore"
+  );
+  const [isProfileOpen, setIsProfileOpen] = useState<boolean>(() => window.location.pathname === "/profile");
+  const [selectedStoreProfileId, setSelectedStoreProfileId] = useState<string | null>(() => {
+    const m = window.location.pathname.match(/^\/store\/([^/]+)$/);
+    return m ? decodeURIComponent(m[1]) : null;
+  });
 
   // Data States
   const [activeDraft, setActiveDraft] = useState<DraftResponse | null>(null);
   const [lastInputText, setLastInputText] = useState<string>("");
   const [activeListings, setActiveListings] = useState<ItemListing[]>([]);
   const [activeOrders, setActiveOrders] = useState<OrderTicket[]>([]);
+  const [favoriteStoreIds, setFavoriteStoreIds] = useState<string[]>([]);
   const [selectedFeedItem, setSelectedFeedItem] = useState<ItemListing | null>(null);
 
   // Loading States
@@ -85,11 +108,20 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Synchronize data from backend
+  // Push URL path helper (no-op if already on target path)
+  const navigateToPath = useCallback((path: string, replace = false) => {
+    if (window.location.pathname === path) return;
+    if (replace) {
+      window.history.replaceState({ path }, "", path);
+    } else {
+      window.history.pushState({ path }, "", path);
+    }
+  }, []);
+
+  // Synchronize data from backend (works in Guest Mode too for public listings!)
   const refreshListings = useCallback(async () => {
-    if (!session) return;
     try {
-      const storeFilter = session.role === "merchant" ? session.storeId : undefined;
+      const storeFilter = session?.role === "merchant" ? session.storeId : undefined;
       const data = await fetchActiveListings(storeFilter);
       setActiveListings(data);
     } catch (err) {
@@ -98,7 +130,10 @@ export const App: React.FC = () => {
   }, [session]);
 
   const refreshOrders = useCallback(async () => {
-    if (!session) return;
+    if (!session) {
+      setActiveOrders([]);
+      return;
+    }
     try {
       const filters =
         session.role === "merchant"
@@ -113,15 +148,83 @@ export const App: React.FC = () => {
     }
   }, [session]);
 
-  useEffect(() => {
-    if (!session) {
-      setActiveListings([]);
-      setActiveOrders([]);
+  const refreshFavorites = useCallback(async () => {
+    if (session?.role !== "consumer") {
+      setFavoriteStoreIds([]);
       return;
     }
+    try {
+      const ids = await fetchFavoriteStores();
+      setFavoriteStoreIds(ids);
+    } catch {
+      // ignore non-critical favorite fetch failure
+    }
+  }, [session]);
+
+  useEffect(() => {
     refreshListings();
     refreshOrders();
-  }, [session, refreshListings, refreshOrders]);
+    refreshFavorites();
+  }, [session, refreshListings, refreshOrders, refreshFavorites]);
+
+  // Browser Back / Forward URL synchronization
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const p = window.location.pathname;
+      const storeMatch = p.match(/^\/store\/([^/]+)$/);
+
+      // Close item modal on back navigation
+      setSelectedFeedItem(null);
+
+      if (storeMatch) {
+        setSelectedStoreProfileId(decodeURIComponent(storeMatch[1]));
+        setIsProfileOpen(false);
+        setShowAuthScreen(false);
+        return;
+      }
+
+      setSelectedStoreProfileId(null);
+
+      if (p === "/login") {
+        setShowAuthScreen(true);
+        setIsProfileOpen(false);
+      } else if (p === "/profile") {
+        if (session) {
+          setIsProfileOpen(true);
+          setShowAuthScreen(false);
+        } else {
+          setShowAuthScreen(true);
+        }
+      } else if (p === "/orders") {
+        setIsProfileOpen(false);
+        if (session?.role === "consumer") {
+          setConsumerTab("orders");
+          setShowAuthScreen(false);
+        } else {
+          setShowAuthScreen(true);
+        }
+      } else if (p === "/merchant/inventory") {
+        setIsProfileOpen(false);
+        setMerchantTab("inventory");
+        setShowAuthScreen(false);
+      } else if (p === "/merchant/cashier") {
+        setIsProfileOpen(false);
+        setMerchantTab("cashier");
+        setShowAuthScreen(false);
+      } else if (p === "/merchant/create") {
+        setIsProfileOpen(false);
+        setMerchantTab("create");
+        setShowAuthScreen(false);
+      } else {
+        setIsProfileOpen(false);
+        setShowAuthScreen(false);
+        setConsumerTab("explore");
+      }
+    };
+
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, [session]);
 
   useEffect(() => {
     const handleClockChange = () => {
@@ -144,12 +247,12 @@ export const App: React.FC = () => {
   }, [session]);
 
   useEffect(() => {
-    if (session?.role !== "consumer" || consumerTab !== "explore") return;
+    if ((session && session.role !== "consumer") || consumerTab !== "explore" || showAuthScreen) return;
     const pollTimer = setInterval(() => {
       refreshListings();
     }, 12000);
     return () => clearInterval(pollTimer);
-  }, [session, consumerTab]);
+  }, [session, consumerTab, showAuthScreen, refreshListings]);
 
   const nonExpiredListingsCount = activeListings.filter((item) => {
     void clockTick;
@@ -171,11 +274,21 @@ export const App: React.FC = () => {
     setActiveDraft(null);
     setLastInputText("");
     setDraftError(null);
-    setSelectedFeedItem(null);
+    setShowAuthScreen(false);
+    setLoginNotice(null);
+
     if (newSession.role === "merchant") {
+      setPendingItemAfterLogin(null);
+      setSelectedFeedItem(null);
       setMerchantTab("create");
+      navigateToPath("/merchant/create");
     } else {
       setConsumerTab("explore");
+      navigateToPath("/");
+      if (pendingItemAfterLogin) {
+        setSelectedFeedItem(pendingItemAfterLogin);
+        setPendingItemAfterLogin(null);
+      }
     }
     showToast(`Masuk sebagai ${newSession.role === "merchant" ? newSession.storeName : newSession.customerName}`);
   };
@@ -192,6 +305,77 @@ export const App: React.FC = () => {
     setLastInputText("");
     setDraftError(null);
     setSelectedFeedItem(null);
+    setIsProfileOpen(false);
+    setFavoriteStoreIds([]);
+    setShowAuthScreen(false);
+    setConsumerTab("explore");
+    navigateToPath("/");
+  };
+
+  const handleSessionUpdated = (updated: UserSession) => {
+    setSession(updated);
+    try {
+      localStorage.setItem("nw_user_session", JSON.stringify(updated));
+    } catch {
+      // ignore storage failure
+    }
+    refreshListings();
+  };
+
+  const handleToggleFavoriteStore = async (storeId: string) => {
+    if (!session) {
+      setLoginNotice("Masuk sebagai Konsumen untuk menyimpan gerai favorit Anda.");
+      setShowAuthScreen(true);
+      navigateToPath("/login");
+      return;
+    }
+    if (session.role !== "consumer") {
+      showToast("Fitur favorit gerai hanya tersedia untuk akun Konsumen.", "error");
+      return;
+    }
+    const isFav = favoriteStoreIds.includes(storeId);
+    try {
+      const updated = isFav
+        ? await removeFavoriteStore(storeId)
+        : await addFavoriteStore(storeId);
+      setFavoriteStoreIds(updated);
+      showToast(isFav ? "Gerai dihapus dari favorit." : "Gerai disimpan ke favorit!", "success");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal memperbarui gerai favorit.", "error");
+    }
+  };
+
+  const handleOpenStoreProfile = (storeId: string) => {
+    setSelectedStoreProfileId(storeId);
+    navigateToPath(`/store/${encodeURIComponent(storeId)}`);
+  };
+
+  const handleCloseStoreProfile = () => {
+    setSelectedStoreProfileId(null);
+    if (window.location.pathname.startsWith("/store/")) {
+      navigateToPath("/");
+    }
+  };
+
+  const handleOpenProfile = () => {
+    if (!session) return;
+    setIsProfileOpen(true);
+    navigateToPath("/profile");
+  };
+
+  const handleCloseProfile = () => {
+    setIsProfileOpen(false);
+    if (window.location.pathname === "/profile") {
+      navigateToPath(session?.role === "merchant" ? `/merchant/${merchantTab}` : "/");
+    }
+  };
+
+  const handleRequireLoginForOrder = (item: ItemListing) => {
+    setPendingItemAfterLogin(item);
+    setSelectedFeedItem(null);
+    setLoginNotice(`Masuk sebagai Konsumen untuk memesan "${item.food_name}".`);
+    setShowAuthScreen(true);
+    navigateToPath("/login");
   };
 
   // Merchant Actions
@@ -360,6 +544,7 @@ export const App: React.FC = () => {
                     onClick={() => {
                       setMerchantTab("create");
                       setActiveDraft(null);
+                      navigateToPath("/merchant/create");
                     }}
                     className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       merchantTab === "create"
@@ -373,7 +558,10 @@ export const App: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setMerchantTab("inventory")}
+                    onClick={() => {
+                      setMerchantTab("inventory");
+                      navigateToPath("/merchant/inventory");
+                    }}
                     className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       merchantTab === "inventory"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
@@ -386,7 +574,10 @@ export const App: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setMerchantTab("cashier")}
+                    onClick={() => {
+                      setMerchantTab("cashier");
+                      navigateToPath("/merchant/cashier");
+                    }}
                     className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       merchantTab === "cashier"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
@@ -401,7 +592,10 @@ export const App: React.FC = () => {
                 <>
                   <button
                     type="button"
-                    onClick={() => setConsumerTab("explore")}
+                    onClick={() => {
+                      setConsumerTab("explore");
+                      navigateToPath("/");
+                    }}
                     className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       consumerTab === "explore"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
@@ -414,7 +608,10 @@ export const App: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setConsumerTab("orders")}
+                    onClick={() => {
+                      setConsumerTab("orders");
+                      navigateToPath("/orders");
+                    }}
                     className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       consumerTab === "orders"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
@@ -429,19 +626,44 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {/* Sisi Kanan: Time Simulator + Logout / Switch Role */}
+          {/* Sisi Kanan: Time Simulator + Profil + Login/Logout */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {isTimeSimulationFeatureEnabled() && <TimeSimulatorPill />}
             {session ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleOpenProfile}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#F0F5FA] hover:bg-emerald-50 text-[11px] sm:text-xs font-bold text-[#181C2E] transition-colors shrink-0 cursor-pointer"
+                  title="Edit profil & ganti password"
+                  aria-label="Profil"
+                >
+                  <UserCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="hidden sm:inline">Profil</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#ECF0F4] hover:bg-slate-200 text-[11px] sm:text-xs font-bold text-[#181C2E] transition-colors shrink-0 cursor-pointer"
+                  title="Keluar dari akun"
+                  aria-label="Keluar"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Keluar</span>
+                </button>
+              </>
+            ) : !showAuthScreen ? (
               <button
                 type="button"
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#ECF0F4] hover:bg-slate-200 text-[11px] sm:text-xs font-bold text-[#181C2E] transition-colors shrink-0 cursor-pointer"
-                title="Keluar dari akun"
-                aria-label="Keluar"
+                onClick={() => {
+                  setLoginNotice(null);
+                  setShowAuthScreen(true);
+                  navigateToPath("/login");
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-bold transition-colors shrink-0 cursor-pointer shadow-xs"
               >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Keluar</span>
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Masuk / Daftar</span>
               </button>
             ) : null}
           </div>
@@ -450,8 +672,43 @@ export const App: React.FC = () => {
 
       {/* Dynamic Screen Viewport */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-4 md:py-6 flex flex-col pb-24 md:pb-10">
-        {!session ? (
-          <AuthScreen onLogin={handleLogin} />
+        {!session && showAuthScreen ? (
+          <AuthScreen
+            onLogin={handleLogin}
+            loginNotice={loginNotice}
+            onBackToExplore={() => {
+              setShowAuthScreen(false);
+              setLoginNotice(null);
+              navigateToPath("/");
+            }}
+          />
+        ) : !session ? (
+          /* Guest Discovery Mode on "/" */
+          <>
+            <ConsumerFeedScreen
+              listings={activeListings}
+              onSelectItem={(item) => setSelectedFeedItem(item)}
+              customerName="Tamu"
+              isGuest={true}
+              onOpenLogin={() => {
+                setLoginNotice(null);
+                setShowAuthScreen(true);
+                navigateToPath("/login");
+              }}
+              favoriteStoreIds={[]}
+              onToggleFavoriteStore={handleToggleFavoriteStore}
+              onOpenStoreProfile={handleOpenStoreProfile}
+            />
+            <ConsumerDetailModal
+              item={selectedFeedItem}
+              onClose={() => setSelectedFeedItem(null)}
+              onReserve={handleReserve}
+              isReserving={isReserving}
+              isGuest={true}
+              onRequireLogin={handleRequireLoginForOrder}
+              onOpenStoreProfile={handleOpenStoreProfile}
+            />
+          </>
         ) : session.role === "merchant" ? (
           /* Merchant Screens */
           <>
@@ -534,6 +791,9 @@ export const App: React.FC = () => {
                 listings={activeListings}
                 onSelectItem={(item) => setSelectedFeedItem(item)}
                 customerName={session.customerName || "Budi Santoso"}
+                favoriteStoreIds={favoriteStoreIds}
+                onToggleFavoriteStore={handleToggleFavoriteStore}
+                onOpenStoreProfile={handleOpenStoreProfile}
               />
             )}
 
@@ -553,9 +813,26 @@ export const App: React.FC = () => {
               onClose={() => setSelectedFeedItem(null)}
               onReserve={handleReserve}
               isReserving={isReserving}
+              onOpenStoreProfile={handleOpenStoreProfile}
             />
           </>
         )}
+
+        {/* Global Modals: User/Merchant Profile & Public Store Profile */}
+        <ProfileModal
+          isOpen={isProfileOpen}
+          session={session}
+          onClose={handleCloseProfile}
+          onSessionUpdated={handleSessionUpdated}
+          onToast={showToast}
+        />
+        <PublicStoreModal
+          storeId={selectedStoreProfileId}
+          onClose={handleCloseStoreProfile}
+          onSelectItem={(item) => setSelectedFeedItem(item)}
+          isFavorite={Boolean(selectedStoreProfileId && favoriteStoreIds.includes(selectedStoreProfileId))}
+          onToggleFavorite={handleToggleFavoriteStore}
+        />
       </main>
 
       {/* Bottom Navigation Bar */}

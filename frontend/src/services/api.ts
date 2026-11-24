@@ -1,8 +1,10 @@
 import {
   AuthResponse,
+  ConsumerProfile,
   DraftResponse,
   ItemListing,
   OrderTicket,
+  PublicStoreDetail,
   PublishRequest,
   StoreMenuItem,
   StoreProfile,
@@ -172,6 +174,113 @@ export async function loginConsumer(email: string, password: string): Promise<Au
     throw new Error(formatApiError(errorData.detail, "Email atau password akun konsumen tidak valid."));
   }
   return res.json();
+}
+
+// ============================================================================
+// PROFILE, PASSWORD, PUBLIC STORE & FAVORITES
+// ============================================================================
+
+export async function fetchPublicStoreDetail(storeId: string): Promise<PublicStoreDetail> {
+  const res = await apiFetch(`/auth/stores/${encodeURIComponent(storeId)}`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gerai tidak ditemukan."));
+  }
+  return res.json();
+}
+
+export async function fetchConsumerProfile(): Promise<ConsumerProfile> {
+  const res = await apiFetch("/auth/me");
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memuat profil konsumen."));
+  }
+  return res.json();
+}
+
+export async function updateConsumerProfile(payload: {
+  name?: string;
+  phone?: string;
+}): Promise<ConsumerProfile> {
+  const res = await apiFetch("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memperbarui profil konsumen."));
+  }
+  return res.json();
+}
+
+export async function updateStoreProfile(
+  storeId: string,
+  payload: {
+    name?: string;
+    category?: string;
+    closing_time?: string;
+    location_name?: string;
+    description?: string;
+  }
+): Promise<StoreProfile> {
+  const res = await apiFetch(`/auth/stores/${encodeURIComponent(storeId)}/profile`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memperbarui profil gerai."));
+  }
+  return res.json();
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ status: string; message: string }> {
+  const res = await apiFetch("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal mengubah password."));
+  }
+  return res.json();
+}
+
+export async function fetchFavoriteStores(): Promise<string[]> {
+  const res = await apiFetch("/auth/favorites");
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data?.store_ids) ? data.store_ids : [];
+}
+
+export async function addFavoriteStore(storeId: string): Promise<string[]> {
+  const res = await apiFetch(`/auth/favorites/${encodeURIComponent(storeId)}`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal menyimpan gerai favorit."));
+  }
+  const data = await res.json();
+  return Array.isArray(data?.store_ids) ? data.store_ids : [];
+}
+
+export async function removeFavoriteStore(storeId: string): Promise<string[]> {
+  const res = await apiFetch(`/auth/favorites/${encodeURIComponent(storeId)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal menghapus gerai favorit."));
+  }
+  const data = await res.json();
+  return Array.isArray(data?.store_ids) ? data.store_ids : [];
 }
 
 // ============================================================================

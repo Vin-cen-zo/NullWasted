@@ -28,6 +28,8 @@ import { NullWastedLogo } from "./NullWastedLogo";
 
 interface AuthScreenProps {
   onLogin: (session: UserSession) => void;
+  onBackToExplore?: () => void;
+  loginNotice?: string | null;
 }
 
 export interface SavedMerchantAccount {
@@ -46,8 +48,8 @@ export interface SavedConsumerAccount {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
-  const [role, setRole] = useState<"merchant" | "consumer">("merchant");
+export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onBackToExplore, loginNotice }) => {
+  const [role, setRole] = useState<"merchant" | "consumer">("consumer");
   const [merchantTab, setMerchantTab] = useState<"login" | "register">("login");
   const [consumerTab, setConsumerTab] = useState<"login" | "register">("login");
 
@@ -198,6 +200,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         email: auth.email || cleanedEmail,
         storeId: auth.store_id,
         storeName: effectiveStoreName,
+        storeCategory: auth.store_category,
+        storeDescription: auth.store_description,
         closingTime: auth.closing_time,
         locationName: auth.location_name,
         latitude: auth.latitude,
@@ -284,6 +288,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         email: effectiveEmail,
         storeId: effectiveStoreId,
         storeName: effectiveStoreName,
+        storeCategory: auth.store_category || resolvedCategory,
+        storeDescription: auth.store_description || "",
         closingTime: auth.closing_time || regClosingTime.trim(),
         locationName: auth.location_name || resolvedLocationName,
         latitude: auth.latitude ?? regPinLat,
@@ -437,29 +443,33 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white rounded-xl border border-slate-200 shadow-[0_10px_30px_rgba(15,23,42,0.08)] flex flex-col justify-between space-y-5">
         {/* Startup Brand Header */}
         <div className="text-center pt-1 space-y-2">
+          {onBackToExplore && (
+            <div className="flex justify-start -mt-1 mb-1">
+              <button
+                type="button"
+                onClick={onBackToExplore}
+                className="text-xs font-bold text-[#646982] hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
+              >
+                <span>&larr; Kembali ke Jelajah</span>
+              </button>
+            </div>
+          )}
           <NullWastedLogo className="w-20 h-20" showWordmark />
           <p className="text-sm text-[#646982]">Autonomous AI Surplus Food Marketplace</p>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#F0F5FA] text-xs font-medium text-[#646982]">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             <span>Standar Kepatuhan PerBPOM No. 16/2019</span>
           </div>
+          {loginNotice && (
+            <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-800 text-left">
+              {loginNotice}
+            </div>
+          )}
         </div>
 
         {/* Role Switcher */}
         <div className="my-1">
           <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-[#F0F5FA] rounded-xl">
-            <button
-              type="button"
-              onClick={() => setRole("merchant")}
-              className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
-                role === "merchant"
-                  ? "bg-white text-[#222222] shadow-sm"
-                  : "text-[#646982] hover:text-[#222222]"
-              }`}
-            >
-              <Store className="w-4 h-4 text-emerald-600" />
-              <span>Mitra Toko</span>
-            </button>
             <button
               type="button"
               onClick={() => setRole("consumer")}
@@ -471,6 +481,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             >
               <ShoppingBag className="w-4 h-4 text-emerald-600" />
               <span>Konsumen</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole("merchant")}
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                role === "merchant"
+                  ? "bg-white text-[#222222] shadow-sm"
+                  : "text-[#646982] hover:text-[#222222]"
+              }`}
+            >
+              <Store className="w-4 h-4 text-emerald-600" />
+              <span>Mitra Toko</span>
             </button>
           </div>
 

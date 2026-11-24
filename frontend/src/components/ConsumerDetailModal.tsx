@@ -26,6 +26,9 @@ interface ConsumerDetailModalProps {
   onClose: () => void;
   onReserve: (listingId: string, quantity: number, paymentMethod: string) => Promise<void>;
   isReserving: boolean;
+  isGuest?: boolean;
+  onRequireLogin?: (item: ItemListing) => void;
+  onOpenStoreProfile?: (storeId: string) => void;
 }
 
 interface BundleItemDetail {
@@ -89,6 +92,9 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
   onClose,
   onReserve,
   isReserving,
+  isGuest = false,
+  onRequireLogin,
+  onOpenStoreProfile,
 }) => {
   const [qty, setQty] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<"CASH_ON_PICKUP" | "SIMULATED_QRIS">("CASH_ON_PICKUP");
@@ -191,6 +197,10 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
 
   const handleMainActionClick = async () => {
     if (isReserving) return;
+    if (isGuest && onRequireLogin) {
+      onRequireLogin(item);
+      return;
+    }
     if (isExpiredOrClosed()) {
       setClosingError("Maaf, waktu pengambilan atau batas aman hidangan ini baru saja berakhir.");
       return;
@@ -293,10 +303,22 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
 
             {/* Store Pill & Dish Info */}
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#E9E9E9] bg-white text-xs font-semibold text-[#181C2E]">
+              <button
+                type="button"
+                onClick={() => {
+                  if (item.store_id && onOpenStoreProfile) {
+                    onClose();
+                    onOpenStoreProfile(item.store_id);
+                  }
+                }}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#E9E9E9] hover:border-emerald-400 bg-white text-xs font-semibold text-[#181C2E] transition-colors cursor-pointer"
+              >
                 <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                 <span>{item.store_name}</span>
-              </div>
+                {item.store_id && onOpenStoreProfile && (
+                  <span className="text-emerald-600 font-bold">&rarr;</span>
+                )}
+              </button>
 
               <h2 className="text-[22px] font-normal text-[#181C2E] leading-snug">{item.food_name}</h2>
               <p className="text-[15px] text-[#646982] leading-relaxed">
