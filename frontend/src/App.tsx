@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { UserSession, ItemListing, OrderTicket, DraftResponse, PublishRequest } from "./types/listing";
+import { CartItem, UserSession, ItemListing, OrderTicket, DraftResponse, PublishRequest } from "./types/listing";
 import { AuthScreen } from "./components/AuthScreen";
 import { NullWastedLogo } from "./components/NullWastedLogo";
 import { MerchantInputScreen } from "./components/MerchantInputScreen";
@@ -8,19 +8,27 @@ import { MerchantInventoryScreen } from "./components/MerchantInventoryScreen";
 import { MerchantCashierScreen } from "./components/MerchantCashierScreen";
 import { ConsumerFeedScreen } from "./components/ConsumerFeedScreen";
 import { ConsumerDetailModal } from "./components/ConsumerDetailModal";
+import { ConsumerCartModal } from "./components/ConsumerCartModal";
 import { ConsumerOrdersScreen } from "./components/ConsumerOrdersScreen";
+import { ProfileModal } from "./components/ProfileModal";
+import { PublicStoreModal } from "./components/PublicStoreModal";
 import { TimeSimulatorPill } from "./components/TimeSimulatorPill";
 import {
   NW_AUTH_EXPIRED_EVENT,
-  createDraft,
+  addFavoriteStore,
+  createBatchDraft,
   publishListing,
   createSmartBundle,
   fetchActiveListings,
   fetchActiveOrders,
+  fetchFavoriteStores,
+  removeFavoriteStore,
+  reserveCartOrder,
   reserveOrder,
   completeOrderPickup,
   cancelOrder,
   deleteListing,
+  updateListingStock,
 } from "./services/api";
 import {
   NW_CLOCK_CHANGE_EVENT,
@@ -35,8 +43,11 @@ import {
   UtensilsCrossed,
   Ticket,
   LogOut,
+  LogIn,
   MapPin,
   Store,
+  UserCircle2,
+  ShoppingCart,
 } from "lucide-react";
 
 export const App: React.FC = () => {
@@ -50,16 +61,51 @@ export const App: React.FC = () => {
     }
   });
 
-  // Tab Navigation State
-  const [merchantTab, setMerchantTab] = useState<"create" | "inventory" | "cashier">("create");
-  const [consumerTab, setConsumerTab] = useState<"explore" | "orders">("explore");
+  // Tab & Route Navigation State
+  const [showAuthScreen, setShowAuthScreen] = useState<boolean>(() => window.location.pathname === "/login");
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
+  const [pendingItemAfterLogin, setPendingItemAfterLogin] = useState<ItemListing | null>(null);
+  const [merchantTab, setMerchantTab] = useState<"create" | "inventory" | "cashier">(() => {
+    const p = window.location.pathname;
+    if (p === "/merchant/inventory") return "inventory";
+    if (p === "/merchant/cashier") return "cashier";
+    return "create";
+  });
+  const [consumerTab, setConsumerTab] = useState<"explore" | "orders">(() =>
+    window.location.pathname === "/orders" ? "orders" : "explore"
+  );
+  const [isProfileOpen, setIsProfileOpen] = useState<boolean>(() => window.location.pathname === "/profile");
+  const [selectedStoreProfileId, setSelectedStoreProfileId] = useState<string | null>(() => {
+    const m = window.location.pathname.match(/^\/store\/([^/]+)$/);
+    return m ? decodeURIComponent(m[1]) : null;
+  });
 
   // Data States
   const [activeDraft, setActiveDraft] = useState<DraftResponse | null>(null);
+  const [batchDrafts, setBatchDrafts] = useState<DraftResponse[]>([]);
   const [lastInputText, setLastInputText] = useState<string>("");
   const [activeListings, setActiveListings] = useState<ItemListing[]>([]);
   const [activeOrders, setActiveOrders] = useState<OrderTicket[]>([]);
+  const [favoriteStoreIds, setFavoriteStoreIds] = useState<string[]>([]);
   const [selectedFeedItem, setSelectedFeedItem] = useState<ItemListing | null>(null);
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    try {
+      const raw = localStorage.getItem("nw_cart_items");
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("nw_cart_items", JSON.stringify(cartItems));
+    } catch {
+      // ignore storage errors
+    }
+  }, [cartItems]);
 
   // Loading States
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
@@ -85,11 +131,20 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Synchronize data from backend
+  // Push URL path helper (no-op if already on target path)
+  const navigateToPath = useCallback((path: string, replace = false) => {
+    if (window.location.pathname === path) return;
+    if (replace) {
+      window.history.replaceState({ path }, "", path);
+    } else {
+      window.history.pushState({ path }, "", path);
+    }
+  }, []);
+
+  // Synchronize data from backend (works in Guest Mode too for public listings!)
   const refreshListings = useCallback(async () => {
-    if (!session) return;
     try {
-      const storeFilter = session.role === "merchant" ? session.storeId : undefined;
+      const storeFilter = session?.role === "merchant" ? session.storeId : undefined;
       const data = await fetchActiveListings(storeFilter);
       setActiveListings(data);
     } catch (err) {
@@ -98,7 +153,10 @@ export const App: React.FC = () => {
   }, [session]);
 
   const refreshOrders = useCallback(async () => {
-    if (!session) return;
+    if (!session) {
+      setActiveOrders([]);
+      return;
+    }
     try {
       const filters =
         session.role === "merchant"
@@ -113,15 +171,83 @@ export const App: React.FC = () => {
     }
   }, [session]);
 
-  useEffect(() => {
-    if (!session) {
-      setActiveListings([]);
-      setActiveOrders([]);
+  const refreshFavorites = useCallback(async () => {
+    if (session?.role !== "consumer") {
+      setFavoriteStoreIds([]);
       return;
     }
+    try {
+      const ids = await fetchFavoriteStores();
+      setFavoriteStoreIds(ids);
+    } catch {
+      // ignore non-critical favorite fetch failure
+    }
+  }, [session]);
+
+  useEffect(() => {
     refreshListings();
     refreshOrders();
-  }, [session, refreshListings, refreshOrders]);
+    refreshFavorites();
+  }, [session, refreshListings, refreshOrders, refreshFavorites]);
+
+  // Browser Back / Forward URL synchronization
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const p = window.location.pathname;
+      const storeMatch = p.match(/^\/store\/([^/]+)$/);
+
+      // Close item modal on back navigation
+      setSelectedFeedItem(null);
+
+      if (storeMatch) {
+        setSelectedStoreProfileId(decodeURIComponent(storeMatch[1]));
+        setIsProfileOpen(false);
+        setShowAuthScreen(false);
+        return;
+      }
+
+      setSelectedStoreProfileId(null);
+
+      if (p === "/login") {
+        setShowAuthScreen(true);
+        setIsProfileOpen(false);
+      } else if (p === "/profile") {
+        if (session) {
+          setIsProfileOpen(true);
+          setShowAuthScreen(false);
+        } else {
+          setShowAuthScreen(true);
+        }
+      } else if (p === "/orders") {
+        setIsProfileOpen(false);
+        if (session?.role === "consumer") {
+          setConsumerTab("orders");
+          setShowAuthScreen(false);
+        } else {
+          setShowAuthScreen(true);
+        }
+      } else if (p === "/merchant/inventory") {
+        setIsProfileOpen(false);
+        setMerchantTab("inventory");
+        setShowAuthScreen(false);
+      } else if (p === "/merchant/cashier") {
+        setIsProfileOpen(false);
+        setMerchantTab("cashier");
+        setShowAuthScreen(false);
+      } else if (p === "/merchant/create") {
+        setIsProfileOpen(false);
+        setMerchantTab("create");
+        setShowAuthScreen(false);
+      } else {
+        setIsProfileOpen(false);
+        setShowAuthScreen(false);
+        setConsumerTab("explore");
+      }
+    };
+
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, [session]);
 
   useEffect(() => {
     const handleClockChange = () => {
@@ -144,12 +270,12 @@ export const App: React.FC = () => {
   }, [session]);
 
   useEffect(() => {
-    if (session?.role !== "consumer" || consumerTab !== "explore") return;
+    if ((session && session.role !== "consumer") || consumerTab !== "explore" || showAuthScreen) return;
     const pollTimer = setInterval(() => {
       refreshListings();
     }, 12000);
     return () => clearInterval(pollTimer);
-  }, [session, consumerTab]);
+  }, [session, consumerTab, showAuthScreen, refreshListings]);
 
   const nonExpiredListingsCount = activeListings.filter((item) => {
     void clockTick;
@@ -171,11 +297,21 @@ export const App: React.FC = () => {
     setActiveDraft(null);
     setLastInputText("");
     setDraftError(null);
-    setSelectedFeedItem(null);
+    setShowAuthScreen(false);
+    setLoginNotice(null);
+
     if (newSession.role === "merchant") {
+      setPendingItemAfterLogin(null);
+      setSelectedFeedItem(null);
       setMerchantTab("create");
+      navigateToPath("/merchant/create");
     } else {
       setConsumerTab("explore");
+      navigateToPath("/");
+      if (pendingItemAfterLogin) {
+        setSelectedFeedItem(pendingItemAfterLogin);
+        setPendingItemAfterLogin(null);
+      }
     }
     showToast(`Masuk sebagai ${newSession.role === "merchant" ? newSession.storeName : newSession.customerName}`);
   };
@@ -192,21 +328,103 @@ export const App: React.FC = () => {
     setLastInputText("");
     setDraftError(null);
     setSelectedFeedItem(null);
+    setIsProfileOpen(false);
+    setFavoriteStoreIds([]);
+    setShowAuthScreen(false);
+    setConsumerTab("explore");
+    navigateToPath("/");
   };
 
-  // Merchant Actions
+  const handleSessionUpdated = (updated: UserSession) => {
+    setSession(updated);
+    try {
+      localStorage.setItem("nw_user_session", JSON.stringify(updated));
+    } catch {
+      // ignore storage failure
+    }
+    refreshListings();
+  };
+
+  const handleToggleFavoriteStore = async (storeId: string) => {
+    if (!session) {
+      setLoginNotice("Masuk sebagai Konsumen untuk menyimpan gerai favorit Anda.");
+      setShowAuthScreen(true);
+      navigateToPath("/login");
+      return;
+    }
+    if (session.role !== "consumer") {
+      showToast("Fitur favorit gerai hanya tersedia untuk akun Konsumen.", "error");
+      return;
+    }
+    const isFav = favoriteStoreIds.includes(storeId);
+    try {
+      const updated = isFav
+        ? await removeFavoriteStore(storeId)
+        : await addFavoriteStore(storeId);
+      setFavoriteStoreIds(updated);
+      showToast(isFav ? "Gerai dihapus dari favorit." : "Gerai disimpan ke favorit!", "success");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal memperbarui gerai favorit.", "error");
+    }
+  };
+
+  const handleOpenStoreProfile = (storeId: string) => {
+    setSelectedStoreProfileId(storeId);
+    navigateToPath(`/store/${encodeURIComponent(storeId)}`);
+  };
+
+  const handleCloseStoreProfile = () => {
+    setSelectedStoreProfileId(null);
+    if (window.location.pathname.startsWith("/store/")) {
+      navigateToPath("/");
+    }
+  };
+
+  const handleOpenProfile = () => {
+    if (!session) return;
+    setIsProfileOpen(true);
+    navigateToPath("/profile");
+  };
+
+  const handleCloseProfile = () => {
+    setIsProfileOpen(false);
+    if (window.location.pathname === "/profile") {
+      navigateToPath(session?.role === "merchant" ? `/merchant/${merchantTab}` : "/");
+    }
+  };
+
+  const handleRequireLoginForOrder = (item: ItemListing) => {
+    setPendingItemAfterLogin(item);
+    setSelectedFeedItem(null);
+    setLoginNotice(`Masuk sebagai Konsumen untuk memesan "${item.food_name}".`);
+    setShowAuthScreen(true);
+    navigateToPath("/login");
+  };
+
+  // Merchant Actions (Supports single or multi-menu AI voice/text batch extraction)
   const handleAnalyzeText = async (text: string) => {
     setIsLoadingDraft(true);
     setDraftError(null);
     setLastInputText(text);
     try {
       const storeId = session?.storeId || "FTUI-001";
-      const draft = await createDraft(text, undefined, storeId);
-      setActiveDraft(draft);
-      if (draft.safety_status === "REJECTED") {
-        showToast("Peringatan: Makanan ditolak oleh Guardrail BPOM!", "error");
+      const batch = await createBatchDraft(text, undefined, storeId);
+      if (batch.items.length === 1) {
+        const draft = batch.items[0];
+        setBatchDrafts([]);
+        setActiveDraft(draft);
+        if (draft.safety_status === "REJECTED") {
+          showToast("Peringatan: Makanan ditolak oleh Guardrail BPOM!", "error");
+        } else {
+          showToast("Analisis AI sukses. Periksa hasil audit BPOM.", "success");
+        }
       } else {
-        showToast("Analisis AI sukses. Periksa hasil audit BPOM.", "success");
+        setActiveDraft(null);
+        setBatchDrafts(batch.items);
+        showToast(
+          `AI mengekstrak ${batch.total_count} menu (${batch.safe_count} lolos BPOM). Tinjau sebelum terbitkan.`,
+          batch.safe_count > 0 ? "success" : "error"
+        );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Gagal menganalisis.";
@@ -214,6 +432,53 @@ export const App: React.FC = () => {
       showToast(msg, "error");
     } finally {
       setIsLoadingDraft(false);
+    }
+  };
+
+  const handlePublishBatchDrafts = async () => {
+    const safeDrafts = batchDrafts.filter((d) => d.safety_status === "SAFE" && d.can_publish);
+    if (safeDrafts.length === 0 || !session) return;
+    setIsPublishing(true);
+    try {
+      let publishedCount = 0;
+      for (const d of safeDrafts) {
+        await publishListing({
+          store_id: session.storeId || "FTUI-001",
+          food_name: d.food_name,
+          matched_canonical_dish: d.matched_canonical_dish,
+          category: d.category,
+          food_type: d.food_type || "MEAL",
+          quantity: d.quantity,
+          original_price: d.original_price,
+          discount_percent: d.recommended_discount_percent,
+          discounted_price: d.discounted_price,
+          hours_since_cooked: d.hours_since_cooked,
+          bpom_max_hours: d.bpom_max_hours,
+          minutes_until_closing: d.minutes_until_closing,
+          safety_status: d.safety_status,
+          safety_reason: d.safety_reason,
+          hazard_description: d.hazard_description,
+          regulation_ref: d.regulation_ref,
+          similarity_score: d.similarity_score,
+          store_name: session.storeName || "Dapur Barokah",
+          location_badge: session.locationName,
+          closing_time: d.closing_time || session.closingTime || "20:30",
+          latitude: session.latitude,
+          longitude: session.longitude,
+          image_url: d.image_url ?? null,
+        });
+        publishedCount += 1;
+      }
+      setBatchDrafts([]);
+      setLastInputText("");
+      await refreshListings();
+      setMerchantTab("inventory");
+      navigateToPath("/merchant/inventory");
+      showToast(`${publishedCount} menu surplus berhasil diterbitkan sekaligus!`, "success");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal menerbitkan sebagian menu.", "error");
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -234,14 +499,19 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleCreateSmartBundle = async () => {
+  const handleCreateSmartBundle = async (
+    discountPercent: number = 65,
+    customName?: string,
+    listingIds?: string[]
+  ) => {
     try {
       const storeId = session?.storeId || "FTUI-001";
-      const newBundle = await createSmartBundle(storeId, 65);
+      const newBundle = await createSmartBundle(storeId, discountPercent, customName, listingIds);
       await refreshListings();
-      showToast(`Sukses membuat ${newBundle.food_name} dengan diskon 65%!`, "success");
+      showToast(`Sukses membuat ${newBundle.food_name} dengan diskon ${discountPercent}%!`, "success");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Gagal membuat Mystery Bag.", "error");
+      throw err;
     }
   };
 
@@ -252,6 +522,16 @@ export const App: React.FC = () => {
       showToast("Listing berhasil ditarik dari katalog.");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Gagal menghapus listing.", "error");
+    }
+  };
+
+  const handleUpdateListingStock = async (id: string, quantity: number) => {
+    try {
+      await updateListingStock(id, quantity);
+      await refreshListings();
+      showToast(quantity === 0 ? "Stok diset 0 & listing dinonaktifkan." : `Stok diperbarui menjadi ${quantity} porsi.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal memperbarui stok listing.", "error");
     }
   };
 
@@ -283,6 +563,76 @@ export const App: React.FC = () => {
       showToast(`Reservasi sukses! Tiket ${ticket.order_code} siap diambil.`, "success");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Gagal melakukan reservasi.", "error");
+    } finally {
+      setIsReserving(false);
+    }
+  };
+
+  const handleAddToCart = (item: ItemListing, quantity: number) => {
+    if (cartItems.length > 0 && cartItems[0].listing.store_id !== item.store_id) {
+      const confirmed = window.confirm(
+        `Keranjang Anda saat ini berisi menu dari ${cartItems[0].listing.store_name}. Ganti keranjang dengan menu dari ${item.store_name}?`
+      );
+      if (!confirmed) return;
+      setCartItems([{ listing: item, quantity: Math.min(quantity, item.quantity) }]);
+      showToast(`Keranjang diganti ke ${item.store_name} (+${quantity} ${item.food_name}).`, "success");
+      return;
+    }
+
+    setCartItems((prev) => {
+      const existing = prev.find((c) => c.listing.id === item.id);
+      if (existing) {
+        const nextQty = Math.min(item.quantity, existing.quantity + quantity);
+        return prev.map((c) => (c.listing.id === item.id ? { listing: item, quantity: nextQty } : c));
+      }
+      return [...prev, { listing: item, quantity: Math.min(quantity, item.quantity) }];
+    });
+    showToast(`+${quantity} ${item.food_name} ditambahkan ke keranjang.`, "success");
+  };
+
+  const handleUpdateCartQty = (listingId: string, nextQty: number) => {
+    if (nextQty <= 0) {
+      setCartItems((prev) => prev.filter((c) => c.listing.id !== listingId));
+      return;
+    }
+    setCartItems((prev) =>
+      prev.map((c) =>
+        c.listing.id === listingId
+          ? { ...c, quantity: Math.min(c.listing.quantity, nextQty) }
+          : c
+      )
+    );
+  };
+
+  const handleCheckoutCart = async (paymentMethod: string = "CASH_ON_PICKUP") => {
+    if (!session) {
+      setIsCartOpen(false);
+      setLoginNotice("Masuk sebagai Konsumen untuk menyelesaikan checkout keranjang Anda.");
+      setShowAuthScreen(true);
+      navigateToPath("/login");
+      return;
+    }
+    if (cartItems.length === 0) return;
+
+    setIsReserving(true);
+    try {
+      const custName = session.customerName || "Budi Santoso";
+      const custPhone = session.customerPhone || "0812-8899-0011";
+      const ticket = await reserveCartOrder(
+        cartItems.map((c) => ({ listing_id: c.listing.id, quantity: c.quantity })),
+        custName,
+        custPhone,
+        paymentMethod
+      );
+      setCartItems([]);
+      setIsCartOpen(false);
+      await refreshListings();
+      await refreshOrders();
+      setConsumerTab("orders");
+      navigateToPath("/orders");
+      showToast(`Checkout keranjang sukses! Tiket terpadu ${ticket.order_code} diterbitkan.`, "success");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal checkout keranjang.", "error");
     } finally {
       setIsReserving(false);
     }
@@ -360,6 +710,7 @@ export const App: React.FC = () => {
                     onClick={() => {
                       setMerchantTab("create");
                       setActiveDraft(null);
+                      navigateToPath("/merchant/create");
                     }}
                     className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       merchantTab === "create"
@@ -373,7 +724,10 @@ export const App: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setMerchantTab("inventory")}
+                    onClick={() => {
+                      setMerchantTab("inventory");
+                      navigateToPath("/merchant/inventory");
+                    }}
                     className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       merchantTab === "inventory"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
@@ -386,7 +740,10 @@ export const App: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setMerchantTab("cashier")}
+                    onClick={() => {
+                      setMerchantTab("cashier");
+                      navigateToPath("/merchant/cashier");
+                    }}
                     className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       merchantTab === "cashier"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
@@ -401,7 +758,10 @@ export const App: React.FC = () => {
                 <>
                   <button
                     type="button"
-                    onClick={() => setConsumerTab("explore")}
+                    onClick={() => {
+                      setConsumerTab("explore");
+                      navigateToPath("/");
+                    }}
                     className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       consumerTab === "explore"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
@@ -414,7 +774,10 @@ export const App: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setConsumerTab("orders")}
+                    onClick={() => {
+                      setConsumerTab("orders");
+                      navigateToPath("/orders");
+                    }}
                     className={`px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                       consumerTab === "orders"
                         ? "bg-emerald-600 text-white font-bold shadow-sm"
@@ -429,19 +792,44 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {/* Sisi Kanan: Time Simulator + Logout / Switch Role */}
+          {/* Sisi Kanan: Time Simulator + Profil + Login/Logout */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {isTimeSimulationFeatureEnabled() && <TimeSimulatorPill />}
             {session ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleOpenProfile}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#F0F5FA] hover:bg-emerald-50 text-[11px] sm:text-xs font-bold text-[#181C2E] transition-colors shrink-0 cursor-pointer"
+                  title="Edit profil & ganti password"
+                  aria-label="Profil"
+                >
+                  <UserCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="hidden sm:inline">Profil</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#ECF0F4] hover:bg-slate-200 text-[11px] sm:text-xs font-bold text-[#181C2E] transition-colors shrink-0 cursor-pointer"
+                  title="Keluar dari akun"
+                  aria-label="Keluar"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Keluar</span>
+                </button>
+              </>
+            ) : !showAuthScreen ? (
               <button
                 type="button"
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#ECF0F4] hover:bg-slate-200 text-[11px] sm:text-xs font-bold text-[#181C2E] transition-colors shrink-0 cursor-pointer"
-                title="Keluar dari akun"
-                aria-label="Keluar"
+                onClick={() => {
+                  setLoginNotice(null);
+                  setShowAuthScreen(true);
+                  navigateToPath("/login");
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-bold transition-colors shrink-0 cursor-pointer shadow-xs"
               >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Keluar</span>
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Masuk / Daftar</span>
               </button>
             ) : null}
           </div>
@@ -450,13 +838,135 @@ export const App: React.FC = () => {
 
       {/* Dynamic Screen Viewport */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-4 md:py-6 flex flex-col pb-24 md:pb-10">
-        {!session ? (
-          <AuthScreen onLogin={handleLogin} />
+        {!session && showAuthScreen ? (
+          <AuthScreen
+            onLogin={handleLogin}
+            loginNotice={loginNotice}
+            onBackToExplore={() => {
+              setShowAuthScreen(false);
+              setLoginNotice(null);
+              navigateToPath("/");
+            }}
+          />
+        ) : !session ? (
+          /* Guest Discovery Mode on "/" */
+          <>
+            <ConsumerFeedScreen
+              listings={activeListings}
+              onSelectItem={(item) => setSelectedFeedItem(item)}
+              customerName="Tamu"
+              isGuest={true}
+              onOpenLogin={() => {
+                setLoginNotice(null);
+                setShowAuthScreen(true);
+                navigateToPath("/login");
+              }}
+              favoriteStoreIds={[]}
+              onToggleFavoriteStore={handleToggleFavoriteStore}
+              onOpenStoreProfile={handleOpenStoreProfile}
+            />
+            <ConsumerDetailModal
+              item={selectedFeedItem}
+              onClose={() => setSelectedFeedItem(null)}
+              onReserve={handleReserve}
+              onAddToCart={handleAddToCart}
+              isReserving={isReserving}
+              isGuest={true}
+              onRequireLogin={handleRequireLoginForOrder}
+              onOpenStoreProfile={handleOpenStoreProfile}
+            />
+          </>
         ) : session.role === "merchant" ? (
           /* Merchant Screens */
           <>
             {merchantTab === "create" &&
-              (activeDraft ? (
+              (batchDrafts.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <h2 className="text-base font-bold text-[#181C2E]">
+                        Pratinjau Multi-Menu AI ({batchDrafts.length} Menu Terdeteksi)
+                      </h2>
+                      <p className="text-xs text-[#646982]">
+                        Periksa hasil validasi BPOM & diskon dinamis tiap menu sebelum diterbitkan.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBatchDrafts([])}
+                      className="px-3 py-1.5 rounded-lg bg-[#F0F5FA] hover:bg-slate-200 text-xs font-bold text-[#181C2E] cursor-pointer"
+                    >
+                      &larr; Ubah Prompt
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {batchDrafts.map((d, idx) => {
+                      const isSafe = d.safety_status === "SAFE" && d.can_publish;
+                      return (
+                        <div
+                          key={`${d.food_name}-${idx}`}
+                          className={`p-4 rounded-xl border bg-white space-y-2.5 ${
+                            isSafe ? "border-emerald-200" : "border-red-300 bg-red-50/40"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-bold mb-1 ${
+                                  isSafe ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {isSafe ? "BPOM SAFE" : "DITOLAK BPOM"}
+                              </span>
+                              <h3 className="text-sm font-bold text-[#181C2E]">{d.food_name}</h3>
+                              <p className="text-xs text-[#646982]">
+                                {d.quantity} porsi · Normal Rp {d.original_price.toLocaleString("id-ID")}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setBatchDrafts((prev) => prev.filter((_, i) => i !== idx))}
+                              className="text-xs font-bold text-slate-400 hover:text-red-600 cursor-pointer"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+
+                          <p className="text-xs text-[#646982]">{d.safety_reason}</p>
+
+                          {isSafe && (
+                            <div className="p-2.5 rounded-lg bg-[#F0F5FA] flex items-center justify-between text-xs">
+                              <span className="font-semibold text-emerald-700">
+                                Diskon {d.recommended_discount_percent}% OFF
+                              </span>
+                              <span className="font-extrabold text-[#181C2E] tabular-nums">
+                                Rp {d.discounted_price.toLocaleString("id-ID")} / porsi
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={
+                      isPublishing ||
+                      batchDrafts.filter((d) => d.safety_status === "SAFE" && d.can_publish).length === 0
+                    }
+                    onClick={() => void handlePublishBatchDrafts()}
+                    className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-md disabled:opacity-50 cursor-pointer"
+                  >
+                    {isPublishing
+                      ? "Menerbitkan Semua Menu..."
+                      : `Terbitkan Semua yang Lolos BPOM (${
+                          batchDrafts.filter((d) => d.safety_status === "SAFE" && d.can_publish).length
+                        } Menu)`}
+                  </button>
+                </div>
+              ) : activeDraft ? (
                 <MerchantPreviewScreen
                   draft={activeDraft}
                   onBack={() => setActiveDraft(null)}
@@ -511,7 +1021,11 @@ export const App: React.FC = () => {
               <MerchantInventoryScreen
                 listings={activeListings}
                 onDeleteListing={handleDeleteListing}
-                onNavigateToCreate={() => setMerchantTab("create")}
+                onUpdateStock={handleUpdateListingStock}
+                onNavigateToCreate={() => {
+                  setMerchantTab("create");
+                  navigateToPath("/merchant/create");
+                }}
                 onCreateSmartBundle={handleCreateSmartBundle}
                 storeName={session.storeName || "Dapur Barokah"}
               />
@@ -521,6 +1035,7 @@ export const App: React.FC = () => {
               <MerchantCashierScreen
                 orders={activeOrders}
                 onCompletePickup={handleCompletePickup}
+                onCancelOrder={handleCancelOrder}
                 onRefreshOrders={refreshOrders}
                 isVerifying={isVerifying}
               />
@@ -534,6 +1049,9 @@ export const App: React.FC = () => {
                 listings={activeListings}
                 onSelectItem={(item) => setSelectedFeedItem(item)}
                 customerName={session.customerName || "Budi Santoso"}
+                favoriteStoreIds={favoriteStoreIds}
+                onToggleFavoriteStore={handleToggleFavoriteStore}
+                onOpenStoreProfile={handleOpenStoreProfile}
               />
             )}
 
@@ -552,10 +1070,84 @@ export const App: React.FC = () => {
               item={selectedFeedItem}
               onClose={() => setSelectedFeedItem(null)}
               onReserve={handleReserve}
+              onAddToCart={handleAddToCart}
+              onQrisPaid={async (orderCode) => {
+                setSelectedFeedItem(null);
+                await refreshListings();
+                await refreshOrders();
+                setConsumerTab("orders");
+                navigateToPath("/orders");
+                showToast(`Pembayaran QRIS lunas! Tiket ${orderCode} siap diambil.`, "success");
+              }}
+              customerName={session.customerName || "Konsumen NullWasted"}
+              customerPhone={session.customerPhone || "0812-8899-0011"}
               isReserving={isReserving}
+              onOpenStoreProfile={handleOpenStoreProfile}
             />
           </>
         )}
+
+        {/* Floating Single-Store Cart Trigger Bar (Consumer & Guest Mode) */}
+        {(!session || session.role === "consumer") && !showAuthScreen && cartItems.length > 0 && (
+          <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md">
+            <button
+              type="button"
+              onClick={() => setIsCartOpen(true)}
+              className="w-full px-4 py-3 rounded-2xl bg-[#181C2E] hover:bg-[#252a44] text-white shadow-xl flex items-center justify-between gap-3 cursor-pointer transition-all"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-8 h-8 rounded-xl bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center shrink-0">
+                  {cartItems.reduce((s, c) => s + c.quantity, 0)}
+                </span>
+                <div className="text-left min-w-0">
+                  <p className="text-xs font-bold truncate">
+                    Keranjang · {cartItems[0]?.listing.store_name}
+                  </p>
+                  <p className="text-[11px] text-emerald-300 font-semibold">
+                    {cartItems.length} menu · Ketuk untuk Checkout
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-sm font-extrabold tabular-nums">
+                  Rp{" "}
+                  {cartItems
+                    .reduce((s, c) => s + c.listing.discounted_price * c.quantity, 0)
+                    .toLocaleString("id-ID")}
+                </span>
+                <ShoppingCart className="w-4 h-4 text-emerald-400" />
+              </div>
+            </button>
+          </div>
+        )}
+
+        <ConsumerCartModal
+          isOpen={isCartOpen}
+          items={cartItems}
+          onClose={() => setIsCartOpen(false)}
+          onUpdateQty={handleUpdateCartQty}
+          onRemoveItem={(lid) => setCartItems((prev) => prev.filter((c) => c.listing.id !== lid))}
+          onClearCart={() => setCartItems([])}
+          onCheckout={handleCheckoutCart}
+          isCheckingOut={isReserving}
+          isGuest={!session}
+        />
+
+        {/* Global Modals: User/Merchant Profile & Public Store Profile */}
+        <ProfileModal
+          isOpen={isProfileOpen}
+          session={session}
+          onClose={handleCloseProfile}
+          onSessionUpdated={handleSessionUpdated}
+          onToast={showToast}
+        />
+        <PublicStoreModal
+          storeId={selectedStoreProfileId}
+          onClose={handleCloseStoreProfile}
+          onSelectItem={(item) => setSelectedFeedItem(item)}
+          isFavorite={Boolean(selectedStoreProfileId && favoriteStoreIds.includes(selectedStoreProfileId))}
+          onToggleFavorite={handleToggleFavoriteStore}
+        />
       </main>
 
       {/* Bottom Navigation Bar */}

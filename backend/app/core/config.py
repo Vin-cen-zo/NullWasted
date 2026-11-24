@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Any
 from dotenv import load_dotenv
 
 # Resolve paths safely without hardcoded machine paths
@@ -92,6 +93,21 @@ def get_cloudinary_config() -> dict[str, str] | None:
             "api_secret": api_secret,
         }
     return None
+
+def get_midtrans_config() -> dict[str, Any] | None:
+    """Reads Midtrans Core API Sandbox/Production credentials from env. Returns None if unconfigured."""
+    server_key = os.getenv("MIDTRANS_SERVER_KEY", "").strip()
+    if not server_key or server_key.startswith("your_") or server_key.startswith("placeholder"):
+        return None
+    is_prod = os.getenv("MIDTRANS_IS_PRODUCTION", "false").strip().lower() in {"true", "1", "yes"}
+    base_url = "https://api.midtrans.com" if is_prod else "https://api.sandbox.midtrans.com"
+    return {
+        "server_key": server_key,
+        "is_production": is_prod,
+        "base_url": base_url,
+        "simulator_url": "https://simulator.sandbox.midtrans.com/qris/index" if not is_prod else None,
+    }
+
 
 def get_active_api_keys() -> list[str]:
     """Retrieve non-empty, non-placeholder Gemini API keys (supports single GEMINI_API_KEY or dynamic pool GEMINI_API_KEY_1..N)."""

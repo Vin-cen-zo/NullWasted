@@ -35,6 +35,7 @@ def init_db() -> None:
         Store,
         StoreMenuItem,
         User,
+        UserFavoriteStore,
     )  # Local import to register models
 
     SQLModel.metadata.create_all(engine)
@@ -96,6 +97,21 @@ def init_db() -> None:
                         conn.execute(text("ALTER TABLE order_tickets ADD COLUMN cancelled_at TEXT DEFAULT NULL"))
                     if "image_url" not in order_cols:
                         conn.execute(text("ALTER TABLE order_tickets ADD COLUMN image_url TEXT DEFAULT NULL"))
+                    if "user_id" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN user_id TEXT DEFAULT NULL"))
+                    if "expires_at" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN expires_at DATETIME DEFAULT NULL"))
+                    if "items_json" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN items_json TEXT DEFAULT NULL"))
+                    if "payment_expires_at" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN payment_expires_at DATETIME DEFAULT NULL"))
+                    if "midtrans_transaction_id" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN midtrans_transaction_id TEXT DEFAULT NULL"))
+                    if "qris_url" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN qris_url TEXT DEFAULT NULL"))
+                    if "qris_string" not in order_cols:
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN qris_string TEXT DEFAULT NULL"))
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_order_tickets_user_id ON order_tickets (user_id)"))
 
                 # 3b. stores & users auth migrations (Email + PBKDF2 Password) + nullable lat/lng
                 store_info = conn.execute(text("PRAGMA table_info(stores)")).fetchall()
@@ -105,6 +121,10 @@ def init_db() -> None:
                         conn.execute(text("ALTER TABLE stores ADD COLUMN email TEXT DEFAULT NULL"))
                     if "password_hash" not in store_cols:
                         conn.execute(text("ALTER TABLE stores ADD COLUMN password_hash TEXT DEFAULT NULL"))
+                    if "category" not in store_cols:
+                        conn.execute(text("ALTER TABLE stores ADD COLUMN category TEXT DEFAULT 'Kuliner & Makanan'"))
+                    if "description" not in store_cols:
+                        conn.execute(text("ALTER TABLE stores ADD COLUMN description TEXT DEFAULT ''"))
 
                     # Rebuild legacy SQLite stores table if latitude/longitude still have NOT NULL constraints
                     lat_col = next((c for c in store_info if c[1] == "latitude"), None)
@@ -123,6 +143,8 @@ def init_db() -> None:
                                 latitude FLOAT DEFAULT NULL,
                                 longitude FLOAT DEFAULT NULL,
                                 closing_time VARCHAR NOT NULL DEFAULT '20:30',
+                                category VARCHAR NOT NULL DEFAULT 'Kuliner & Makanan',
+                                description VARCHAR NOT NULL DEFAULT '',
                                 maps_url VARCHAR NOT NULL DEFAULT '',
                                 is_active BOOLEAN NOT NULL DEFAULT 1,
                                 created_at VARCHAR NOT NULL
@@ -131,12 +153,15 @@ def init_db() -> None:
                         conn.execute(text("""
                             INSERT INTO stores_migrated (
                                 id, store_id, name, email, password_hash, pin_hash,
-                                location_name, latitude, longitude, closing_time, maps_url,
+                                location_name, latitude, longitude, closing_time, category, description, maps_url,
                                 is_active, created_at
                             )
                             SELECT
                                 id, store_id, name, email, password_hash, pin_hash,
-                                location_name, latitude, longitude, closing_time, maps_url,
+                                location_name, latitude, longitude, closing_time,
+                                COALESCE(category, 'Kuliner & Makanan'),
+                                COALESCE(description, ''),
+                                maps_url,
                                 is_active, created_at
                             FROM stores
                         """))
@@ -189,6 +214,23 @@ def init_db() -> None:
                 conn.commit()
             except Exception as exc:
                 logger.warning("SQLite auto-migration skipped or failed: %s", exc)
+    else:
+        # Non-destructive PostgreSQL column migrations for Neon / production DB
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE stores ADD COLUMN IF NOT EXISTS category VARCHAR DEFAULT 'Kuliner & Makanan'"))
+                conn.execute(text("ALTER TABLE stores ADD COLUMN IF NOT EXISTS description VARCHAR DEFAULT ''"))
+                conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS user_id VARCHAR DEFAULT NULL"))
+                conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP DEFAULT NULL"))
+                conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS items_json TEXT DEFAULT NULL"))
+                conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS payment_expires_at TIMESTAMP DEFAULT NULL"))
+                conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS midtrans_transaction_id VARCHAR DEFAULT NULL"))
+                conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS qris_url TEXT DEFAULT NULL"))
+                conn.execute(text("ALTER TABLE order_tickets ADD COLUMN IF NOT EXISTS qris_string TEXT DEFAULT NULL"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_order_tickets_user_id ON order_tickets (user_id)"))
+                conn.commit()
+            except Exception as exc:
+                logger.warning("PostgreSQL auto-migration skipped or failed: %s", exc)
 
     with Session(engine) as session:
         seed_initial_data(session)

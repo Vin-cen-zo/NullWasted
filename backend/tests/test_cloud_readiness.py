@@ -134,8 +134,12 @@ def test_reserve_order_atomic_decrement_and_auto_deactivate():
         session.commit()
 
     # Reserve 1 -> remaining 1, still active
+    from app.core.security import create_access_token
+    c_tok = create_access_token({"sub": "usr-cloud-1", "role": "consumer", "name": "Cloud Tester", "phone": "081200001111"})
+    c_hdr = {"Authorization": f"Bearer {c_tok}"}
     r1 = client.post(
         "/api/v1/orders/reserve",
+        headers=c_hdr,
         json={"listing_id": listing_id, "quantity": 1, "customer_name": "Cloud Tester"},
     )
     assert r1.status_code == 200
@@ -148,6 +152,7 @@ def test_reserve_order_atomic_decrement_and_auto_deactivate():
     # Reserve 1 -> remaining 0, auto-deactivated
     r2 = client.post(
         "/api/v1/orders/reserve",
+        headers=c_hdr,
         json={"listing_id": listing_id, "quantity": 1, "customer_name": "Cloud Tester 2"},
     )
     assert r2.status_code == 200
@@ -160,6 +165,7 @@ def test_reserve_order_atomic_decrement_and_auto_deactivate():
     # Reserve again -> 409 Conflict
     r3 = client.post(
         "/api/v1/orders/reserve",
+        headers=c_hdr,
         json={"listing_id": listing_id, "quantity": 1, "customer_name": "Cloud Tester 3"},
     )
     assert r3.status_code == 409

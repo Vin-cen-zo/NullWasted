@@ -51,11 +51,11 @@ def _merchant_headers(store_id: str = "FTUI-001") -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _consumer_headers(name: str = "Siti", phone: str = "0813-1111-2222") -> dict[str, str]:
+def _consumer_headers(name: str = "Siti", phone: str = "0813-1111-2222", sub: str | None = None) -> dict[str, str]:
     token = create_access_token({
-        "sub": "usr-sec-1",
+        "sub": sub or f"usr-{phone or name}",
         "role": "consumer",
-        "email": "siti@nullwasted.id",
+        "email": f"{name.lower().replace(' ', '')}@nullwasted.id",
         "name": name,
         "phone": phone,
     })

@@ -149,6 +149,18 @@ def require_merchant_user(
     return user_claims
 
 
+def require_consumer_user(
+    user_claims: dict[str, Any] = Depends(require_authenticated_user),
+) -> dict[str, Any]:
+    """Strictly requires an authenticated consumer JWT token. Raises HTTP 403 for non-consumers."""
+    if user_claims.get("role") != "consumer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hanya akun Konsumen yang dapat melakukan pemesanan atau menyimpan gerai favorit.",
+        )
+    return user_claims
+
+
 def get_optional_user(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[dict[str, Any]]:
     """Parses optional Bearer JWT token claims without rejecting unauthenticated callers.
     Raises HTTP 401 when an explicit Bearer token is provided but invalid or expired.

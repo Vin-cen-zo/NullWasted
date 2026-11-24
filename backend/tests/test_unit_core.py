@@ -43,6 +43,17 @@ def client_fixture():
     app.dependency_overrides.clear()
 
 
+def _consumer_headers(name: str = "Budi Santoso", phone: str = "0812-8899-0011") -> dict[str, str]:
+    token = create_access_token({
+        "sub": f"usr-unit-{phone}",
+        "role": "consumer",
+        "email": f"{name.lower().replace(' ', '')}@nullwasted.id",
+        "name": name,
+        "phone": phone,
+    })
+    return {"Authorization": f"Bearer {token}"}
+
+
 # ============================================================================
 # 1. PRICING ENGINE UNIT TESTS
 # ============================================================================
@@ -55,10 +66,14 @@ def test_pricing_happy_path_pill_1():
 
 
 def test_pricing_boundary_critical_pill_3():
-    """Pill 3: Nasi Bento Ayam (Rp30.000, 15 menit menjelang tutup) -> 70% (Rp9.000)."""
-    result = calculate_dynamic_pricing(original_price=30000, minutes_until_closing=15)
-    assert result["discount_percent"] == 70
-    assert result["discounted_price"] == 9000
+    """Pill 3: Nasi Bento Ayam (Rp30.000, 15 menit menjelang tutup) -> 65% (qty 1) / 70% (qty 10)."""
+    result = calculate_dynamic_pricing(original_price=30000, minutes_until_closing=15, quantity=1)
+    assert result["discount_percent"] == 65
+    assert result["discounted_price"] == 10500
+
+    result_high_vol = calculate_dynamic_pricing(original_price=30000, minutes_until_closing=15, quantity=10)
+    assert result_high_vol["discount_percent"] == 70
+    assert result_high_vol["discounted_price"] == 9000
 
 
 def test_pricing_bounds_and_rounding():
@@ -242,6 +257,7 @@ def test_api_full_lifecycle(client: TestClient):
     # 7. Reserve 1 portion from Pill 1 -> Atomic decrement
     reserve_res = client.post(
         "/api/v1/orders/reserve",
+        headers=_consumer_headers("Budi Santoso", "0812-8899-0011"),
         json={"listing_id": listing_id, "quantity": 1, "customer_name": "Budi Santoso"},
     )
     assert reserve_res.status_code == 200
@@ -591,6 +607,7 @@ def test_payment_methods_cash_vs_simulated_qris(client: TestClient):
     # 1. CASH_ON_PICKUP
     res_cash = client.post(
         "/api/v1/orders/reserve",
+        headers=_consumer_headers("Ahmad Dani", "0812-0001-0001"),
         json={
             "listing_id": l_id,
             "quantity": 1,
@@ -606,6 +623,7 @@ def test_payment_methods_cash_vs_simulated_qris(client: TestClient):
     # 2. SIMULATED_QRIS
     res_qris = client.post(
         "/api/v1/orders/reserve",
+        headers=_consumer_headers("Rina Nose", "0812-0002-0002"),
         json={
             "listing_id": l_id,
             "quantity": 1,
@@ -629,6 +647,7 @@ def test_order_cancellation_atomic_stock_rollback(client: TestClient):
     # Reserve 1
     reserve_res = client.post(
         "/api/v1/orders/reserve",
+        headers=_consumer_headers("Test User", "0812-0003-0003"),
         json={"listing_id": item_id, "quantity": 1, "customer_name": "Test User"},
     )
     assert reserve_res.status_code == 200
@@ -662,6 +681,7 @@ def test_cross_store_cashier_fraud_rejection(client: TestClient):
 
     reserve_res = client.post(
         "/api/v1/orders/reserve",
+        headers=_consumer_headers("Siswa FTUI", "0812-0004-0004"),
         json={"listing_id": ftui_item["id"], "quantity": 1, "customer_name": "Siswa FTUI"},
     )
     assert reserve_res.status_code == 200
@@ -693,11 +713,13 @@ def test_multi_tenant_order_isolation(client: TestClient):
     if ftui_listings:
         client.post(
             "/api/v1/orders/reserve",
+            headers=_consumer_headers("FTUI Consumer", "0812-0005-0005"),
             json={"listing_id": ftui_listings[0]["id"], "quantity": 1, "customer_name": "FTUI Consumer"},
         )
     if kutek_listings:
         client.post(
             "/api/v1/orders/reserve",
+            headers=_consumer_headers("Kutek Consumer", "0812-0006-0006"),
             json={"listing_id": kutek_listings[0]["id"], "quantity": 1, "customer_name": "Kutek Consumer"},
         )
 
@@ -1271,6 +1293,7 @@ def test_image_url_lifecycle_inheritance_and_adhoc_none(client: TestClient):
     # 4. Reserve order -> OrderTicket snapshots listing image_url
     res_order = client.post(
         "/api/v1/orders/reserve",
+        headers=_consumer_headers("Tester Image Snapshot", "0812-0007-0007"),
         json={
             "listing_id": pub_item["id"],
             "quantity": 1,

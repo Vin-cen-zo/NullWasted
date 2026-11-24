@@ -18,6 +18,7 @@ class DraftResponse(BaseModel):
     quantity: int
     original_price: int
     recommended_discount_percent: int
+    pricing_reason: Optional[str] = None
     discounted_price: int
     hours_since_cooked: float
     bpom_max_hours: float
@@ -29,7 +30,6 @@ class DraftResponse(BaseModel):
     similarity_score: float
     extraction_source: str  # "gemini-3.5-flash-lite" | "local-fallback-parser"
     can_publish: bool
-    portion_size: str = "Reguler"
 
     # New Context-Aware Slot Filling & Multi-Tenant metadata
     store_id: str = "FTUI-001"
@@ -60,7 +60,6 @@ class PublishRequest(BaseModel):
     similarity_score: float = 0.95
     store_name: str = "Dapur Barokah"
     location_badge: Optional[str] = Field(default=None, max_length=200)
-    portion_size: str = Field(default="Reguler")
 
     # Multi-tenant & Bundling extensions
     store_id: str = "FTUI-001"
@@ -98,7 +97,19 @@ class ReserveOrderRequest(BaseModel):
     quantity: int = Field(default=1, ge=1, le=200)
     customer_name: str = Field(default="Budi Santoso", min_length=1)
     customer_phone: str = Field(default="0812-8899-0011")
-    payment_method: str = Field(default="CASH_ON_PICKUP")  # "CASH_ON_PICKUP" | "SIMULATED_QRIS"
+    payment_method: str = Field(default="CASH_ON_PICKUP")  # "CASH_ON_PICKUP" | "MIDTRANS_QRIS" | "SIMULATED_QRIS"
+
+
+class CartOrderItemRequest(BaseModel):
+    listing_id: str
+    quantity: int = Field(default=1, ge=1, le=200)
+
+
+class ReserveCartRequest(BaseModel):
+    items: list[CartOrderItemRequest] = Field(..., min_length=1, max_length=30)
+    customer_name: str = Field(default="Budi Santoso", min_length=1)
+    customer_phone: str = Field(default="0812-8899-0011")
+    payment_method: str = Field(default="CASH_ON_PICKUP")
 
 
 class CompletePickupRequest(BaseModel):
@@ -116,7 +127,6 @@ class MenuItemCreateRequest(BaseModel):
     typical_cooking_time: str = Field(default="16:00")
     default_hours_cooked: float = Field(default=2.0, ge=0.0)
     ingredients: str = Field(default="", max_length=500)
-    portion_size: str = Field(default="Reguler")
     image_url: Optional[str] = Field(default=None)
 
     @field_validator("typical_cooking_time")
@@ -133,7 +143,6 @@ class MenuItemUpdateRequest(BaseModel):
     typical_cooking_time: Optional[str] = None
     default_hours_cooked: Optional[float] = None
     ingredients: Optional[str] = None
-    portion_size: Optional[str] = None
     image_url: Optional[str] = None
     is_active: Optional[bool] = None
 
@@ -157,16 +166,20 @@ class MenuItemResponse(BaseModel):
     category: str
     food_type: str = "MEAL"
     bpom_max_hours: float
-    portion_size: str = "Reguler"
     image_url: Optional[str] = None
     is_active: bool
     created_at: str
 
 
+class ListingStockUpdateRequest(BaseModel):
+    quantity: int = Field(..., ge=0, le=200)
+
+
 class SmartBundleRequest(BaseModel):
     store_id: str = Field(default="FTUI-001")
+    listing_ids: Optional[list[str]] = Field(default=None, description="Opsional daftar ID listing spesifik yang dipilih mitra")
     custom_bundle_name: Optional[str] = None
-    discount_percent: int = Field(default=65, ge=50, le=70)
+    discount_percent: int = Field(default=65, ge=60, le=70)
 
 
 _EMAIL_REGEX = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
@@ -282,6 +295,8 @@ class AuthResponse(BaseModel):
     user_id: Optional[str] = None
     store_id: Optional[str] = None
     store_name: Optional[str] = None
+    store_category: Optional[str] = None
+    store_description: Optional[str] = None
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
     closing_time: Optional[str] = None
@@ -300,9 +315,108 @@ class StoreProfileResponse(BaseModel):
     id: str
     store_id: str
     name: str
+    category: str = "Kuliner & Makanan"
+    description: str = ""
     location_name: str
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     closing_time: str
     maps_url: str = ""
     is_active: bool
+
+
+class ConsumerProfileResponse(BaseModel):
+    id: str
+    name: str
+    email: Optional[str] = None
+    phone: str = ""
+    role: str = "consumer"
+    created_at: str
+
+
+class ConsumerProfileUpdateRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=2, max_length=120)
+    phone: Optional[str] = Field(default=None, max_length=30)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_profile_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        stripped = v.strip()
+        if not stripped:
+            return ""
+        digits_norm = re.sub(r"[\s\-]+", "", stripped)
+        if not re.match(r"^(?:\+62|62|0)8[1-9][0-9]{7,11}$", digits_norm):
+            raise ValueError("Format nomor WhatsApp Indonesia tidak valid (contoh: 081234567890).")
+        return stripped
+
+
+class StoreProfileUpdateRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=2, max_length=120)
+    category: Optional[str] = Field(default=None, min_length=2, max_length=80)
+    closing_time: Optional[str] = Field(default=None)
+    location_name: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("closing_time")
+    @classmethod
+    def validate_profile_closing_time(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        cleaned = v.strip()
+        if not re.match(r"^(?:[01]\d|2[0-3]):[0-5]\d$", cleaned):
+            raise ValueError("Format jam tutup harus HH:MM (00:00 - 23:59).")
+        return cleaned
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        return _validate_password_value(v)
+
+
+class PublicStoreDetailResponse(BaseModel):
+    store: StoreProfileResponse
+    active_listings: list[Any]
+    active_listing_count: int
+
+
+class FavoriteStoresResponse(BaseModel):
+    store_ids: list[str]
+
+
+class BatchDraftResponse(BaseModel):
+    items: list[DraftResponse]
+    total_count: int
+    safe_count: int
+
+
+class QrisCreateRequest(BaseModel):
+    listing_id: Optional[str] = None
+    quantity: int = Field(default=1, ge=1, le=200)
+    items: Optional[list[CartOrderItemRequest]] = None
+    customer_name: str = Field(default="Konsumen NullWasted", min_length=1)
+    customer_phone: str = Field(default="0812-8899-0011")
+
+
+class QrisCreateResponse(BaseModel):
+    ticket: Any
+    qris_url: Optional[str] = None
+    qris_string: Optional[str] = None
+    midtrans_transaction_id: Optional[str] = None
+    payment_expires_at: Optional[str] = None
+    simulator_url: Optional[str] = None
+
+
+class PaymentStatusResponse(BaseModel):
+    order_id: str
+    order_code: str
+    status: str
+    payment_status: str
+    payment_method: str
+    payment_expires_at: Optional[str] = None

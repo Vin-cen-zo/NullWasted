@@ -564,3 +564,51 @@ Keluarkan HANYA JSON objek valid tanpa teks pengantar dan tanpa blok markdown.""
         logger.warning(f"Gemini entity extraction failed: {e}. Utilizing deterministic fallback.")
 
     return local_info
+
+
+def _split_multi_menu_clauses(text: str) -> list[str]:
+    """Deterministically splits a multi-dish Indonesian sentence into individual dish clauses
+    when multiple items with quantities are mentioned (e.g. 'sisa 3 ayam bakar harga 25rb dan 4 donat harga 10rb').
+    """
+    raw = text.strip()
+    if not raw:
+        return []
+
+    # Split on ';', newlines, or ' dan ' / ' sama ' / ' serta ' / ',' ONLY when followed by a quantity/sisa/ada cue
+    parts = re.split(
+        r"(?:\s*;\s*|\n+|\s*(?:,|\bdan\b|\bsama\b|\bserta\b|\bjuga\b)\s+(?=(?:ada\s+|sisa\s+)?\d+\s*(?:porsi|pcs|pack|packs|box|botol|gelas|slice|bungkus|kotak|buah|potong|cup|paket|loyang|piring|mangkok|[a-z]{3,})))",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    cleaned = [p.strip(" ,;") for p in parts if p and len(p.strip(" ,;")) >= 3]
+    return cleaned if len(cleaned) >= 2 else [raw]
+
+
+async def extract_multiple_listing_entities(
+    text: str, audio_base64: Optional[str] = None
+) -> list[dict[str, Any]]:
+    """Extracts 1 or more dishes from a single merchant voice/text prompt.
+    Propagates shared cooking/closing time cues across clauses if omitted on earlier clauses.
+    """
+    clauses = _split_multi_menu_clauses(text)
+    if len(clauses) <= 1:
+        single = await extract_listing_entities(text, audio_base64)
+        single["clause_text"] = text
+        return [single]
+
+    # Parse full sentence once for shared cooking/closing context
+    global_ctx = local_rule_based_extract(text)
+    results: list[dict[str, Any]] = []
+    for clause in clauses:
+        item = await extract_listing_entities(clause, None)
+        if not item.get("cooking_time_mentioned") and global_ctx.get("cooking_time_mentioned"):
+            item["hours_since_cooked"] = global_ctx["hours_since_cooked"]
+            item["cooking_time_mentioned"] = True
+            item["future_cooking_time"] = global_ctx.get("future_cooking_time", False)
+        if not item.get("explicit_closing_mentioned") and global_ctx.get("explicit_closing_mentioned"):
+            item["minutes_until_closing"] = global_ctx["minutes_until_closing"]
+            item["explicit_closing_mentioned"] = True
+        item["clause_text"] = clause
+        results.append(item)
+
+    return results

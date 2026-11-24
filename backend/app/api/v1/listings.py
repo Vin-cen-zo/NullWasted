@@ -13,21 +13,30 @@ from app.core.database import get_session
 from app.core.security import (
     compute_minutes_until_closing,
     require_authenticated_user,
+    require_consumer_user,
     require_merchant_user,
 )
 from app.models.listing import ItemListing, OrderTicket, Store, StoreMenuItem, User, utc_now_iso
 from app.schemas.listing import (
+    BatchDraftResponse,
     CompletePickupRequest,
     DraftRequest,
     DraftResponse,
+    ListingStockUpdateRequest,
     MenuItemCreateRequest,
     MenuItemResponse,
     MenuItemUpdateRequest,
     PublishRequest,
+    ReserveCartRequest,
     ReserveOrderRequest,
     SmartBundleRequest,
 )
-from app.services.extractor import classify_dish_with_ai, extract_listing_entities
+from app.services.extractor import (
+    classify_dish_with_ai,
+    extract_listing_entities,
+    extract_multiple_listing_entities,
+)
+from app.api.v1.payments import sync_pending_qris_expiry
 from app.services.guardrail import evaluate_food_safety
 from app.services.pricing import calculate_dynamic_pricing
 from app.services.vector_store import vector_store
@@ -81,7 +90,6 @@ def get_store_menu(store_id: str, session: Session = Depends(get_session)) -> Li
             category=item.category,
             food_type=getattr(item, "food_type", "MEAL") or "MEAL",
             bpom_max_hours=item.bpom_max_hours,
-            portion_size=getattr(item, "portion_size", "Reguler") or "Reguler",
             image_url=item.image_url,
             is_active=item.is_active,
             created_at=item.created_at,
@@ -143,7 +151,6 @@ async def create_store_menu_item(
         category=safety["category"],
         food_type=safety["food_type"],
         bpom_max_hours=safety["bpom_max_hours"],
-        portion_size=payload.portion_size or "Reguler",
         image_url=payload.image_url,
         is_active=True,
     )
@@ -163,7 +170,6 @@ async def create_store_menu_item(
         category=menu_item.category,
         food_type=menu_item.food_type,
         bpom_max_hours=menu_item.bpom_max_hours,
-        portion_size=menu_item.portion_size or "Reguler",
         image_url=menu_item.image_url,
         is_active=menu_item.is_active,
         created_at=menu_item.created_at,
@@ -194,8 +200,6 @@ async def update_store_menu_item(
         item.default_hours_cooked = payload.default_hours_cooked
     if payload.ingredients is not None:
         item.ingredients = payload.ingredients
-    if payload.portion_size is not None:
-        item.portion_size = payload.portion_size
     if payload.image_url is not None:
         item.image_url = payload.image_url
     if payload.is_active is not None:
@@ -430,6 +434,7 @@ async def create_draft_listing(
         quantity=extracted["quantity"],
         original_price=original_price,
         recommended_discount_percent=pricing["discount_percent"],
+        pricing_reason=pricing.get("pricing_reason"),
         discounted_price=pricing["discounted_price"],
         hours_since_cooked=hours_since_cooked,
         bpom_max_hours=safety["bpom_max_hours"],
@@ -441,7 +446,6 @@ async def create_draft_listing(
         similarity_score=safety["similarity_score"],
         extraction_source=extracted["extraction_source"],
         can_publish=safety["can_publish"],
-        portion_size=extracted.get("portion_size", "Reguler") or "Reguler",
         store_id=target_store_id,
         catalog_match_status=catalog_match_status,
         matched_menu_item_id=matched_menu_item_id,
@@ -450,6 +454,155 @@ async def create_draft_listing(
         closing_time=store_closing,
         image_url=image_url,
     )
+
+
+@router.post("/listings/draft-batch", response_model=BatchDraftResponse)
+async def create_batch_draft_listings(
+    request: DraftRequest,
+    session: Session = Depends(get_session),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
+) -> BatchDraftResponse:
+    """Extracts 1 or multiple dishes from a single merchant voice/text prompt and evaluates each independently.
+    Guardrail #6: Separate endpoint preserving 100% backward compatibility of POST /api/v1/listings/draft.
+    """
+    target_store_id = request.store_id or user_claims.get("store_id") or "FTUI-001"
+    _require_merchant_store_access(user_claims, target_store_id)
+    extracted_list = await extract_multiple_listing_entities(request.text, request.audio_base64)
+
+    store = session.exec(select(Store).where(Store.store_id == target_store_id)).first()
+    store_closing = store.closing_time if store else (request.store_closing_time or "20:30")
+    catalog_items = session.exec(
+        select(StoreMenuItem).where(
+            StoreMenuItem.store_id == target_store_id, StoreMenuItem.is_active == True
+        )
+    ).all()
+
+    from difflib import SequenceMatcher
+    stop_tokens = {
+        "dan", "dengan", "yang", "di", "ke", "dari", "ada", "sisa",
+        "porsi", "pcs", "pack", "box", "paket", "botol", "gelas",
+    }
+
+    drafts: list[DraftResponse] = []
+    for extracted in extracted_list:
+        if extracted.get("has_negative_value", False):
+            continue
+
+        extracted_name_lower = extracted["food_name"].lower().strip()
+        extracted_tokens = [t for t in re.findall(r"[a-z]{2,}", extracted_name_lower) if t not in stop_tokens]
+        extracted_token_set = set(extracted_tokens)
+
+        matched_menu: Optional[StoreMenuItem] = None
+        best_match_score = 0.0
+        best_similarity = 0.0
+        for item in catalog_items:
+            item_lower = item.food_name.lower().strip()
+            item_tokens = [t for t in re.findall(r"[a-z]{2,}", item_lower) if t not in stop_tokens]
+            if not item_tokens:
+                continue
+            item_token_set = set(item_tokens)
+            primary_noun = item_tokens[0]
+            similarity = SequenceMatcher(None, extracted_name_lower, item_lower).ratio()
+            has_primary = primary_noun in extracted_token_set
+            overlap = item_token_set & extracted_token_set
+            is_high = item_lower == extracted_name_lower or similarity >= 0.80
+            is_subset = has_primary and bool(extracted_token_set) and extracted_token_set.issubset(item_token_set)
+            is_multi = has_primary and len(overlap) >= 2 and (len(overlap) / len(item_token_set)) >= 0.5
+            if is_high or is_subset or is_multi:
+                score = similarity + (1.0 if is_high else 0.25 * len(overlap))
+                if score > best_match_score:
+                    best_match_score = score
+                    best_similarity = similarity
+                    matched_menu = item
+
+        if matched_menu:
+            food_name = matched_menu.food_name if best_similarity >= 0.80 else extracted["food_name"]
+            image_url = matched_menu.image_url
+            original_price = matched_menu.original_price if not extracted.get("price_mentioned") else extracted["original_price"]
+            needs_manual_price = False
+            if not extracted.get("cooking_time_mentioned"):
+                hours_since_cooked = matched_menu.default_hours_cooked
+                catalog_match_status = "MATCHED_CATALOG"
+            else:
+                hours_since_cooked = extracted["hours_since_cooked"]
+                catalog_match_status = "MATCHED_WITH_OVERRIDE"
+            can_save_to_catalog = False
+            matched_menu_item_id = matched_menu.id
+        else:
+            food_name = extracted["food_name"]
+            image_url = None
+            can_save_to_catalog = True
+            matched_menu_item_id = None
+            hours_since_cooked = extracted["hours_since_cooked"]
+            original_price = extracted["original_price"]
+            needs_manual_price = not bool(extracted.get("price_mentioned"))
+            catalog_match_status = "ADHOC_COMPLETE" if not needs_manual_price else "ADHOC_NEEDS_PRICE"
+
+        qty = max(1, min(200, int(extracted.get("quantity", 1))))
+        original_price = max(1000, min(2000000, int(original_price)))
+        minutes_until_closing = (
+            extracted["minutes_until_closing"]
+            if extracted.get("explicit_closing_mentioned")
+            else compute_minutes_until_closing(store_closing)
+        )
+
+        safety = await asyncio.to_thread(
+            evaluate_food_safety,
+            food_name=food_name,
+            raw_text=extracted.get("clause_text", request.text),
+            hours_since_cooked=hours_since_cooked,
+            ai_is_edible=extracted.get("is_edible_food"),
+            ai_food_type=extracted.get("food_type"),
+            ai_inferred_risk=extracted.get("inferred_risk"),
+            future_cooking_time=bool(extracted.get("future_cooking_time", False)),
+        )
+        can_save_to_catalog = bool(can_save_to_catalog and safety["safety_status"] == "SAFE" and safety["can_publish"])
+        resolved_food_type = (getattr(matched_menu, "food_type", None) if matched_menu else None) or safety.get("food_type", "MEAL")
+        pricing = calculate_dynamic_pricing(
+            original_price=original_price,
+            minutes_until_closing=minutes_until_closing,
+            quantity=qty,
+        )
+
+        drafts.append(
+            DraftResponse(
+                food_name=food_name,
+                matched_canonical_dish=safety["matched_canonical_dish"],
+                category=safety["category"],
+                food_type=resolved_food_type,
+                quantity=qty,
+                original_price=original_price,
+                recommended_discount_percent=pricing["discount_percent"],
+                pricing_reason=pricing.get("pricing_reason"),
+                discounted_price=pricing["discounted_price"],
+                hours_since_cooked=hours_since_cooked,
+                bpom_max_hours=safety["bpom_max_hours"],
+                minutes_until_closing=minutes_until_closing,
+                safety_status=safety["safety_status"],
+                safety_reason=safety["safety_reason"],
+                hazard_description=safety["hazard_description"],
+                regulation_ref=safety["regulation_ref"],
+                similarity_score=safety["similarity_score"],
+                extraction_source=extracted["extraction_source"],
+                can_publish=safety["can_publish"],
+                store_id=target_store_id,
+                catalog_match_status=catalog_match_status,
+                matched_menu_item_id=matched_menu_item_id,
+                needs_manual_price=needs_manual_price,
+                can_save_to_catalog=can_save_to_catalog,
+                closing_time=store_closing,
+                image_url=image_url,
+            )
+        )
+
+    if not drafts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tidak ada menu valid yang berhasil diekstrak dari input Anda.",
+        )
+
+    safe_count = sum(1 for d in drafts if d.safety_status == "SAFE" and d.can_publish)
+    return BatchDraftResponse(items=drafts, total_count=len(drafts), safe_count=safe_count)
 
 
 @router.post("/listings/publish", response_model=ItemListing)
@@ -589,7 +742,6 @@ async def publish_listing(
         hazard_description=server_eval["hazard_description"],
         regulation_ref=server_eval["regulation_ref"],
         similarity_score=server_eval["similarity_score"],
-        portion_size=payload.portion_size or "Reguler",
         image_url=image_url,
         expires_at=expires_at,
         is_active=True,
@@ -640,6 +792,17 @@ def create_smart_bundle(
         )
         > now_utc
     ]
+
+    if payload.listing_ids is not None:
+        requested_ids = list(dict.fromkeys([lid.strip() for lid in payload.listing_ids if lid and lid.strip()]))
+        eligible_by_id = {item.id: item for item in eligible_items}
+        missing = [lid for lid in requested_ids if lid not in eligible_by_id]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Sebagian menu yang dipilih tidak layak digabung (bukan milik gerai, porsi > 2, atau sudah kedaluwarsa).",
+            )
+        eligible_items = [eligible_by_id[lid] for lid in requested_ids]
 
     if len(eligible_items) < 2:
         raise HTTPException(
@@ -792,11 +955,37 @@ def get_active_listings(
     return active_results
 
 
+def _sync_expired_tickets(session: Session, tickets: list[OrderTicket]) -> list[OrderTicket]:
+    """Lazily transitions RESERVED tickets whose expires_at has passed to EXPIRED,
+    and cancels abandoned PENDING QRIS tickets past payment_expires_at (Guardrail #5).
+    Guardrail #1: EXPIRED tickets DO NOT restore stock and DO NOT auto-refund PAID orders.
+    """
+    sync_pending_qris_expiry(session, tickets)
+    now_utc = get_effective_now_utc()
+    changed = False
+    for ticket in tickets:
+        if ticket.status == "RESERVED" and ticket.expires_at is not None:
+            exp_utc = (
+                ticket.expires_at
+                if ticket.expires_at.tzinfo
+                else ticket.expires_at.replace(tzinfo=timezone.utc)
+            )
+            if exp_utc <= now_utc:
+                ticket.status = "EXPIRED"
+                session.add(ticket)
+                changed = True
+    if changed:
+        session.commit()
+        for ticket in tickets:
+            session.refresh(ticket)
+    return tickets
+
+
 @router.post("/orders/reserve", response_model=OrderTicket)
 def reserve_order(
     payload: ReserveOrderRequest,
     session: Session = Depends(get_session),
-    user_claims: dict[str, Any] = Depends(require_authenticated_user),
+    user_claims: dict[str, Any] = Depends(require_consumer_user),
 ) -> OrderTicket:
     """Reserves surplus food items atomically and issues a digital pickup pass with QR payload."""
     listing = session.get(ItemListing, payload.listing_id)
@@ -866,20 +1055,25 @@ def reserve_order(
     payment_method = payload.payment_method or "CASH_ON_PICKUP"
     payment_status = "PAID" if payment_method == "SIMULATED_QRIS" else "UNPAID"
 
+    ticket_expires_at: Optional[datetime] = None
     if listing.expires_at is not None:
         exp_utc = listing.expires_at if listing.expires_at.tzinfo else listing.expires_at.replace(tzinfo=timezone.utc)
+        ticket_expires_at = exp_utc
         exp_wib = exp_utc.astimezone(WIB_TZ)
         pickup_deadline = f"Sebelum pukul {exp_wib.strftime('%H:%M')} WIB"
     elif listing.closing_time:
         pickup_deadline = f"Sebelum pukul {listing.closing_time} WIB"
+        ticket_expires_at = now_utc + timedelta(minutes=max(1, listing.minutes_until_closing))
     else:
         pickup_deadline = f"Sebelum toko tutup ({listing.minutes_until_closing} menit lagi)"
+        ticket_expires_at = now_utc + timedelta(minutes=max(1, listing.minutes_until_closing))
 
     qr_payload = f"NULLWASTED|ORDER:{order_code}|STORE:{listing.store_id}|ITEM:{listing.id}|QTY:{payload.quantity}|USER:{customer}"
 
     ticket = OrderTicket(
         order_code=order_code,
         store_id=listing.store_id,
+        user_id=user_claims.get("sub"),
         customer_name=customer,
         customer_phone=phone,
         listing_id=listing.id,
@@ -891,6 +1085,173 @@ def reserve_order(
         unit_price=listing.discounted_price,
         total_price=total_price,
         pickup_deadline=pickup_deadline,
+        expires_at=ticket_expires_at,
+        qr_payload=qr_payload,
+        payment_method=payment_method,
+        payment_status=payment_status,
+        status="RESERVED",
+    )
+
+    session.add(ticket)
+    session.commit()
+    session.refresh(ticket)
+    return ticket
+
+
+@router.post("/orders/reserve-cart", response_model=OrderTicket)
+def reserve_cart_order(
+    payload: ReserveCartRequest,
+    session: Session = Depends(get_session),
+    user_claims: dict[str, Any] = Depends(require_consumer_user),
+) -> OrderTicket:
+    """Atomically reserves multiple items from a single store into 1 unified OrderTicket & QR pass.
+    Guardrail #4:
+      - Enforces Single-Store Rule (1 cart = 1 store).
+      - Sorts listing_ids ascending before atomic SQL UPDATE to prevent PostgreSQL deadlocks.
+      - All-or-nothing rollback on any insufficient stock / expired item.
+      - Ticket expires_at = min(expires_at) across all cart items.
+    """
+    # Aggregate duplicate listing_ids
+    qty_by_id: dict[str, int] = {}
+    for entry in payload.items:
+        lid = entry.listing_id.strip()
+        if not lid:
+            continue
+        qty_by_id[lid] = qty_by_id.get(lid, 0) + entry.quantity
+
+    if not qty_by_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Keranjang belanja kosong.")
+
+    # Guardrail #4: deterministic ascending lock ordering to prevent deadlocks
+    sorted_ids = sorted(qty_by_id.keys())
+    now_utc = get_effective_now_utc()
+
+    listings_by_id: dict[str, ItemListing] = {}
+    store_ids: set[str] = set()
+    for lid in sorted_ids:
+        item = session.get(ItemListing, lid)
+        if not item:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Listing {lid} tidak ditemukan.",
+            )
+        if item.expires_at is not None:
+            exp_dt = item.expires_at if item.expires_at.tzinfo else item.expires_at.replace(tzinfo=timezone.utc)
+            if exp_dt <= now_utc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Maaf, batas waktu aman atau jam tutup untuk '{item.food_name}' sudah terlewati.",
+                )
+        listings_by_id[lid] = item
+        store_ids.add(item.store_id)
+
+    if len(store_ids) > 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="1 keranjang hanya dapat memesan dari 1 gerai yang sama (Single-Store Cart).",
+        )
+
+    # Execute atomic SQL decrements in sorted order; rollback ALL on any conflict
+    for lid in sorted_ids:
+        req_qty = qty_by_id[lid]
+        stmt = (
+            update(ItemListing)
+            .where(
+                ItemListing.id == lid,
+                ItemListing.quantity >= req_qty,
+                ItemListing.is_active == True,
+                or_(
+                    ItemListing.expires_at.is_(None),
+                    ItemListing.expires_at > now_utc,
+                ),
+            )
+            .values(
+                quantity=ItemListing.quantity - req_qty,
+                is_active=case(
+                    (ItemListing.quantity - req_qty <= 0, False),
+                    else_=True,
+                ),
+            )
+        )
+        res = session.execute(stmt)
+        if res.rowcount == 0:
+            session.rollback()
+            item_name = listings_by_id[lid].food_name
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Stok '{item_name}' tidak mencukupi atau baru saja terjual. Seluruh keranjang dibatalkan.",
+            )
+
+    order_code = ""
+    for _ in range(30):
+        candidate = f"#NW-{random.randint(1000, 9999)}"
+        existing_code = session.exec(
+            select(OrderTicket).where(OrderTicket.order_code == candidate)
+        ).first()
+        if not existing_code:
+            order_code = candidate
+            break
+    if not order_code:
+        order_code = f"#NW-{random.randint(100000, 999999)}"
+
+    cart_items_payload = []
+    candidate_expiries: list[datetime] = []
+    total_qty = 0
+    total_price = 0
+
+    for lid in sorted_ids:
+        item = listings_by_id[lid]
+        req_qty = qty_by_id[lid]
+        subtotal = item.discounted_price * req_qty
+        total_qty += req_qty
+        total_price += subtotal
+        cart_items_payload.append({
+            "listing_id": item.id,
+            "food_name": item.food_name,
+            "quantity": req_qty,
+            "unit_price": item.discounted_price,
+            "subtotal": subtotal,
+        })
+        if item.expires_at is not None:
+            exp_utc = item.expires_at if item.expires_at.tzinfo else item.expires_at.replace(tzinfo=timezone.utc)
+            candidate_expiries.append(exp_utc)
+        else:
+            candidate_expiries.append(now_utc + timedelta(minutes=max(1, item.minutes_until_closing)))
+
+    first_item = listings_by_id[sorted_ids[0]]
+    ticket_expires_at = min(candidate_expiries)
+    exp_wib = ticket_expires_at.astimezone(WIB_TZ)
+    pickup_deadline = f"Sebelum pukul {exp_wib.strftime('%H:%M')} WIB"
+
+    if len(cart_items_payload) == 1:
+        summary_food_name = first_item.food_name
+    else:
+        summary_food_name = f"{first_item.food_name} + {len(cart_items_payload) - 1} menu lainnya"
+
+    customer = payload.customer_name.strip() or "Konsumen NullWasted"
+    phone = payload.customer_phone.strip() or "0812-8899-0011"
+    payment_method = payload.payment_method or "CASH_ON_PICKUP"
+    payment_status = "PAID" if payment_method == "SIMULATED_QRIS" else "UNPAID"
+    avg_unit_price = max(1, total_price // max(1, total_qty))
+    qr_payload = f"NULLWASTED|ORDER:{order_code}|STORE:{first_item.store_id}|CART:{len(cart_items_payload)}|QTY:{total_qty}|USER:{customer}"
+
+    ticket = OrderTicket(
+        order_code=order_code,
+        store_id=first_item.store_id,
+        user_id=user_claims.get("sub"),
+        customer_name=customer,
+        customer_phone=phone,
+        listing_id=first_item.id,
+        items_json=json.dumps(cart_items_payload, ensure_ascii=False),
+        food_name=summary_food_name,
+        store_name=first_item.store_name,
+        location_badge=first_item.location_badge,
+        image_url=first_item.image_url,
+        quantity=total_qty,
+        unit_price=avg_unit_price,
+        total_price=total_price,
+        pickup_deadline=pickup_deadline,
+        expires_at=ticket_expires_at,
         qr_payload=qr_payload,
         payment_method=payment_method,
         payment_status=payment_status,
@@ -923,21 +1284,28 @@ def get_active_orders(
             )
         statement = statement.where(OrderTicket.store_id == token_store_id)
     elif role == "consumer":
-        user_row = session.get(User, user_claims.get("sub")) if user_claims.get("sub") else None
+        user_sub = user_claims.get("sub")
+        user_row = session.get(User, user_sub) if user_sub else None
         claim_phone = (user_claims.get("phone") or (user_row.phone if user_row else "") or "").strip()
         claim_name = (user_claims.get("name") or (user_row.name if user_row else "") or "").strip()
+
+        conditions = []
+        if user_sub:
+            conditions.append(OrderTicket.user_id == user_sub)
         if claim_phone:
-            statement = statement.where(OrderTicket.customer_phone == claim_phone)
+            conditions.append((OrderTicket.user_id.is_(None)) & (OrderTicket.customer_phone == claim_phone))
         elif claim_name:
-            statement = statement.where(OrderTicket.customer_name == claim_name)
-        else:
+            conditions.append((OrderTicket.user_id.is_(None)) & (OrderTicket.customer_name == claim_name))
+
+        if not conditions:
             return []
+        statement = statement.where(or_(*conditions))
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Peran pengguna tidak valid.")
 
     statement = statement.order_by(OrderTicket.created_at.desc())
-    results = session.exec(statement).all()
-    return list(results)
+    results = list(session.exec(statement).all())
+    return _sync_expired_tickets(session, results)
 
 
 @router.post("/orders/{order_id}/cancel", response_model=OrderTicket)
@@ -946,7 +1314,7 @@ def cancel_order(
     session: Session = Depends(get_session),
     user_claims: dict[str, Any] = Depends(require_authenticated_user),
 ) -> OrderTicket:
-    """Cancels a reserved order and atomically rolls back stock to the listing."""
+    """Cancels a reserved order and atomically rolls back stock to unexpired listings."""
     ticket = session.get(OrderTicket, order_id)
     if not ticket:
         # Search by order_code as fallback
@@ -964,23 +1332,39 @@ def cancel_order(
                 detail="Akses ditolak: Anda hanya dapat membatalkan pesanan milik gerai Anda.",
             )
     elif role == "consumer":
-        user_row = session.get(User, user_claims.get("sub")) if user_claims.get("sub") else None
-        claim_phone = (user_claims.get("phone") or (user_row.phone if user_row else "") or "").strip()
-        claim_name = (user_claims.get("name") or (user_row.name if user_row else "") or "").strip()
-        phone_match = bool(claim_phone and ticket.customer_phone and claim_phone == ticket.customer_phone)
-        name_match = bool(
-            not claim_phone
-            and claim_name
-            and ticket.customer_name
-            and claim_name.lower() == ticket.customer_name.lower()
-        )
-        if not (phone_match or name_match):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Akses ditolak: Tiket pesanan ini bukan milik akun Anda.",
+        user_sub = user_claims.get("sub")
+        if ticket.user_id:
+            if ticket.user_id != user_sub:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Akses ditolak: Tiket pesanan ini bukan milik akun Anda.",
+                )
+        else:
+            user_row = session.get(User, user_sub) if user_sub else None
+            claim_phone = (user_claims.get("phone") or (user_row.phone if user_row else "") or "").strip()
+            claim_name = (user_claims.get("name") or (user_row.name if user_row else "") or "").strip()
+            phone_match = bool(claim_phone and ticket.customer_phone and claim_phone == ticket.customer_phone)
+            name_match = bool(
+                not claim_phone
+                and claim_name
+                and ticket.customer_name
+                and claim_name.lower() == ticket.customer_name.lower()
             )
+            if not (phone_match or name_match):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Akses ditolak: Tiket pesanan ini bukan milik akun Anda.",
+                )
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Peran pengguna tidak valid.")
+
+    _sync_expired_tickets(session, [ticket])
+
+    if ticket.status == "EXPIRED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tiket sudah kedaluwarsa melewati batas pengambilan dan tidak dapat dibatalkan.",
+        )
 
     if ticket.status == "CANCELLED":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tiket sudah berstatus DIBATALKAN.")
@@ -1012,20 +1396,38 @@ def cancel_order(
             detail="Tiket sudah diproses atau dibatalkan sebelumnya.",
         )
 
-    # Atomic SQL stock rollback preventing lost updates under concurrent checkouts
+    # Atomic SQL stock rollback ONLY when listing has not expired (Guardrail #1 & #4 multi-item cart)
     now_utc = get_effective_now_utc()
-    rollback_stmt = (
-        update(ItemListing)
-        .where(ItemListing.id == ticket.listing_id)
-        .values(
-            quantity=ItemListing.quantity + ticket.quantity,
-            is_active=case(
-                (or_(ItemListing.expires_at.is_(None), ItemListing.expires_at > now_utc), True),
-                else_=ItemListing.is_active,
-            ),
+    rollback_targets: list[tuple[str, int]] = []
+    if ticket.items_json:
+        try:
+            parsed_items = json.loads(ticket.items_json)
+            if isinstance(parsed_items, list):
+                for entry in parsed_items:
+                    lid = entry.get("listing_id")
+                    qty_val = int(entry.get("quantity", 0))
+                    if lid and qty_val > 0:
+                        rollback_targets.append((str(lid), qty_val))
+        except Exception:
+            rollback_targets = []
+
+    if not rollback_targets:
+        rollback_targets = [(ticket.listing_id, ticket.quantity)]
+
+    # Deterministic ascending order to prevent deadlocks
+    for target_lid, target_qty in sorted(rollback_targets, key=lambda x: x[0]):
+        rollback_stmt = (
+            update(ItemListing)
+            .where(
+                ItemListing.id == target_lid,
+                or_(ItemListing.expires_at.is_(None), ItemListing.expires_at > now_utc),
+            )
+            .values(
+                quantity=ItemListing.quantity + target_qty,
+                is_active=True,
+            )
         )
-    )
-    session.execute(rollback_stmt)
+        session.execute(rollback_stmt)
     session.commit()
     session.refresh(ticket)
     return ticket
@@ -1067,6 +1469,14 @@ def complete_order_pickup(
             detail="Kode pesanan tidak ditemukan di database.",
         )
 
+    _sync_expired_tickets(session, [ticket])
+
+    if ticket.status == "EXPIRED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tiket pesanan ini telah kedaluwarsa melewati batas waktu pengambilan.",
+        )
+
     if ticket.status == "CANCELLED":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1077,6 +1487,12 @@ def complete_order_pickup(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Tiket pesanan ini sudah pernah diverifikasi dan diserahterimakan sebelumnya.",
+        )
+
+    if ticket.payment_status == "PENDING":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Pembayaran QRIS untuk tiket ini masih PENDING (belum lunas). Minta pembeli menyelesaikan pembayaran terlebih dahulu.",
         )
 
     # Cross-Store Cashier Fraud Validation
@@ -1100,6 +1516,62 @@ def complete_order_pickup(
     session.commit()
     session.refresh(ticket)
     return ticket
+
+
+@router.patch("/listings/{listing_id}/stock", response_model=ItemListing)
+def update_listing_stock(
+    listing_id: str,
+    payload: ListingStockUpdateRequest,
+    session: Session = Depends(get_session),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
+) -> ItemListing:
+    """Atomically updates a live listing's stock quantity (0..200) while keeping price & discount locked.
+    Guardrail #3: Rejects expired listings and executes an atomic conditional SQL UPDATE.
+    """
+    listing = session.get(ItemListing, listing_id)
+    if not listing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing tidak ditemukan.")
+
+    _require_merchant_store_access(user_claims, listing.store_id)
+
+    now_utc = get_effective_now_utc()
+    if listing.expires_at is not None:
+        exp_utc = (
+            listing.expires_at
+            if listing.expires_at.tzinfo
+            else listing.expires_at.replace(tzinfo=timezone.utc)
+        )
+        if exp_utc <= now_utc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Listing sudah melewati batas aman konsumsi atau jam tutup dan tidak dapat diperbarui stoknya.",
+            )
+
+    new_qty = payload.quantity
+    next_initial = max(listing.initial_quantity, new_qty)
+    stmt = (
+        update(ItemListing)
+        .where(
+            ItemListing.id == listing_id,
+            ItemListing.store_id == listing.store_id,
+            or_(ItemListing.expires_at.is_(None), ItemListing.expires_at > now_utc),
+        )
+        .values(
+            quantity=new_qty,
+            initial_quantity=next_initial,
+            is_active=(new_qty > 0),
+        )
+    )
+    res = session.execute(stmt)
+    if res.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Stok listing tidak dapat diperbarui karena sudah kedaluwarsa.",
+        )
+
+    session.commit()
+    session.refresh(listing)
+    return listing
 
 
 @router.delete("/listings/{listing_id}")

@@ -16,11 +16,13 @@ import {
   Banknote,
   Receipt,
   RefreshCw,
+  XCircle,
 } from "lucide-react";
 
 interface MerchantCashierScreenProps {
   orders: OrderTicket[];
   onCompletePickup: (orderCode: string) => Promise<OrderTicket>;
+  onCancelOrder?: (orderId: string) => Promise<void>;
   onRefreshOrders?: () => Promise<void>;
   isVerifying: boolean;
 }
@@ -62,6 +64,7 @@ function extractOrderCodeFromQr(rawText: string): string | null {
 export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
   orders,
   onCompletePickup,
+  onCancelOrder,
   onRefreshOrders,
   isVerifying,
 }) => {
@@ -70,6 +73,8 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
   const [isCrossStoreFraud, setIsCrossStoreFraud] = useState(false);
   const [successTicket, setSuccessTicket] = useState<OrderTicket | null>(null);
   const [isRefreshingQueue, setIsRefreshingQueue] = useState(false);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [recapPeriod, setRecapPeriod] = useState<"TODAY" | "7D" | "30D" | "ALL">("TODAY");
 
   // Hardware camera scanner states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -101,25 +106,48 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
     }
   };
 
-  const todayWib = getWibComponents(getEffectiveNow());
-  const isSameWibDay = (iso?: string | null): boolean => {
+  const nowEffective = getEffectiveNow();
+  const todayWib = getWibComponents(nowEffective);
+  const matchesRecapPeriod = (iso?: string | null): boolean => {
+    if (recapPeriod === "ALL") return true;
     if (!iso) return false;
     const ms = parseBackendUtcMs(iso);
     if (Number.isNaN(ms)) return false;
-    const comp = getWibComponents(new Date(ms));
-    return comp.year === todayWib.year && comp.month === todayWib.month && comp.day === todayWib.day;
+    if (recapPeriod === "TODAY") {
+      const comp = getWibComponents(new Date(ms));
+      return comp.year === todayWib.year && comp.month === todayWib.month && comp.day === todayWib.day;
+    }
+    const diffDays = (nowEffective.getTime() - ms) / (1000 * 60 * 60 * 24);
+    if (recapPeriod === "7D") return diffDays <= 7;
+    if (recapPeriod === "30D") return diffDays <= 30;
+    return true;
+  };
+
+  const handleCashierCancel = async (ord: OrderTicket) => {
+    if (!onCancelOrder || cancellingOrderId) return;
+    const isPaid = ord.payment_status === "PAID";
+    const msg = isPaid
+      ? `PERINGATAN: Tiket ${ord.order_code} sudah LUNAS via QRIS (Rp ${ord.total_price.toLocaleString("id-ID")}). Membatalkan pesanan ini akan menandai status REFUNDED dan mengembalikan stok jika listing belum kedaluwarsa. Lanjutkan?`
+      : `Batalkan / tandai No-Show pesanan ${ord.order_code} (${ord.customer_name})? Stok akan dikembalikan ke katalog jika listing belum kedaluwarsa.`;
+    if (!window.confirm(msg)) return;
+    try {
+      setCancellingOrderId(ord.id);
+      await onCancelOrder(ord.id);
+    } finally {
+      if (isMountedRef.current) setCancellingOrderId(null);
+    }
   };
 
   const reservedOrders = orders.filter((o) => o.status === "RESERVED");
   const completedOrders = orders.filter(
-    (o) => o.status === "COMPLETED" && isSameWibDay(o.completed_at || o.created_at)
+    (o) => o.status === "COMPLETED" && matchesRecapPeriod(o.completed_at || o.created_at)
   );
   const rescuedPortionsCount = completedOrders.reduce((sum, o) => sum + o.quantity, 0);
   const cashToCollectTotal = completedOrders
-    .filter((o) => o.payment_method !== "SIMULATED_QRIS")
+    .filter((o) => o.payment_method !== "SIMULATED_QRIS" && o.payment_method !== "MIDTRANS_QRIS")
     .reduce((sum, o) => sum + o.total_price, 0);
   const qrisSettledTotal = completedOrders
-    .filter((o) => o.payment_method === "SIMULATED_QRIS")
+    .filter((o) => o.payment_method === "SIMULATED_QRIS" || o.payment_method === "MIDTRANS_QRIS")
     .reduce((sum, o) => sum + o.total_price, 0);
 
   const stopCamera = useCallback(async () => {
@@ -511,10 +539,10 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
         <div className="md:col-span-7 space-y-4">
           {/* Cashier POS Daily Shift Summary (Pilar 7) */}
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-[0_4px_16px_rgba(15,23,42,0.05)] space-y-3">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-[#181C2E]">
                 <Receipt className="w-4 h-4 text-emerald-600" />
-                <span className="uppercase tracking-wider">Rekapitulasi Shift Hari Ini</span>
+                <span className="uppercase tracking-wider">Rekapitulasi Penjualan</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-[#646982] font-semibold">
@@ -533,6 +561,31 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* Multi-Period Filter Pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(
+                [
+                  { key: "TODAY", label: "Hari Ini" },
+                  { key: "7D", label: "7 Hari" },
+                  { key: "30D", label: "30 Hari" },
+                  { key: "ALL", label: "Semua" },
+                ] as const
+              ).map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setRecapPeriod(p.key)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                    recapPeriod === p.key
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-[#F0F5FA] text-[#646982] hover:text-[#181C2E]"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
 
             <div className="grid grid-cols-3 gap-2.5 text-center">
@@ -617,8 +670,8 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                         )}
                       </div>
 
-                      {/* Cashier Payment Instruction Banner */}
-                      <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between">
+                      {/* Cashier Payment Instruction Banner + Cancel/No-Show Action */}
+                      <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between flex-wrap gap-2">
                         {isPaid ? (
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg">
                             <CreditCard className="w-3 h-3 text-emerald-600" />
@@ -629,6 +682,17 @@ export const MerchantCashierScreen: React.FC<MerchantCashierScreenProps> = ({
                             <Banknote className="w-3 h-3 text-amber-700" />
                             TAGIHKAN TUNAI: Rp {ord.total_price.toLocaleString("id-ID")}
                           </span>
+                        )}
+                        {onCancelOrder && (
+                          <button
+                            type="button"
+                            disabled={cancellingOrderId === ord.id}
+                            onClick={() => void handleCashierCancel(ord)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-red-700 text-[11px] font-bold transition cursor-pointer disabled:opacity-50"
+                          >
+                            <XCircle className="w-3 h-3" />
+                            <span>{cancellingOrderId === ord.id ? "Membatalkan..." : "Batalkan / No-Show"}</span>
+                          </button>
                         )}
                       </div>
                     </div>

@@ -10,7 +10,6 @@ export interface StoreMenuItem {
   category: string;
   food_type?: string;
   bpom_max_hours: number;
-  portion_size?: string;
   image_url?: string | null;
   is_active: boolean;
   expires_at?: string | null;
@@ -21,12 +20,29 @@ export interface StoreProfile {
   id: string;
   store_id: string;
   name: string;
+  category?: string;
+  description?: string;
   location_name: string;
   latitude?: number | null;
   longitude?: number | null;
   closing_time: string;
   maps_url: string;
   is_active: boolean;
+}
+
+export interface ConsumerProfile {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone: string;
+  role: string;
+  created_at: string;
+}
+
+export interface PublicStoreDetail {
+  store: StoreProfile;
+  active_listings: ItemListing[];
+  active_listing_count: number;
 }
 
 export interface DraftResponse {
@@ -37,6 +53,7 @@ export interface DraftResponse {
   quantity: number;
   original_price: number;
   recommended_discount_percent: number;
+  pricing_reason?: string | null;
   discounted_price: number;
   hours_since_cooked: number;
   bpom_max_hours: number;
@@ -48,7 +65,6 @@ export interface DraftResponse {
   similarity_score: number;
   extraction_source: string;
   can_publish: boolean;
-  portion_size?: string;
 
   // New Context-Aware Slot Filling & Multi-Tenant metadata
   store_id?: string;
@@ -79,7 +95,6 @@ export interface PublishRequest {
   similarity_score?: number;
   store_name?: string;
   location_badge?: string;
-  portion_size?: string;
 
   // Multi-tenant & bundling
   store_id?: string;
@@ -103,7 +118,6 @@ export interface ItemListing {
   closing_time?: string;
   is_bundle?: boolean;
   bundled_items_json?: string | null;
-  portion_size?: string;
 
   food_name: string;
   matched_canonical_dish: string;
@@ -132,9 +146,11 @@ export interface OrderTicket {
   id: string;
   order_code: string;
   store_id?: string;
+  user_id?: string | null;
   customer_name: string;
   customer_phone?: string;
   listing_id: string;
+  items_json?: string | null;
   food_name: string;
   store_name: string;
   location_badge: string;
@@ -143,13 +159,19 @@ export interface OrderTicket {
   unit_price: number;
   total_price: number;
   pickup_deadline: string;
+  expires_at?: string | null;
   qr_payload: string;
-  payment_method?: string;  // CASH_ON_PICKUP | SIMULATED_QRIS
-  payment_status?: string;  // UNPAID | PAID | REFUNDED
-  status: string;           // RESERVED | COMPLETED | CANCELLED
+  payment_method?: string;  // CASH_ON_PICKUP | MIDTRANS_QRIS | SIMULATED_QRIS
+  payment_status?: string;  // UNPAID | PENDING | PAID | REFUNDED
+  status: string;           // RESERVED | COMPLETED | CANCELLED | EXPIRED
   created_at: string;
   completed_at?: string | null;
   cancelled_at?: string | null;
+}
+
+export interface CartItem {
+  listing: ItemListing;
+  quantity: number;
 }
 
 export interface UserSession {
@@ -159,6 +181,8 @@ export interface UserSession {
   userId?: string;
   storeId?: string;
   storeName?: string;
+  storeCategory?: string;
+  storeDescription?: string;
   customerName?: string;
   customerPhone?: string;
   closingTime?: string;
@@ -174,6 +198,8 @@ export interface AuthResponse {
   user_id?: string;
   store_id?: string;
   store_name?: string;
+  store_category?: string;
+  store_description?: string;
   customer_name?: string;
   customer_phone?: string;
   closing_time?: string;

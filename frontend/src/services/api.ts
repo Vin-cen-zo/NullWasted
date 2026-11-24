@@ -1,8 +1,10 @@
 import {
   AuthResponse,
+  ConsumerProfile,
   DraftResponse,
   ItemListing,
   OrderTicket,
+  PublicStoreDetail,
   PublishRequest,
   StoreMenuItem,
   StoreProfile,
@@ -175,6 +177,113 @@ export async function loginConsumer(email: string, password: string): Promise<Au
 }
 
 // ============================================================================
+// PROFILE, PASSWORD, PUBLIC STORE & FAVORITES
+// ============================================================================
+
+export async function fetchPublicStoreDetail(storeId: string): Promise<PublicStoreDetail> {
+  const res = await apiFetch(`/auth/stores/${encodeURIComponent(storeId)}`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gerai tidak ditemukan."));
+  }
+  return res.json();
+}
+
+export async function fetchConsumerProfile(): Promise<ConsumerProfile> {
+  const res = await apiFetch("/auth/me");
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memuat profil konsumen."));
+  }
+  return res.json();
+}
+
+export async function updateConsumerProfile(payload: {
+  name?: string;
+  phone?: string;
+}): Promise<ConsumerProfile> {
+  const res = await apiFetch("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memperbarui profil konsumen."));
+  }
+  return res.json();
+}
+
+export async function updateStoreProfile(
+  storeId: string,
+  payload: {
+    name?: string;
+    category?: string;
+    closing_time?: string;
+    location_name?: string;
+    description?: string;
+  }
+): Promise<StoreProfile> {
+  const res = await apiFetch(`/auth/stores/${encodeURIComponent(storeId)}/profile`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memperbarui profil gerai."));
+  }
+  return res.json();
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ status: string; message: string }> {
+  const res = await apiFetch("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal mengubah password."));
+  }
+  return res.json();
+}
+
+export async function fetchFavoriteStores(): Promise<string[]> {
+  const res = await apiFetch("/auth/favorites");
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data?.store_ids) ? data.store_ids : [];
+}
+
+export async function addFavoriteStore(storeId: string): Promise<string[]> {
+  const res = await apiFetch(`/auth/favorites/${encodeURIComponent(storeId)}`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal menyimpan gerai favorit."));
+  }
+  const data = await res.json();
+  return Array.isArray(data?.store_ids) ? data.store_ids : [];
+}
+
+export async function removeFavoriteStore(storeId: string): Promise<string[]> {
+  const res = await apiFetch(`/auth/favorites/${encodeURIComponent(storeId)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal menghapus gerai favorit."));
+  }
+  const data = await res.json();
+  return Array.isArray(data?.store_ids) ? data.store_ids : [];
+}
+
+// ============================================================================
 // STORE MASTER MENU (Layer 1 RAG)
 // ============================================================================
 
@@ -194,7 +303,6 @@ export async function createStoreMenuItem(
     typical_cooking_time?: string;
     default_hours_cooked?: number;
     ingredients?: string;
-    portion_size?: string;
     image_url?: string | null;
   }
 ): Promise<StoreMenuItem> {
@@ -205,6 +313,29 @@ export async function createStoreMenuItem(
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(formatApiError(errorData.detail, "Gagal menambahkan menu ke buku menu gerai."));
+  }
+  return res.json();
+}
+
+export async function updateStoreMenuItem(
+  storeId: string,
+  menuId: string,
+  payload: {
+    food_name?: string;
+    original_price?: number;
+    typical_cooking_time?: string;
+    default_hours_cooked?: number;
+    ingredients?: string;
+    image_url?: string | null;
+  }
+): Promise<StoreMenuItem> {
+  const res = await apiFetch(`/menu/${encodeURIComponent(storeId)}/${encodeURIComponent(menuId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memperbarui menu di buku menu gerai."));
   }
   return res.json();
 }
@@ -267,6 +398,74 @@ export async function createDraft(
   return res.json();
 }
 
+export async function createBatchDraft(
+  text: string,
+  audioBase64?: string,
+  storeId: string = "FTUI-001"
+): Promise<{ items: DraftResponse[]; total_count: number; safe_count: number }> {
+  const res = await apiFetch("/listings/draft-batch", {
+    method: "POST",
+    body: JSON.stringify({ text, audio_base64: audioBase64 || null, store_id: storeId }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal menganalisis draf multi-menu."));
+  }
+  return res.json();
+}
+
+export async function fetchQrisConfig(): Promise<{
+  qris_enabled: boolean;
+  mode: string;
+  simulator_url?: string | null;
+}> {
+  const res = await apiFetch("/payments/qris/config");
+  if (!res.ok) return { qris_enabled: false, mode: "disabled", simulator_url: null };
+  return res.json();
+}
+
+export async function createQrisPayment(payload: {
+  listing_id?: string;
+  quantity?: number;
+  items?: Array<{ listing_id: string; quantity: number }>;
+  customer_name: string;
+  customer_phone: string;
+}): Promise<{
+  ticket: OrderTicket;
+  qris_url?: string | null;
+  qris_string?: string | null;
+  midtrans_transaction_id?: string | null;
+  payment_expires_at?: string | null;
+  simulator_url?: string | null;
+}> {
+  const res = await apiFetch("/payments/qris/create", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal membuat tagihan QRIS Midtrans."));
+  }
+  return res.json();
+}
+
+export async function fetchPaymentStatus(orderId: string): Promise<{
+  order_id: string;
+  order_code: string;
+  status: string;
+  payment_status: string;
+  payment_method: string;
+  payment_expires_at?: string | null;
+}> {
+  const res = await apiFetch(`/payments/${encodeURIComponent(orderId)}/status`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memeriksa status pembayaran."));
+  }
+  return res.json();
+}
+
 export async function publishListing(payload: PublishRequest): Promise<ItemListing> {
   const res = await apiFetch("/listings/publish", {
     method: "POST",
@@ -283,7 +482,8 @@ export async function publishListing(payload: PublishRequest): Promise<ItemListi
 export async function createSmartBundle(
   storeId: string = "FTUI-001",
   discountPercent: number = 65,
-  customName?: string
+  customName?: string,
+  listingIds?: string[]
 ): Promise<ItemListing> {
   const res = await apiFetch("/listings/smart-bundle", {
     method: "POST",
@@ -291,6 +491,7 @@ export async function createSmartBundle(
       store_id: storeId,
       discount_percent: discountPercent,
       custom_bundle_name: customName || null,
+      listing_ids: listingIds && listingIds.length > 0 ? listingIds : null,
     }),
   });
 
@@ -308,6 +509,21 @@ export async function fetchActiveListings(storeId?: string): Promise<ItemListing
   const res = await apiFetch(path);
   if (!res.ok) {
     throw new Error("Gagal mengambil katalog aktif.");
+  }
+  return res.json();
+}
+
+export async function updateListingStock(
+  listingId: string,
+  quantity: number
+): Promise<ItemListing> {
+  const res = await apiFetch(`/listings/${encodeURIComponent(listingId)}/stock`, {
+    method: "PATCH",
+    body: JSON.stringify({ quantity }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memperbarui stok listing."));
   }
   return res.json();
 }
@@ -348,6 +564,28 @@ export async function reserveOrder(
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(formatApiError(errorData.detail, "Gagal melakukan reservasi porsi."));
+  }
+  return res.json();
+}
+
+export async function reserveCartOrder(
+  items: Array<{ listing_id: string; quantity: number }>,
+  customerName: string = "Budi Santoso",
+  customerPhone: string = "0812-8899-0011",
+  paymentMethod: string = "CASH_ON_PICKUP"
+): Promise<OrderTicket> {
+  const res = await apiFetch("/orders/reserve-cart", {
+    method: "POST",
+    body: JSON.stringify({
+      items,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      payment_method: paymentMethod,
+    }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal memproses checkout keranjang."));
   }
   return res.json();
 }
