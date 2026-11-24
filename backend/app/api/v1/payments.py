@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 import json
+import logging
 import random
 from typing import Any, Optional
 import httpx
@@ -17,6 +18,7 @@ from app.core.security import require_consumer_user
 from app.models.listing import ItemListing, OrderTicket, utc_now_iso
 from app.schemas.listing import PaymentStatusResponse, QrisCreateRequest, QrisCreateResponse
 
+logger = logging.getLogger("nullwasted.payments")
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
@@ -325,16 +327,25 @@ async def midtrans_webhook(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Midtrans tidak dikonfigurasi.")
 
     body = await request.json()
-    order_id = str(body.get("order_id", ""))
-    status_code = str(body.get("status_code", ""))
-    gross_amount = str(body.get("gross_amount", ""))
-    signature_key = str(body.get("signature_key", ""))
-    tx_status = str(body.get("transaction_status", "")).lower()
+    order_id = str(body.get("order_id", "")).strip()
+    status_code = str(body.get("status_code", "")).strip()
+    gross_amount = str(body.get("gross_amount", "")).strip()
+    signature_key = str(body.get("signature_key", "")).strip().lower()
+    tx_status = str(body.get("transaction_status", "")).strip().lower()
 
     expected_sig = hashlib.sha512(
         f"{order_id}{status_code}{gross_amount}{cfg['server_key']}".encode("utf-8")
-    ).hexdigest()
+    ).hexdigest().lower()
     if not signature_key or not hmac.compare_digest(expected_sig, signature_key):
+        logger.warning(
+            "Midtrans webhook signature mismatch: order_id=%s status_code=%s gross_amount=%s tx_status=%s expected_prefix=%s received_prefix=%s",
+            order_id,
+            status_code,
+            gross_amount,
+            tx_status,
+            expected_sig[:8],
+            signature_key[:8],
+        )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid Midtrans signature key.")
 
     ticket = session.get(OrderTicket, order_id)
@@ -368,13 +379,66 @@ async def midtrans_webhook(
     return {"status": "ok"}
 
 
+async def _reconcile_midtrans_status(session: Session, ticket: OrderTicket) -> bool:
+    """Actively reconciles a PENDING Midtrans QRIS ticket against Midtrans Core API /v2/{order_id}/status."""
+    if (
+        ticket.status != "RESERVED"
+        or ticket.payment_status != "PENDING"
+        or ticket.payment_method != "MIDTRANS_QRIS"
+    ):
+        return False
+    cfg = get_midtrans_config()
+    if not cfg:
+        return False
+
+    auth_raw = base64.b64encode(f"{cfg['server_key']}:".encode("utf-8")).decode("utf-8")
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get(
+                f"{cfg['base_url']}/v2/{ticket.id}/status",
+                headers={
+                    "Accept": "application/json",
+                    "Authorization": f"Basic {auth_raw}",
+                },
+            )
+            if res.status_code >= 400:
+                return False
+            mt_data = res.json()
+    except Exception:
+        return False
+
+    tx_status = str(mt_data.get("transaction_status", "")).strip().lower()
+    if tx_status in {"settlement", "capture"}:
+        ticket.payment_status = "PAID"
+        session.add(ticket)
+        session.commit()
+        session.refresh(ticket)
+        return True
+    if tx_status in {"expire", "cancel", "deny"}:
+        upd = session.execute(
+            update(OrderTicket)
+            .where(
+                OrderTicket.id == ticket.id,
+                OrderTicket.status == "RESERVED",
+                OrderTicket.payment_status == "PENDING",
+            )
+            .values(status="CANCELLED", cancelled_at=utc_now_iso())
+        )
+        if upd.rowcount > 0:
+            _rollback_ticket_stock(session, ticket)
+            session.commit()
+            session.refresh(ticket)
+            return True
+    return False
+
+
 @router.get("/{order_id}/status", response_model=PaymentStatusResponse)
-def get_payment_status(
+async def get_payment_status(
     order_id: str,
     session: Session = Depends(get_session),
     user_claims: dict[str, Any] = Depends(require_consumer_user),
 ) -> PaymentStatusResponse:
-    """Polls latest payment status for an order (with Guardrail #5 lazy 15-min expiry check)."""
+    """Polls latest payment status for an order (with Guardrail #5 lazy 15-min expiry check + active Midtrans reconciliation)."""
     ticket = session.get(OrderTicket, order_id)
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tiket pesanan tidak ditemukan.")
@@ -382,6 +446,7 @@ def get_payment_status(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Akses ditolak.")
 
     sync_pending_qris_expiry(session, [ticket])
+    await _reconcile_midtrans_status(session, ticket)
 
     return PaymentStatusResponse(
         order_id=ticket.id,
