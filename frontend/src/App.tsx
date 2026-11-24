@@ -560,6 +560,7 @@ export const App: React.FC = () => {
       await refreshListings();
       await refreshOrders();
       setConsumerTab("orders");
+      navigateToPath("/orders");
       showToast(`Reservasi sukses! Tiket ${ticket.order_code} siap diambil.`, "success");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Gagal melakukan reservasi.", "error");
@@ -1160,6 +1161,7 @@ export const App: React.FC = () => {
                 onClick={() => {
                   setMerchantTab("create");
                   setActiveDraft(null);
+                  navigateToPath("/merchant/create");
                 }}
                 className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
                   merchantTab === "create"
@@ -1173,7 +1175,10 @@ export const App: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => setMerchantTab("inventory")}
+                onClick={() => {
+                  setMerchantTab("inventory");
+                  navigateToPath("/merchant/inventory");
+                }}
                 className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all relative ${
                   merchantTab === "inventory"
                     ? "text-emerald-600 font-bold"
@@ -1186,7 +1191,10 @@ export const App: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => setMerchantTab("cashier")}
+                onClick={() => {
+                  setMerchantTab("cashier");
+                  navigateToPath("/merchant/cashier");
+                }}
                 className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all relative ${
                   merchantTab === "cashier"
                     ? "text-emerald-600 font-bold"
@@ -1201,7 +1209,10 @@ export const App: React.FC = () => {
             <>
               <button
                 type="button"
-                onClick={() => setConsumerTab("explore")}
+                onClick={() => {
+                  setConsumerTab("explore");
+                  navigateToPath("/");
+                }}
                 className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${
                   consumerTab === "explore"
                     ? "text-emerald-600 font-bold"
@@ -1214,7 +1225,10 @@ export const App: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => setConsumerTab("orders")}
+                onClick={() => {
+                  setConsumerTab("orders");
+                  navigateToPath("/orders");
+                }}
                 className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all relative ${
                   consumerTab === "orders"
                     ? "text-emerald-600 font-bold"
