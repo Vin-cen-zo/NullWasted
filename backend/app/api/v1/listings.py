@@ -1,10 +1,11 @@
 import asyncio
+import base64
 from datetime import datetime, timedelta, timezone
 import json
 import random
 import re
 from typing import Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import case, or_, update
 from sqlmodel import Session, select
 
@@ -19,6 +20,9 @@ from app.core.security import (
 from app.models.listing import ItemListing, OrderTicket, Store, StoreMenuItem, User, utc_now_iso
 from app.schemas.listing import (
     BatchDraftResponse,
+    BulkMenuCreateRequest,
+    BulkMenuImportPreviewItem,
+    BulkMenuImportPreviewResponse,
     CompletePickupRequest,
     DraftRequest,
     DraftResponse,
@@ -34,6 +38,7 @@ from app.schemas.listing import (
 from app.services.extractor import (
     classify_dish_with_ai,
     extract_listing_entities,
+    extract_menu_catalog_items,
     extract_multiple_listing_entities,
 )
 from app.api.v1.payments import sync_pending_qris_expiry
@@ -174,6 +179,181 @@ async def create_store_menu_item(
         is_active=menu_item.is_active,
         created_at=menu_item.created_at,
     )
+
+
+@router.post("/menu/{store_id}/import-preview", response_model=BulkMenuImportPreviewResponse)
+async def preview_bulk_menu_import(
+    store_id: str,
+    raw_text: str = Form(default=""),
+    image: Optional[UploadFile] = File(default=None),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
+) -> BulkMenuImportPreviewResponse:
+    """Extracts multiple menu items (name, price, auto-inferred ingredients) from text and/or menu photo
+    and evaluates BPOM perishability for 1-tap editable confirmation before saving.
+    """
+    _require_merchant_store_access(user_claims, store_id)
+
+    cleaned_text = (raw_text or "").strip()
+    image_b64: Optional[str] = None
+    image_mime = "image/jpeg"
+
+    if image is not None and image.filename:
+        allowed_mimes = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
+        content_type = (image.content_type or "").lower()
+        if content_type not in allowed_mimes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Format foto buku menu harus JPG, PNG, atau WebP.",
+            )
+        raw_bytes = await image.read()
+        if len(raw_bytes) > 8 * 1024 * 1024:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ukuran foto buku menu maksimal 8 MB.",
+            )
+        if raw_bytes:
+            image_b64 = base64.b64encode(raw_bytes).decode("ascii")
+            image_mime = "image/jpeg" if content_type == "image/jpg" else content_type
+
+    if not cleaned_text and not image_b64:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Masukkan teks daftar menu atau unggah foto buku menu terlebih dahulu.",
+        )
+
+    extracted_items, source = await extract_menu_catalog_items(
+        raw_text=cleaned_text,
+        image_base64=image_b64,
+        image_mime_type=image_mime,
+    )
+    if not extracted_items:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="AI tidak menemukan item menu yang valid. Pastikan teks atau foto buku menu terbaca jelas.",
+        )
+
+    preview_items: list[BulkMenuImportPreviewItem] = []
+    for entry in extracted_items:
+        safety = await asyncio.to_thread(
+            evaluate_food_safety,
+            food_name=entry["food_name"],
+            raw_text=entry["ingredients"],
+            hours_since_cooked=1.0,
+            ai_is_edible=entry.get("is_edible_food"),
+            ai_food_type=entry.get("food_type"),
+            ai_inferred_risk=entry.get("inferred_risk"),
+        )
+        can_save = bool(safety["can_publish"] and safety["safety_status"] == "SAFE")
+        preview_items.append(
+            BulkMenuImportPreviewItem(
+                food_name=entry["food_name"],
+                original_price=entry["original_price"],
+                ingredients=entry["ingredients"],
+                typical_cooking_time="16:00",
+                canonical_bpom_dish=safety["matched_canonical_dish"],
+                category=safety["category"],
+                food_type=safety["food_type"],
+                bpom_max_hours=safety["bpom_max_hours"],
+                safety_status=safety["safety_status"],
+                safety_reason=safety["safety_reason"],
+                can_save=can_save,
+            )
+        )
+
+    valid_count = sum(1 for it in preview_items if it.can_save)
+    return BulkMenuImportPreviewResponse(
+        items=preview_items,
+        total_count=len(preview_items),
+        valid_count=valid_count,
+        extraction_source=source,
+    )
+
+
+@router.post("/menu/{store_id}/bulk", response_model=List[MenuItemResponse])
+async def bulk_create_store_menu_items(
+    store_id: str,
+    payload: BulkMenuCreateRequest,
+    session: Session = Depends(get_session),
+    user_claims: dict[str, Any] = Depends(require_merchant_user),
+) -> List[MenuItemResponse]:
+    """Saves multiple reviewed menu items into the store catalog in a single transaction,
+    skipping case-insensitive duplicates already present in the store catalog or batch.
+    """
+    _require_merchant_store_access(user_claims, store_id)
+
+    existing_rows = session.exec(
+        select(StoreMenuItem.food_name).where(
+            StoreMenuItem.store_id == store_id,
+            StoreMenuItem.is_active == True,
+        )
+    ).all()
+    seen_names: set[str] = {str(name).strip().lower() for name in existing_rows if name}
+
+    created_models: list[StoreMenuItem] = []
+    for entry in payload.items:
+        clean_name = entry.food_name.strip()
+        norm_key = clean_name.lower()
+        if norm_key in seen_names:
+            continue
+        seen_names.add(norm_key)
+
+        safety = await asyncio.to_thread(
+            evaluate_food_safety,
+            food_name=clean_name,
+            raw_text=entry.ingredients.strip(),
+            hours_since_cooked=entry.default_hours_cooked,
+        )
+        if safety["safety_status"] == "REJECTED" or not safety["can_publish"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Menu '{clean_name}' ditolak BPOM: {safety['safety_reason']}",
+            )
+        menu_item = StoreMenuItem(
+            store_id=store_id,
+            food_name=clean_name,
+            original_price=entry.original_price,
+            typical_cooking_time=entry.typical_cooking_time,
+            default_hours_cooked=entry.default_hours_cooked,
+            ingredients=entry.ingredients.strip(),
+            canonical_bpom_dish=safety["matched_canonical_dish"],
+            category=safety["category"],
+            food_type=safety["food_type"],
+            bpom_max_hours=safety["bpom_max_hours"],
+            image_url=entry.image_url,
+            is_active=True,
+        )
+        session.add(menu_item)
+        created_models.append(menu_item)
+
+    if not created_models:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Semua menu yang dipilih sudah terdaftar di Buku Menu gerai Anda (duplikat dilewati).",
+        )
+
+    session.commit()
+    for m in created_models:
+        session.refresh(m)
+
+    return [
+        MenuItemResponse(
+            id=m.id,
+            store_id=m.store_id,
+            food_name=m.food_name,
+            original_price=m.original_price,
+            typical_cooking_time=m.typical_cooking_time,
+            default_hours_cooked=m.default_hours_cooked,
+            ingredients=m.ingredients,
+            canonical_bpom_dish=m.canonical_bpom_dish,
+            category=m.category,
+            food_type=m.food_type,
+            bpom_max_hours=m.bpom_max_hours,
+            image_url=m.image_url,
+            is_active=m.is_active,
+            created_at=m.created_at,
+        )
+        for m in created_models
+    ]
 
 
 @router.put("/menu/{store_id}/{menu_id}", response_model=MenuItemResponse)
@@ -1285,21 +1465,9 @@ def get_active_orders(
         statement = statement.where(OrderTicket.store_id == token_store_id)
     elif role == "consumer":
         user_sub = user_claims.get("sub")
-        user_row = session.get(User, user_sub) if user_sub else None
-        claim_phone = (user_claims.get("phone") or (user_row.phone if user_row else "") or "").strip()
-        claim_name = (user_claims.get("name") or (user_row.name if user_row else "") or "").strip()
-
-        conditions = []
-        if user_sub:
-            conditions.append(OrderTicket.user_id == user_sub)
-        if claim_phone:
-            conditions.append((OrderTicket.user_id.is_(None)) & (OrderTicket.customer_phone == claim_phone))
-        elif claim_name:
-            conditions.append((OrderTicket.user_id.is_(None)) & (OrderTicket.customer_name == claim_name))
-
-        if not conditions:
+        if not user_sub:
             return []
-        statement = statement.where(or_(*conditions))
+        statement = statement.where(OrderTicket.user_id == user_sub)
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Peran pengguna tidak valid.")
 

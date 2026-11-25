@@ -420,3 +420,45 @@ class PaymentStatusResponse(BaseModel):
     payment_status: str
     payment_method: str
     payment_expires_at: Optional[str] = None
+
+
+class BulkMenuImportPreviewItem(BaseModel):
+    food_name: str
+    original_price: int
+    ingredients: str
+    typical_cooking_time: str = "16:00"
+    canonical_bpom_dish: str
+    category: str
+    food_type: str = "MEAL"
+    bpom_max_hours: float
+    safety_status: str = "SAFE"
+    safety_reason: str = ""
+    can_save: bool = True
+
+
+class BulkMenuImportPreviewResponse(BaseModel):
+    items: list[BulkMenuImportPreviewItem]
+    total_count: int
+    valid_count: int
+    extraction_source: str
+
+
+class BulkMenuCreateItem(BaseModel):
+    food_name: str = Field(..., min_length=2, max_length=150)
+    original_price: int = Field(..., ge=1000, le=2000000)
+    ingredients: str = Field(..., min_length=3, max_length=500)
+    typical_cooking_time: str = Field(default="16:00")
+    default_hours_cooked: float = Field(default=1.0, ge=0.0, le=48.0)
+    image_url: Optional[str] = None
+
+    @field_validator("typical_cooking_time")
+    @classmethod
+    def validate_bulk_cooking_time(cls, v: str) -> str:
+        cleaned = (v or "16:00").strip()
+        if not re.match(r"^(?:[01]\d|2[0-3]):[0-5]\d$", cleaned):
+            return "16:00"
+        return cleaned
+
+
+class BulkMenuCreateRequest(BaseModel):
+    items: list[BulkMenuCreateItem] = Field(..., min_length=1, max_length=50)

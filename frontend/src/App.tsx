@@ -904,10 +904,51 @@ export const App: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                     {batchDrafts.map((d, idx) => {
                       const isSafe = d.safety_status === "SAFE" && d.can_publish;
+                      const updateItem = (patch: Partial<typeof d>) => {
+                        setBatchDrafts((prev) =>
+                          prev.map((item, i) => {
+                            if (i !== idx) return item;
+                            const nextQty = patch.quantity !== undefined ? Math.max(1, Math.min(200, patch.quantity)) : item.quantity;
+                            const nextPrice = patch.original_price !== undefined ? Math.max(0, Math.min(2000000, patch.original_price)) : item.original_price;
+                            const nextHours = patch.hours_since_cooked !== undefined ? Math.max(0, Math.min(48, Number(patch.hours_since_cooked.toFixed(1)))) : item.hours_since_cooked;
+                            const nextDiscounted = Math.max(
+                              100,
+                              Math.floor((nextPrice * (1 - item.recommended_discount_percent / 100)) / 100) * 100
+                            );
+                            const isNonTimeReject = item.safety_status === "REJECTED" && item.bpom_max_hours <= 0;
+                            let nextStatus = item.safety_status;
+                            let nextCanPublish = item.can_publish;
+                            let nextReason = item.safety_reason;
+                            if (!isNonTimeReject && item.bpom_max_hours > 0) {
+                              if (nextHours > item.bpom_max_hours) {
+                                nextStatus = "REJECTED";
+                                nextCanPublish = false;
+                                nextReason = `DITOLAK BPOM: Waktu simpan (${nextHours} jam) melampaui batas aman suhu ruang maks ${item.bpom_max_hours} jam.`;
+                              } else {
+                                nextStatus = "SAFE";
+                                nextCanPublish = true;
+                                nextReason = `Aman dikonsumsi: waktu simpan ${nextHours} jam masih dalam batas aman BPOM (maks ${item.bpom_max_hours} jam).`;
+                              }
+                            }
+                            return {
+                              ...item,
+                              quantity: nextQty,
+                              original_price: nextPrice,
+                              hours_since_cooked: nextHours,
+                              discounted_price: nextDiscounted,
+                              needs_manual_price: patch.original_price !== undefined ? false : item.needs_manual_price,
+                              safety_status: nextStatus,
+                              can_publish: nextCanPublish,
+                              safety_reason: nextReason,
+                            };
+                          })
+                        );
+                      };
+
                       return (
                         <div
                           key={`${d.food_name}-${idx}`}
-                          className={`p-4 rounded-xl border bg-white space-y-2.5 ${
+                          className={`p-4 rounded-xl border bg-white space-y-3 ${
                             isSafe ? "border-emerald-200" : "border-red-300 bg-red-50/40"
                           }`}
                         >
@@ -921,9 +962,6 @@ export const App: React.FC = () => {
                                 {isSafe ? "BPOM SAFE" : "DITOLAK BPOM"}
                               </span>
                               <h3 className="text-sm font-bold text-[#181C2E]">{d.food_name}</h3>
-                              <p className="text-xs text-[#646982]">
-                                {d.quantity} porsi · Normal Rp {d.original_price.toLocaleString("id-ID")}
-                              </p>
                             </div>
                             <button
                               type="button"
@@ -932,6 +970,81 @@ export const App: React.FC = () => {
                             >
                               Hapus
                             </button>
+                          </div>
+
+                          {/* Inline Editable Fields: Quantity, Normal Price, Hours Since Cooked */}
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-[11px] font-semibold text-[#646982] mb-0.5">
+                                Porsi
+                              </label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={200}
+                                value={d.quantity}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value, 10);
+                                  if (!Number.isNaN(val)) updateItem({ quantity: val });
+                                }}
+                                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-[#F0F5FA] focus:bg-white text-xs font-bold text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-semibold text-[#646982] mb-0.5 flex items-center justify-between">
+                                <span>Harga (Rp)</span>
+                                {d.needs_manual_price && (
+                                  <span className="text-[10px] font-bold text-amber-700">!</span>
+                                )}
+                              </label>
+                              <input
+                                type="number"
+                                step={500}
+                                min={1000}
+                                max={2000000}
+                                value={d.original_price === 0 ? "" : d.original_price}
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  if (raw === "") {
+                                    updateItem({ original_price: 0 });
+                                    return;
+                                  }
+                                  const val = parseInt(raw, 10);
+                                  if (!Number.isNaN(val)) updateItem({ original_price: val });
+                                }}
+                                onBlur={() => {
+                                  if (d.original_price < 1000) {
+                                    updateItem({ original_price: 1000 });
+                                  }
+                                }}
+                                className={`w-full px-2 py-1.5 rounded-lg text-xs font-bold focus:outline-none focus:ring-2 ${
+                                  d.needs_manual_price
+                                    ? "border-2 border-amber-400 bg-amber-50 text-amber-950 focus:ring-amber-500"
+                                    : "border border-slate-200 bg-[#F0F5FA] focus:bg-white text-[#181C2E] focus:ring-emerald-500"
+                                }`}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-semibold text-[#646982] mb-0.5">
+                                Matang (Jam)
+                              </label>
+                              <input
+                                type="number"
+                                step={0.5}
+                                min={0}
+                                max={48}
+                                value={d.hours_since_cooked}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  if (!Number.isNaN(val)) updateItem({ hours_since_cooked: val });
+                                }}
+                                className={`w-full px-2 py-1.5 rounded-lg text-xs font-bold focus:outline-none focus:ring-2 ${
+                                  d.bpom_max_hours > 0 && d.hours_since_cooked > d.bpom_max_hours
+                                    ? "border-2 border-red-400 bg-red-50 text-red-900 focus:ring-red-500"
+                                    : "border border-slate-200 bg-[#F0F5FA] focus:bg-white text-[#181C2E] focus:ring-emerald-500"
+                                }`}
+                              />
+                            </div>
                           </div>
 
                           <p className="text-xs text-[#646982]">{d.safety_reason}</p>
