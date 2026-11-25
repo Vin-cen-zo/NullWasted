@@ -62,7 +62,12 @@ class AIGateway:
         return key
 
     async def generate_content(
-        self, prompt: str, audio_base64: Optional[str] = None, model: str = GEMINI_MODEL
+        self,
+        prompt: str,
+        audio_base64: Optional[str] = None,
+        model: str = GEMINI_MODEL,
+        image_base64: Optional[str] = None,
+        image_mime_type: str = "image/jpeg",
     ) -> Optional[str]:
         """Calls Gemini LLM API (gemini-3.5-flash-lite) with round-robin key pool and silent auto-failover."""
         active_keys = get_active_api_keys()
@@ -89,6 +94,13 @@ class AIGateway:
                         "inline_data": {
                             "mime_type": "audio/webm",
                             "data": audio_base64,
+                        }
+                    })
+                if image_base64:
+                    parts.append({
+                        "inline_data": {
+                            "mime_type": image_mime_type or "image/jpeg",
+                            "data": image_base64,
                         }
                     })
 
