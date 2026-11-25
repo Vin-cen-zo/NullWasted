@@ -354,6 +354,70 @@ export async function deleteStoreMenuItem(
   return res.json();
 }
 
+export interface BulkMenuImportPreviewItem {
+  food_name: string;
+  original_price: number;
+  ingredients: string;
+  typical_cooking_time: string;
+  canonical_bpom_dish: string;
+  category: string;
+  food_type: string;
+  bpom_max_hours: number;
+  safety_status: string;
+  safety_reason: string;
+  can_save: boolean;
+}
+
+export interface BulkMenuImportPreviewResponse {
+  items: BulkMenuImportPreviewItem[];
+  total_count: number;
+  valid_count: number;
+  extraction_source: string;
+}
+
+export async function previewBulkMenuImport(
+  storeId: string,
+  payload: { rawText?: string; imageFile?: File | null }
+): Promise<BulkMenuImportPreviewResponse> {
+  const formData = new FormData();
+  if (payload.rawText && payload.rawText.trim()) {
+    formData.append("raw_text", payload.rawText.trim());
+  }
+  if (payload.imageFile) {
+    formData.append("image", payload.imageFile);
+  }
+  const res = await apiFetch(`/menu/${encodeURIComponent(storeId)}/import-preview`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal mengekstrak daftar menu dengan AI."));
+  }
+  return res.json();
+}
+
+export async function bulkCreateStoreMenuItems(
+  storeId: string,
+  items: Array<{
+    food_name: string;
+    original_price: number;
+    ingredients: string;
+    typical_cooking_time?: string;
+    default_hours_cooked?: number;
+  }>
+): Promise<StoreMenuItem[]> {
+  const res = await apiFetch(`/menu/${encodeURIComponent(storeId)}/bulk`, {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(formatApiError(errorData.detail, "Gagal menyimpan daftar menu ke buku menu gerai."));
+  }
+  return res.json();
+}
+
 // ============================================================================
 // IMAGE UPLOAD SERVICE
 // ============================================================================

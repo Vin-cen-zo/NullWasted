@@ -59,6 +59,12 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
     draft.recommended_discount_percent || 50
   );
   const [hasCustomDiscount, setHasCustomDiscount] = useState<boolean>(false);
+  const [hoursSinceCooked, setHoursSinceCooked] = useState<number>(
+    Number((draft.hours_since_cooked ?? 1).toFixed(1))
+  );
+  const [hoursInput, setHoursInput] = useState<string>(
+    String(Number((draft.hours_since_cooked ?? 1).toFixed(1)))
+  );
 
   const effectiveClosingTime = draft.closing_time || closingTime || "20:30";
 
@@ -150,7 +156,16 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
     (originalPrice * (1 - discountPercent / 100)) / 100
   ) * 100;
 
-  const isSafe = draft.safety_status === "SAFE";
+  const parsedHoursInput = parseFloat(hoursInput);
+  const isHoursValid =
+    hoursInput.trim() !== "" &&
+    !Number.isNaN(parsedHoursInput) &&
+    parsedHoursInput >= 0 &&
+    parsedHoursInput <= 72;
+  const isNonTimeRejected = draft.safety_status === "REJECTED" && draft.bpom_max_hours <= 0;
+  const isTimeRejected = draft.bpom_max_hours > 0 && hoursSinceCooked > draft.bpom_max_hours;
+  const isSafe = !isNonTimeRejected && !isTimeRejected && isHoursValid;
+  const canPublishNow = isSafe && (draft.can_publish || !isNonTimeRejected);
 
   const getRejectionTitle = (): string => {
     const reasonUpper = (draft.safety_reason || "").toUpperCase();
@@ -191,12 +206,12 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
 
   const handleSaveToCatalog = async () => {
     // Hardening: strictly prevent spoiled / rejected items from entering catalog
-    if (!isSafe || !draft.can_publish || isSavingToCatalog || savedToCatalog) return;
+    if (!canPublishNow || isSavingToCatalog || savedToCatalog) return;
     try {
       setIsSavingToCatalog(true);
       setCatalogErrorMsg(null);
       const cookedMs =
-        getEffectiveNow().getTime() - (draft.hours_since_cooked || 1) * 3600 * 1000;
+        getEffectiveNow().getTime() - (hoursSinceCooked || 1) * 3600 * 1000;
       const cookedWib = getWibComponents(new Date(cookedMs));
       const typicalCookingTime = `${String(cookedWib.hour).padStart(2, "0")}:${String(
         cookedWib.minute
@@ -206,7 +221,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
         food_name: foodName.trim() || draft.food_name,
         original_price: Math.max(1000, Math.min(2000000, originalPrice)),
         typical_cooking_time: typicalCookingTime,
-        default_hours_cooked: draft.hours_since_cooked || 1.0,
+        default_hours_cooked: hoursSinceCooked,
         image_url: imageUrl,
       });
       setSavedToCatalog(true);
@@ -227,7 +242,7 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
     parsedPriceInput <= 2000000;
 
   const handlePublishClick = async () => {
-    if (!isSafe || !draft.can_publish || isStoreClosed || isPublishing || isUploadingImage || !isPriceValid) return;
+    if (!canPublishNow || isStoreClosed || isPublishing || isUploadingImage || !isPriceValid || !isHoursValid) return;
 
     const payload: PublishRequest = {
       store_id: storeId,
@@ -239,11 +254,14 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
       original_price: parsedPriceInput,
       discount_percent: discountPercent,
       discounted_price: calculatedDiscountedPrice,
-      hours_since_cooked: draft.hours_since_cooked,
+      hours_since_cooked: hoursSinceCooked,
       bpom_max_hours: draft.bpom_max_hours,
       minutes_until_closing: remainingMinutes,
-      safety_status: draft.safety_status,
-      safety_reason: draft.safety_reason,
+      safety_status: "SAFE",
+      safety_reason:
+        hoursSinceCooked !== draft.hours_since_cooked
+          ? `Aman dikonsumsi: waktu simpan ${hoursSinceCooked} jam masih dalam batas aman BPOM (maks ${draft.bpom_max_hours} jam).`
+          : draft.safety_reason,
       hazard_description: draft.hazard_description,
       regulation_ref: draft.regulation_ref,
       similarity_score: draft.similarity_score,
@@ -590,11 +608,51 @@ export const MerchantPreviewScreen: React.FC<MerchantPreviewScreenProps> = ({
                   <span className="font-bold text-[#181C2E]">{getFriendlyCategory(draft.category).label}</span>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-[#F0F5FA] border border-slate-200/70">
-                  <span className="text-xs text-[#646982] block">Waktu Sejak Dimasak</span>
-                  <span className="font-bold text-[#181C2E]">
-                    {draft.hours_since_cooked} jam / Maks {draft.bpom_max_hours} jam
-                  </span>
+                {/* Editable Cooking Time (Hours Since Cooked) with Real-Time BPOM Re-check */}
+                <div>
+                  <label htmlFor="preview-hours-cooked" className="block text-xs font-semibold text-[#646982] mb-1 flex items-center justify-between">
+                    <span>Matang (Jam Lalu)</span>
+                    <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
+                      isTimeRejected
+                        ? "text-red-700 bg-red-100"
+                        : "text-emerald-700 bg-emerald-50"
+                    }`}>
+                      Maks {draft.bpom_max_hours}j
+                    </span>
+                  </label>
+                  <input
+                    id="preview-hours-cooked"
+                    name="hoursSinceCooked"
+                    type="number"
+                    step={0.5}
+                    min={0}
+                    max={48}
+                    value={hoursInput}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setHoursInput(raw);
+                      const parsed = parseFloat(raw);
+                      if (!Number.isNaN(parsed) && parsed >= 0) {
+                        setHoursSinceCooked(Math.min(48, Number(parsed.toFixed(1))));
+                      }
+                    }}
+                    onBlur={() => {
+                      const parsed = parseFloat(hoursInput);
+                      const clamped = Math.max(0, Math.min(48, Number.isNaN(parsed) ? 1 : Number(parsed.toFixed(1))));
+                      setHoursSinceCooked(clamped);
+                      setHoursInput(String(clamped));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl font-bold text-xs focus:outline-none focus:ring-2 transition-colors ${
+                      isTimeRejected
+                        ? "border-2 border-red-400 bg-red-50 text-red-900 focus:ring-red-500"
+                        : "border border-slate-200 bg-[#F0F5FA] focus:bg-white text-[#181C2E] focus:ring-emerald-500"
+                    }`}
+                  />
+                  {isTimeRejected && (
+                    <p className="text-[11px] font-semibold text-red-600 mt-1">
+                      Melebihi batas aman BPOM ({draft.bpom_max_hours} jam). Tidak dapat diterbitkan.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

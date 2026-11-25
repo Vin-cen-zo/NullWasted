@@ -1,9 +1,27 @@
 import React, { useEffect, useRef, useState } from "react";
-import { BookOpen, Camera, Clock, Loader2, Pencil, Plus, Save, ShieldCheck, Trash2, X } from "lucide-react";
 import {
+  AlertTriangle,
+  BookOpen,
+  Camera,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  Pencil,
+  Plus,
+  Save,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
+import {
+  bulkCreateStoreMenuItems,
+  BulkMenuImportPreviewItem,
   createStoreMenuItem,
   deleteStoreMenuItem,
   fetchStoreMenu,
+  previewBulkMenuImport,
   updateStoreMenuItem,
   uploadMenuImage,
 } from "../services/api";
@@ -28,6 +46,20 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
   const [menuItems, setMenuItems] = useState<StoreMenuItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Mode toggle: single vs bulk AI import
+  const [inputMode, setInputMode] = useState<"single" | "bulk">("single");
+
+  // Bulk AI import states
+  const [bulkText, setBulkText] = useState("");
+  const [bulkImageFile, setBulkImageFile] = useState<File | null>(null);
+  const [bulkImagePreview, setBulkImagePreview] = useState<string | null>(null);
+  const [bulkAnalyzing, setBulkAnalyzing] = useState(false);
+  const [bulkPreviewItems, setBulkPreviewItems] = useState<BulkMenuImportPreviewItem[]>([]);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const bulkFileInputRef = useRef<HTMLInputElement | null>(null);
+  const bulkPreviewUrlRef = useRef<string | null>(null);
 
   // Form states
   const [editingMenuId, setEditingMenuId] = useState<string | null>(null);
@@ -58,11 +90,149 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
     }
   };
 
+  const revokeBulkPreviewUrl = () => {
+    if (bulkPreviewUrlRef.current) {
+      URL.revokeObjectURL(bulkPreviewUrlRef.current);
+      bulkPreviewUrlRef.current = null;
+    }
+  };
+
   useEffect(() => {
     return () => {
       revokePreviewUrl();
+      revokeBulkPreviewUrl();
     };
   }, []);
+
+  const handleBulkImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setErrorMsg(null);
+      const compressed = await compressImageFile(file, 1600, 0.85);
+      revokeBulkPreviewUrl();
+      const preview = URL.createObjectURL(compressed);
+      bulkPreviewUrlRef.current = preview;
+      setBulkImagePreview(preview);
+      setBulkImageFile(compressed);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal memproses foto buku menu.";
+      setErrorMsg(msg);
+    }
+  };
+
+  const handleRemoveBulkImage = () => {
+    revokeBulkPreviewUrl();
+    setBulkImagePreview(null);
+    setBulkImageFile(null);
+    if (bulkFileInputRef.current) bulkFileInputRef.current.value = "";
+  };
+
+  const handleBulkAnalyze = async () => {
+    if (!bulkText.trim() && !bulkImageFile) {
+      setErrorMsg("Tempel daftar menu atau unggah foto buku menu terlebih dahulu.");
+      return;
+    }
+    try {
+      setBulkAnalyzing(true);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      const res = await previewBulkMenuImport(storeId, {
+        rawText: bulkText,
+        imageFile: bulkImageFile,
+      });
+      setBulkPreviewItems(res.items);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal menganalisis daftar menu dengan AI.";
+      setErrorMsg(msg);
+    } finally {
+      setBulkAnalyzing(false);
+    }
+  };
+
+  const inferPreviewBpom = (foodNameVal: string, ingredientsVal: string, fallback: BulkMenuImportPreviewItem) => {
+    const combined = `${foodNameVal} ${ingredientsVal}`.toLowerCase();
+    const highRiskKeywords = [
+      "santan", "susu", "krim", "cream", "vla", "mayones", "mayo",
+      "sushi", "sashimi", "mentah", "gulai", "opor", "rendang", "lodeh", "soto betawi", "cendol",
+    ];
+    const lowRiskKeywords = [
+      "roti", "croissant", "donat", "pastry", "bolu", "brownies", "kue kering", "cookies", "baguette",
+    ];
+    if (highRiskKeywords.some((k) => combined.includes(k))) {
+      return { category: "HIGH_PERISHABILITY", bpom_max_hours: 4.0 };
+    }
+    if (lowRiskKeywords.some((k) => combined.includes(k))) {
+      return { category: "LOW_PERISHABILITY", bpom_max_hours: 24.0 };
+    }
+    return {
+      category: fallback.category === "HIGH_PERISHABILITY" || fallback.category === "LOW_PERISHABILITY"
+        ? "MEDIUM_PERISHABILITY"
+        : fallback.category,
+      bpom_max_hours: 8.0,
+    };
+  };
+
+  const handleUpdateBulkItem = (
+    idx: number,
+    patch: Partial<BulkMenuImportPreviewItem>
+  ) => {
+    setBulkPreviewItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== idx) return item;
+        const next = { ...item, ...patch };
+        if (patch.ingredients !== undefined || patch.food_name !== undefined) {
+          const bpom = inferPreviewBpom(next.food_name, next.ingredients, item);
+          next.category = bpom.category;
+          next.bpom_max_hours = bpom.bpom_max_hours;
+        }
+        return next;
+      })
+    );
+  };
+
+  const handleRemoveBulkItem = (idx: number) => {
+    setBulkPreviewItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleBulkSaveAll = async () => {
+    const validItems = bulkPreviewItems.filter(
+      (it) =>
+        it.can_save &&
+        it.food_name.trim().length >= 2 &&
+        it.ingredients.trim().length >= 3 &&
+        it.original_price >= 1000
+    );
+    if (validItems.length === 0) {
+      setErrorMsg("Tidak ada menu valid untuk disimpan. Pastikan nama, harga (>= Rp 1.000), dan komposisi terisi.");
+      return;
+    }
+    try {
+      setBulkSaving(true);
+      setErrorMsg(null);
+      await bulkCreateStoreMenuItems(
+        storeId,
+        validItems.map((it) => ({
+          food_name: it.food_name.trim(),
+          original_price: Math.max(1000, Math.min(2000000, Math.round(it.original_price))),
+          ingredients: it.ingredients.trim(),
+          typical_cooking_time: it.typical_cooking_time || "16:00",
+          default_hours_cooked: 1.0,
+        }))
+      );
+      setSuccessMsg(`Berhasil menyimpan ${validItems.length} menu sekaligus ke Buku Menu Gerai!`);
+      setBulkText("");
+      handleRemoveBulkImage();
+      setBulkPreviewItems([]);
+      await loadMenu();
+      if (onMenuUpdated) onMenuUpdated();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal menyimpan menu massal.";
+      setErrorMsg(msg);
+    } finally {
+      setBulkSaving(false);
+    }
+  };
 
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -144,6 +314,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
   };
 
   const handleStartEdit = (item: StoreMenuItem) => {
+    setInputMode("single");
     setEditingMenuId(item.id);
     setFoodName(item.food_name);
     setPrice(String(item.original_price));
@@ -265,8 +436,304 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
               {errorMsg}
             </div>
           )}
+          {successMsg && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                {successMsg}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSuccessMsg(null)}
+                className="text-emerald-700 hover:text-emerald-900 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
-          {/* Form Tambah Menu Rutin */}
+          {/* Mode Toggle Tabs */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-200/70 rounded-xl">
+            <button
+              type="button"
+              onClick={() => {
+                setInputMode("single");
+                setErrorMsg(null);
+              }}
+              className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                inputMode === "single"
+                  ? "bg-white text-[#181C2E] shadow-xs"
+                  : "text-[#646982] hover:text-[#181C2E]"
+              }`}
+            >
+              <Plus className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Tambah Satuan</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setInputMode("bulk");
+                setEditingMenuId(null);
+                setErrorMsg(null);
+              }}
+              className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                inputMode === "bulk"
+                  ? "bg-white text-[#181C2E] shadow-xs"
+                  : "text-[#646982] hover:text-[#181C2E]"
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Impor Massal (Teks / Foto AI)</span>
+            </button>
+          </div>
+
+          {inputMode === "bulk" ? (
+            <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-bold text-xs uppercase tracking-wider text-[#181C2E] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Impor Daftar Menu Lengkap via AI</span>
+                </h3>
+                {bulkPreviewItems.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setBulkPreviewItems([])}
+                    className="text-xs font-bold text-[#646982] hover:text-[#181C2E] cursor-pointer"
+                  >
+                    Reset Pratinjau
+                  </button>
+                )}
+              </div>
+
+              <p className="text-xs text-[#646982] bg-[#F0F5FA] rounded-xl px-3 py-2 flex items-start gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span>
+                  Tempel daftar menu (teks) dan/atau unggah foto buku menu. AI otomatis mengekstrak nama, harga, estimasi komposisi, serta batas simpan BPOM untuk Anda tinjau sebelum disimpan sekaligus.
+                </span>
+              </p>
+
+              {bulkPreviewItems.length === 0 ? (
+                <>
+                  <div>
+                    <label htmlFor="bulk-menu-text" className="block text-xs font-semibold text-[#646982] mb-1">
+                      Daftar Menu (Teks / Copy-Paste)
+                    </label>
+                    <textarea
+                      id="bulk-menu-text"
+                      rows={4}
+                      placeholder={"Contoh:\nNasi Goreng Spesial 25rb\nAyam Bakar Madu 28rb\nGulai Kambing 35rb\nRoti Keju 12rb, Es Teh Manis 6rb"}
+                      value={bulkText}
+                      onChange={(e) => setBulkText(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-[#F0F5FA] focus:bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 transition resize-y"
+                    />
+                  </div>
+
+                  {/* Photo Upload for Menu Book */}
+                  <div>
+                    <label htmlFor="bulk-menu-photo" className="block text-xs font-semibold text-[#646982] mb-1.5">
+                      Atau Unggah Foto Buku Menu (Opsional)
+                    </label>
+                    <div className="flex items-center gap-3">
+                      {bulkImagePreview ? (
+                        <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
+                          <img src={bulkImagePreview} alt="Foto Buku Menu" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={handleRemoveBulkImage}
+                            className="absolute top-1 right-1 p-0.5 bg-black/60 hover:bg-black/80 text-white rounded-lg transition cursor-pointer"
+                            title="Hapus Foto"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label
+                          htmlFor="bulk-menu-photo"
+                          className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50/50 flex flex-col items-center justify-center cursor-pointer transition shrink-0 text-[#A0A5BA] hover:text-emerald-600"
+                        >
+                          <Upload className="w-5 h-5 mb-0.5" />
+                          <span className="text-[11px] font-semibold">Foto Menu</span>
+                          <input
+                            id="bulk-menu-photo"
+                            ref={bulkFileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            onChange={handleBulkImageChange}
+                          />
+                        </label>
+                      )}
+                      <div className="text-xs text-[#646982]">
+                        {bulkImageFile ? (
+                          <p className="font-semibold text-emerald-700">
+                            Foto buku menu siap dibaca AI ({Math.round(bulkImageFile.size / 1024)} KB)
+                          </p>
+                        ) : (
+                          <p>Unggah foto daftar menu yang jelas (JPG, PNG, WebP). Bisa digabung dengan teks di atas.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleBulkAnalyze}
+                    disabled={bulkAnalyzing || (!bulkText.trim() && !bulkImageFile)}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  >
+                    {bulkAnalyzing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>AI Sedang Membaca & Mengecek BPOM...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        <span>Analisis Daftar Menu dengan AI</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-[#181C2E]">
+                      Pratinjau 1-Tap Confirmation ({bulkPreviewItems.length} Menu)
+                    </span>
+                    <span className="text-[#646982]">Edit jika perlu, lalu simpan semua</span>
+                  </div>
+
+                  <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
+                    {bulkPreviewItems.map((item, idx) => {
+                      const isHigh = item.category === "HIGH_PERISHABILITY";
+                      const isLow = item.category === "LOW_PERISHABILITY";
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-xl border space-y-2 ${
+                            item.can_save
+                              ? "bg-[#FAFBFC] border-slate-200"
+                              : "bg-red-50/70 border-red-200"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <div className="sm:col-span-2">
+                                <label className="block text-[10px] font-bold uppercase text-[#646982] mb-0.5">
+                                  Nama Menu
+                                </label>
+                                <input
+                                  type="text"
+                                  value={item.food_name}
+                                  onChange={(e) =>
+                                    handleUpdateBulkItem(idx, { food_name: e.target.value })
+                                  }
+                                  className="w-full px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold uppercase text-[#646982] mb-0.5">
+                                  Harga (Rp)
+                                </label>
+                                <input
+                                  type="number"
+                                  min={1000}
+                                  max={2000000}
+                                  step={500}
+                                  value={item.original_price || ""}
+                                  onChange={(e) => {
+                                    const raw = parseInt(e.target.value, 10);
+                                    handleUpdateBulkItem(idx, {
+                                      original_price: Number.isNaN(raw) ? 0 : Math.min(2000000, Math.max(0, raw)),
+                                    });
+                                  }}
+                                  onBlur={() => {
+                                    if (!item.original_price || item.original_price < 1000) {
+                                      handleUpdateBulkItem(idx, { original_price: 1000 });
+                                    }
+                                  }}
+                                  className="w-full px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white text-[#181C2E] tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                />
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveBulkItem(idx)}
+                              className="p-1.5 mt-4 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
+                              title="Hapus dari pratinjau"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[#646982] mb-0.5">
+                              Komposisi / Bahan Utama (Auto AI — bisa diedit)
+                            </label>
+                            <input
+                              type="text"
+                              value={item.ingredients}
+                              onChange={(e) =>
+                                handleUpdateBulkItem(idx, { ingredients: e.target.value })
+                              }
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white text-[#181C2E] focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px]">
+                            {item.can_save ? (
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold ${
+                                  isHigh
+                                    ? "bg-amber-100 text-amber-800"
+                                    : isLow
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-sky-100 text-sky-800"
+                                }`}
+                              >
+                                <ShieldCheck className="w-3 h-3" />
+                                BPOM Maks {item.bpom_max_hours}j ({item.food_type})
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold bg-red-100 text-red-700">
+                                <AlertTriangle className="w-3 h-3" />
+                                Ditolak: {item.safety_reason}
+                              </span>
+                            )}
+                            <span className="text-[#A0A5BA] truncate max-w-[160px]">
+                              Ref: {item.canonical_bpom_dish}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleBulkSaveAll}
+                    disabled={bulkSaving || bulkPreviewItems.filter((i) => i.can_save).length === 0}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  >
+                    {bulkSaving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Menyimpan Semua Menu...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>
+                          Simpan Semua ({bulkPreviewItems.filter((i) => i.can_save).length} Menu) ke Buku Menu
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+          /* Form Tambah Menu Rutin */
           <form onSubmit={handleCreate} className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3">
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-bold text-xs uppercase tracking-wider text-[#181C2E] flex items-center gap-1.5">
@@ -321,7 +788,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
 
               <div>
                 <span className="block text-xs font-semibold text-[#646982] mb-1">
-                  Jam Masak (24 Jam) <span className="text-red-500">*</span>
+                  Jam Masak Default (Opsional)
                 </span>
                 <div className="grid grid-cols-2 gap-2">
                   <select
@@ -451,6 +918,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
               </span>
             </button>
           </form>
+          )}
 
           {/* Daftar Menu Aktif */}
           <div>
