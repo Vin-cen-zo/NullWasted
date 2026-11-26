@@ -324,29 +324,29 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
         {modalStep === "DETAIL" ? (
           <>
             {/* Top Handle / Close (Figma Food Details_01 Style) */}
-            <div className="flex items-center justify-between pb-1 shrink-0">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-2 pb-1 shrink-0">
+              <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-10 h-10 rounded-lg bg-[#ECF0F4] text-[#181C2E] hover:bg-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[#ECF0F4] text-[#181C2E] hover:bg-slate-200 flex items-center justify-center transition-colors cursor-pointer shrink-0"
                   aria-label="Tutup"
                 >
                   <X className="w-4 h-4" />
                 </button>
-                <span className="text-[18px] font-bold text-[#181C2E]">Detail Hidangan</span>
+                <span className="text-base sm:text-[18px] font-bold text-[#181C2E] whitespace-nowrap">Detail Hidangan</span>
               </div>
-              <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                <span className="text-[11px] font-extrabold tracking-wider text-white bg-[#181C2E] px-2.5 py-1 rounded-lg">
+              <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap justify-end">
+                <span className="text-[10px] sm:text-[11px] font-extrabold tracking-wider text-white bg-[#181C2E] px-2 sm:px-2.5 py-1 rounded-lg whitespace-nowrap">
                   {item.discount_percent}% OFF
                 </span>
                 {item.is_bundle ? (
-                  <span className="text-[11px] font-bold text-purple-900 bg-purple-100 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                  <span className="text-[10px] sm:text-[11px] font-bold text-purple-900 bg-purple-100 px-2 sm:px-2.5 py-1 rounded-lg flex items-center gap-1 whitespace-nowrap">
                     <Package className="w-3.5 h-3.5" />
                     Mystery Bag
                   </span>
                 ) : (
-                  <span className="text-[11px] font-bold text-[#646982] bg-[#F0F5FA] px-2.5 py-1 rounded-lg">
+                  <span className="text-[10px] sm:text-[11px] font-bold text-[#646982] bg-[#F0F5FA] px-2 sm:px-2.5 py-1 rounded-lg whitespace-nowrap">
                     {getFriendlyCategory(item.category).label}
                   </span>
                 )}
@@ -443,11 +443,11 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
             )}
 
             {/* Location & Map Link */}
-            <div className="bg-[#F0F5FA] p-3.5 rounded-xl flex items-center justify-between text-sm">
+            <div className="bg-[#F0F5FA] p-3.5 rounded-xl flex items-center justify-between gap-2.5 text-sm">
               <div className="flex items-center gap-2.5 min-w-0">
                 <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
                 <div className="min-w-0">
-                  <p className="font-semibold text-[#181C2E] truncate">{cleanLocationBadge(item.location_badge)}</p>
+                  <p className="font-semibold text-[#181C2E] leading-snug line-clamp-2">{cleanLocationBadge(item.location_badge)}</p>
                   <p className="text-[13px] text-[#646982]">Self-Pickup sebelum gerai tutup</p>
                 </div>
               </div>

@@ -675,13 +675,13 @@ export const App: React.FC = () => {
 
       {/* Sticky Top Navbar */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-[0_4px_20px_rgba(150,150,154,0.06)] shrink-0">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-2 sm:gap-4 w-full">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4 w-full">
           {/* Sisi Kiri: Brand & Identity */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            <NullWastedLogo className="w-10 h-10" />
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <NullWastedLogo className="w-8 h-8 sm:w-10 sm:h-10 shrink-0" />
             <div className="min-w-0">
               <h1
-                className="text-[20px] tracking-[0.05em] leading-none uppercase truncate"
+                className="text-[18px] sm:text-[20px] tracking-[0.04em] sm:tracking-[0.05em] leading-none uppercase whitespace-nowrap"
                 style={{ fontFamily: "'Bebas Neue', sans-serif" }}
               >
                 <span className="text-[#222222]">NULL</span>
@@ -692,17 +692,17 @@ export const App: React.FC = () => {
                   {session.role === "merchant" ? (
                     <>
                       <Store className="w-3 h-3 text-emerald-600 shrink-0" />
-                      <span className="truncate max-w-[96px] sm:max-w-[160px] md:max-w-xs">{session.storeName}</span>
+                      <span className="truncate max-w-[145px] sm:max-w-[180px] md:max-w-xs">{session.storeName}</span>
                     </>
                   ) : (
                     <>
                       <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                      <span className="truncate max-w-[96px] sm:max-w-[160px] md:max-w-xs">{session.customerName}</span>
+                      <span className="truncate max-w-[145px] sm:max-w-[180px] md:max-w-xs">{session.customerName}</span>
                     </>
                   )}
                 </div>
               ) : (
-                <p className="text-[11px] text-[#646982] truncate">Zero-Waste Food PWA</p>
+                <p className="text-[11px] text-[#646982] truncate max-w-[145px] sm:max-w-[180px] md:max-w-xs">Zero-Waste Food PWA</p>
               )}
             </div>
           </div>
@@ -807,7 +807,7 @@ export const App: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleOpenProfile}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#F0F5FA] hover:bg-emerald-50 text-[11px] sm:text-xs font-bold text-[#181C2E] transition-colors shrink-0 cursor-pointer"
+                  className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[#F0F5FA] hover:bg-emerald-50 text-[11px] sm:text-xs font-bold text-[#181C2E] transition-colors shrink-0 cursor-pointer"
                   title="Edit profil & ganti password"
                   aria-label="Profil"
                 >
@@ -817,12 +817,12 @@ export const App: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#ECF0F4] hover:bg-slate-200 text-[11px] sm:text-xs font-bold text-[#181C2E] transition-colors shrink-0 cursor-pointer"
+                  className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[#ECF0F4] hover:bg-slate-200 text-[11px] sm:text-xs font-bold text-[#181C2E] transition-colors shrink-0 cursor-pointer"
                   title="Keluar dari akun"
                   aria-label="Keluar"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span>Keluar</span>
+                  <span className="hidden sm:inline">Keluar</span>
                 </button>
               </>
             ) : !showAuthScreen ? (
@@ -833,10 +833,11 @@ export const App: React.FC = () => {
                   setShowAuthScreen(true);
                   navigateToPath("/login");
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-bold transition-colors shrink-0 cursor-pointer shadow-xs"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-bold transition-colors shrink-0 cursor-pointer shadow-xs"
               >
                 <LogIn className="w-3.5 h-3.5" />
-                <span>Masuk / Daftar</span>
+                <span className="sm:hidden">Masuk</span>
+                <span className="hidden sm:inline">Masuk / Daftar</span>
               </button>
             ) : null}
           </div>
@@ -845,11 +846,14 @@ export const App: React.FC = () => {
 
       {/* Active Time Simulation Safety Banner (prevents users getting stuck in closed/empty hours) */}
       {isTimeSimulationFeatureEnabled() && isTimeSimulated() && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 shrink-0">
-          <div className="max-w-5xl mx-auto flex items-center justify-between gap-2 text-xs text-amber-950">
-            <div className="flex items-center gap-2 min-w-0">
+        <div className="bg-amber-50 border-b border-amber-200 px-3 sm:px-4 py-2 shrink-0">
+          <div className="max-w-5xl mx-auto flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-xs text-amber-950">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
               <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span className="font-semibold truncate">
+              <span className="font-semibold sm:hidden">
+                Simulasi Jam: {formatWibHHMM(getEffectiveNow())} WIB
+              </span>
+              <span className="font-semibold hidden sm:inline">
                 Mode Simulasi Jam Uji aktif ({formatWibHHMM(getEffectiveNow())} WIB) — katalog &amp; jam tutup mengikuti jam simulasi.
               </span>
             </div>
@@ -859,7 +863,7 @@ export const App: React.FC = () => {
                 resetSimulatedClock();
                 showToast("Jam dikembalikan ke waktu asli (WIB).", "success");
               }}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold shrink-0 cursor-pointer transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold shrink-0 whitespace-nowrap cursor-pointer transition-colors"
             >
               <RotateCcw className="w-3 h-3" />
               <span>Reset ke Waktu Asli</span>
