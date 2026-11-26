@@ -59,36 +59,28 @@ export function resolveBundleItemAllergens(
 
   const nameLower = foodName.toLowerCase();
   const ingLower = ingStr.toLowerCase();
-
-  // Smart culinary inference fallback
-  if (!ingStr || ingStr.trim().length === 0) {
-    if (nameLower.includes("croissant") || nameLower.includes("roti") || nameLower.includes("pastry") || nameLower.includes("donut") || nameLower.includes("cake")) {
-      ingStr = "Tepung terigu, mentega, susu, ragi, telur";
-    } else if (nameLower.includes("rendang") || nameLower.includes("gulai") || nameLower.includes("opor") || nameLower.includes("santan")) {
-      ingStr = "Daging, santan kelapa murni, cabai, bumbu rempah nusantara";
-    } else if (nameLower.includes("bento") || nameLower.includes("ayam") || nameLower.includes("nasi")) {
-      ingStr = "Beras, daging ayam segar, kecap kedelai, rempah dapur";
-    } else {
-      ingStr = "Bahan pangan segar olahan dapur pilihan";
-    }
-  }
+  const hasExplicitIngredients = ingStr.trim().length > 0;
 
   const tags = new Set<string>();
   if (Array.isArray(rawTags) && rawTags.length > 0) {
     rawTags.forEach((t) => tags.add(t));
   }
 
-  const combined = `${nameLower} ${ingLower} ${ingStr.toLowerCase()}`;
-  if (combined.includes("santan") || combined.includes("kelapa")) tags.add("Santan/Kelapa");
-  if (combined.includes("susu") || combined.includes("keju") || combined.includes("mentega") || combined.includes("butter") || combined.includes("dairy")) tags.add("Susu/Dairy");
-  if (combined.includes("telur")) tags.add("Telur");
-  if (combined.includes("terigu") || combined.includes("gandum") || combined.includes("roti") || combined.includes("pastry") || combined.includes("croissant")) tags.add("Gluten/Tepung");
-  if (combined.includes("kacang")) tags.add("Kacang");
-  if (combined.includes("kedelai") || combined.includes("kecap") || combined.includes("tahu") || combined.includes("tempe")) tags.add("Kedelai");
-  if (combined.includes("ikan") || combined.includes("udang") || combined.includes("seafood")) tags.add("Seafood/Ikan");
+  if (hasExplicitIngredients) {
+    const combined = `${nameLower} ${ingLower}`;
+    if (combined.includes("santan") || combined.includes("kelapa")) tags.add("Santan/Kelapa");
+    if (combined.includes("susu") || combined.includes("keju") || combined.includes("mentega") || combined.includes("butter") || combined.includes("dairy")) tags.add("Susu/Dairy");
+    if (combined.includes("telur")) tags.add("Telur");
+    if (combined.includes("terigu") || combined.includes("gandum") || combined.includes("roti") || combined.includes("pastry") || combined.includes("croissant")) tags.add("Gluten/Tepung");
+    if (combined.includes("kacang")) tags.add("Kacang");
+    if (combined.includes("kedelai") || combined.includes("kecap") || combined.includes("tahu") || combined.includes("tempe")) tags.add("Kedelai");
+    if (combined.includes("ikan") || combined.includes("udang") || combined.includes("seafood")) tags.add("Seafood/Ikan");
+  }
 
   return {
-    ingredients: ingStr,
+    ingredients: hasExplicitIngredients
+      ? ingStr
+      : "Komposisi belum dicantumkan gerai — konfirmasi ke kasir saat pengambilan",
     tags: Array.from(tags),
   };
 }
@@ -100,7 +92,7 @@ export const ConsumerDetailModal: React.FC<ConsumerDetailModalProps> = ({
   onAddToCart,
   onQrisPaid,
   customerName = "Konsumen NullWasted",
-  customerPhone = "0812-8899-0011",
+  customerPhone = "",
   isReserving,
   isGuest = false,
   onRequireLogin,

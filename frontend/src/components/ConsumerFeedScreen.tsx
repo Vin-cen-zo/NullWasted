@@ -262,6 +262,8 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
         <button
           type="button"
           onClick={() => setIsMapOpen(true)}
+          aria-label={`Buka Peta Gerai (${activeNonExpiredListings.length} menu aktif)`}
+          title="Buka Peta Gerai"
           className="relative flex items-center gap-2 h-11 px-4 rounded-lg bg-[#181C2E] hover:bg-[#252a44] text-white text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
         >
           <MapIcon className="w-4 h-4" />

@@ -217,7 +217,7 @@ async def create_qris_payment(
         else f"{first_item.food_name} + {len(cart_items_payload) - 1} menu lainnya"
     )
     customer = payload.customer_name.strip() or "Konsumen NullWasted"
-    phone = payload.customer_phone.strip() or "0812-8899-0011"
+    phone = payload.customer_phone.strip() or ""
     qr_payload = f"NULLWASTED|ORDER:{order_code}|STORE:{first_item.store_id}|QTY:{total_qty}|USER:{customer}"
 
     # Call Midtrans Core API Sandbox / Production

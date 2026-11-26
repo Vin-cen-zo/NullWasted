@@ -86,7 +86,7 @@ def init_db() -> None:
                     if "customer_name" not in order_cols:
                         conn.execute(text("ALTER TABLE order_tickets ADD COLUMN customer_name TEXT DEFAULT 'Konsumen NullWasted'"))
                     if "customer_phone" not in order_cols:
-                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN customer_phone TEXT DEFAULT '0812-8899-0011'"))
+                        conn.execute(text("ALTER TABLE order_tickets ADD COLUMN customer_phone TEXT DEFAULT ''"))
                     if "payment_method" not in order_cols:
                         conn.execute(text("ALTER TABLE order_tickets ADD COLUMN payment_method TEXT DEFAULT 'CASH_ON_PICKUP'"))
                     if "payment_status" not in order_cols:

@@ -95,9 +95,9 @@ class PublishRequest(BaseModel):
 class ReserveOrderRequest(BaseModel):
     listing_id: str
     quantity: int = Field(default=1, ge=1, le=200)
-    customer_name: str = Field(default="Budi Santoso", min_length=1)
-    customer_phone: str = Field(default="0812-8899-0011")
-    payment_method: str = Field(default="CASH_ON_PICKUP")  # "CASH_ON_PICKUP" | "MIDTRANS_QRIS" | "SIMULATED_QRIS"
+    customer_name: str = Field(default="Konsumen NullWasted", min_length=1)
+    customer_phone: str = Field(default="")
+    payment_method: str = Field(default="CASH_ON_PICKUP")  # "CASH_ON_PICKUP" | "MIDTRANS_QRIS"
 
 
 class CartOrderItemRequest(BaseModel):
@@ -107,8 +107,8 @@ class CartOrderItemRequest(BaseModel):
 
 class ReserveCartRequest(BaseModel):
     items: list[CartOrderItemRequest] = Field(..., min_length=1, max_length=30)
-    customer_name: str = Field(default="Budi Santoso", min_length=1)
-    customer_phone: str = Field(default="0812-8899-0011")
+    customer_name: str = Field(default="Konsumen NullWasted", min_length=1)
+    customer_phone: str = Field(default="")
     payment_method: str = Field(default="CASH_ON_PICKUP")
 
 
@@ -401,7 +401,7 @@ class QrisCreateRequest(BaseModel):
     quantity: int = Field(default=1, ge=1, le=200)
     items: Optional[list[CartOrderItemRequest]] = None
     customer_name: str = Field(default="Konsumen NullWasted", min_length=1)
-    customer_phone: str = Field(default="0812-8899-0011")
+    customer_phone: str = Field(default="")
 
 
 class QrisCreateResponse(BaseModel):

@@ -973,7 +973,7 @@ export const MerchantCatalogModal: React.FC<MerchantCatalogModalProps> = ({
                               }`}
                             >
                               <ShieldCheck className={`w-2.5 h-2.5 ${isHighRisk ? "text-amber-600" : "text-emerald-600"}`} />
-                              <span>Maks {item.bpom_max_hours}j</span>
+                              <span>BPOM · Maks {item.bpom_max_hours}j</span>
                             </span>
                           </div>
                           <div className="text-xs text-[#646982] flex items-center gap-2.5 mt-1 flex-wrap">
