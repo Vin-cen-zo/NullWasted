@@ -190,9 +190,12 @@ export const ConsumerOrdersScreen: React.FC<ConsumerOrdersScreenProps> = ({
 
   const handleCancelClick = async (orderId: string) => {
     if (!onCancelOrder || cancellingId) return;
-    const confirmed = window.confirm(
-      "Apakah Anda yakin ingin membatalkan pesanan ini? Stok makanan akan segera dikembalikan ke katalog gerai."
-    );
+    const targetTicket = orders.find((o) => o.id === orderId);
+    const isPaidQris = targetTicket?.payment_status === "PAID";
+    const confirmMsg = isPaidQris
+      ? `PERINGATAN: Pesanan ${targetTicket.order_code} sudah LUNAS via QRIS (Rp ${targetTicket.total_price.toLocaleString("id-ID")}). Membatalkan pesanan ini akan menandai status pembayaran sebagai REFUNDED dan mengembalikan stok ke katalog gerai. Lanjutkan?`
+      : "Apakah Anda yakin ingin membatalkan pesanan ini? Stok makanan akan segera dikembalikan ke katalog gerai.";
+    const confirmed = window.confirm(confirmMsg);
     if (!confirmed) return;
 
     try {
