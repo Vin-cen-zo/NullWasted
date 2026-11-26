@@ -33,8 +33,11 @@ import {
 import {
   NW_CLOCK_CHANGE_EVENT,
   computeEffectiveSecondsUntilClosing,
+  formatWibHHMM,
   getEffectiveNow,
+  isTimeSimulated,
   isTimeSimulationFeatureEnabled,
+  resetSimulatedClock,
 } from "./utils/clock";
 import {
   PlusCircle,
@@ -48,6 +51,8 @@ import {
   Store,
   UserCircle2,
   ShoppingCart,
+  Clock,
+  RotateCcw,
 } from "lucide-react";
 
 export const App: React.FC = () => {
@@ -490,6 +495,7 @@ export const App: React.FC = () => {
       setLastInputText("");
       await refreshListings();
       setMerchantTab("inventory");
+      navigateToPath("/merchant/inventory");
       showToast("Listing resmi berhasil diterbitkan ke marketplace!", "success");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Gagal menerbitkan.", "error");
@@ -617,8 +623,8 @@ export const App: React.FC = () => {
 
     setIsReserving(true);
     try {
-      const custName = session.customerName || "Budi Santoso";
-      const custPhone = session.customerPhone || "0812-8899-0011";
+      const custName = session.customerName || "Konsumen NullWasted";
+      const custPhone = session.customerPhone || "";
       const ticket = await reserveCartOrder(
         cartItems.map((c) => ({ listing_id: c.listing.id, quantity: c.quantity })),
         custName,
@@ -836,6 +842,31 @@ export const App: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* Active Time Simulation Safety Banner (prevents users getting stuck in closed/empty hours) */}
+      {isTimeSimulationFeatureEnabled() && isTimeSimulated() && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 shrink-0">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-2 text-xs text-amber-950">
+            <div className="flex items-center gap-2 min-w-0">
+              <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span className="font-semibold truncate">
+                Mode Simulasi Jam Uji aktif ({formatWibHHMM(getEffectiveNow())} WIB) — katalog &amp; jam tutup mengikuti jam simulasi.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                resetSimulatedClock();
+                showToast("Jam dikembalikan ke waktu asli (WIB).", "success");
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold shrink-0 cursor-pointer transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset ke Waktu Asli</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Dynamic Screen Viewport */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-4 md:py-6 flex flex-col pb-24 md:pb-10">
@@ -1162,7 +1193,7 @@ export const App: React.FC = () => {
               <ConsumerFeedScreen
                 listings={activeListings}
                 onSelectItem={(item) => setSelectedFeedItem(item)}
-                customerName={session.customerName || "Budi Santoso"}
+                customerName={session.customerName || "Konsumen NullWasted"}
                 favoriteStoreIds={favoriteStoreIds}
                 onToggleFavoriteStore={handleToggleFavoriteStore}
                 onOpenStoreProfile={handleOpenStoreProfile}
@@ -1173,7 +1204,7 @@ export const App: React.FC = () => {
               <ConsumerOrdersScreen
                 orders={activeOrders}
                 listings={activeListings}
-                customerName={session.customerName || "Budi Santoso"}
+                customerName={session.customerName || "Konsumen NullWasted"}
                 onCancelOrder={handleCancelOrder}
                 onRefreshOrders={refreshOrders}
               />
@@ -1198,7 +1229,7 @@ export const App: React.FC = () => {
                 showToast(`Pembayaran QRIS lunas! Tiket ${orderCode} siap diambil.`, "success");
               }}
               customerName={session.customerName || "Konsumen NullWasted"}
-              customerPhone={session.customerPhone || "0812-8899-0011"}
+              customerPhone={session.customerPhone || ""}
               isReserving={isReserving}
               onOpenStoreProfile={handleOpenStoreProfile}
             />
@@ -1242,11 +1273,32 @@ export const App: React.FC = () => {
         <ConsumerCartModal
           isOpen={isCartOpen}
           items={cartItems}
-          onClose={() => setIsCartOpen(false)}
+          onClose={() => {
+            setIsCartOpen(false);
+            void refreshOrders();
+            void refreshListings();
+          }}
           onUpdateQty={handleUpdateCartQty}
           onRemoveItem={(lid) => setCartItems((prev) => prev.filter((c) => c.listing.id !== lid))}
           onClearCart={() => setCartItems([])}
           onCheckout={handleCheckoutCart}
+          onRequireLogin={() => {
+            setIsCartOpen(false);
+            setLoginNotice("Masuk sebagai Konsumen untuk menyelesaikan checkout keranjang Anda.");
+            setShowAuthScreen(true);
+            navigateToPath("/login");
+          }}
+          onQrisPaid={async (orderCode) => {
+            setCartItems([]);
+            setIsCartOpen(false);
+            await refreshListings();
+            await refreshOrders();
+            setConsumerTab("orders");
+            navigateToPath("/orders");
+            showToast(`Pembayaran QRIS keranjang lunas! Tiket ${orderCode} siap diambil.`, "success");
+          }}
+          customerName={session?.customerName || "Konsumen NullWasted"}
+          customerPhone={session?.customerPhone || ""}
           isCheckingOut={isReserving}
           isGuest={!session}
         />

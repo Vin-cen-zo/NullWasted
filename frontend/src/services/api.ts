@@ -610,8 +610,8 @@ export async function deleteListing(listingId: string): Promise<{ status: string
 export async function reserveOrder(
   listingId: string,
   quantity: number = 1,
-  customerName: string = "Budi Santoso",
-  customerPhone: string = "0812-8899-0011",
+  customerName: string = "Konsumen NullWasted",
+  customerPhone: string = "",
   paymentMethod: string = "CASH_ON_PICKUP"
 ): Promise<OrderTicket> {
   const res = await apiFetch("/orders/reserve", {
@@ -634,8 +634,8 @@ export async function reserveOrder(
 
 export async function reserveCartOrder(
   items: Array<{ listing_id: string; quantity: number }>,
-  customerName: string = "Budi Santoso",
-  customerPhone: string = "0812-8899-0011",
+  customerName: string = "Konsumen NullWasted",
+  customerPhone: string = "",
   paymentMethod: string = "CASH_ON_PICKUP"
 ): Promise<OrderTicket> {
   const res = await apiFetch("/orders/reserve-cart", {
