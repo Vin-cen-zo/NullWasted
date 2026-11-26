@@ -219,13 +219,13 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
   return (
     <div className="flex-1 flex flex-col space-y-5">
       {/* Top Location & Map Bar (Figma Home_01 Style) */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-start sm:items-center justify-between gap-3">
+        <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0">
           <button
             type="button"
             onClick={requestLiveGps}
             disabled={isGpsLoading}
-            className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg flex items-center justify-center shrink-0 transition-all cursor-pointer ${
               gpsStatus === "LIVE_GPS"
                 ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25"
                 : "bg-[#ECF0F4] text-[#181C2E] hover:bg-slate-200"
@@ -242,9 +242,9 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
             <button
               type="button"
               onClick={requestLiveGps}
-              className="text-sm font-medium text-[#646982] hover:text-[#181C2E] truncate flex items-center gap-1 cursor-pointer"
+              className="text-xs sm:text-sm font-medium text-[#646982] hover:text-[#181C2E] text-left leading-snug flex items-center gap-1 cursor-pointer"
             >
-              <span className="truncate">
+              <span>
                 {isGpsLoading
                   ? "Mencari koordinat GPS..."
                   : gpsStatus === "LIVE_GPS"
@@ -253,7 +253,7 @@ export const ConsumerFeedScreen: React.FC<ConsumerFeedScreenProps> = ({
               </span>
             </button>
             {gpsNotice && (
-              <span className="text-xs font-medium text-amber-600 block truncate">{gpsNotice}</span>
+              <span className="text-[11px] sm:text-xs font-medium text-amber-600 block leading-snug mt-0.5">{gpsNotice}</span>
             )}
           </div>
         </div>

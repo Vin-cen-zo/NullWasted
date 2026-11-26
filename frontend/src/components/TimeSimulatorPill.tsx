@@ -84,7 +84,7 @@ export const TimeSimulatorPill: React.FC = () => {
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         title="Klik untuk membuka Simulator Jam Uji WIB"
-        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] sm:text-sm font-semibold tabular-nums border transition-all active:scale-95 ${
+        className={`inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold tabular-nums border transition-all active:scale-95 ${
           simulated
             ? "bg-amber-50 text-amber-800 border-amber-300 shadow-xs"
             : "bg-[#F0F5FA] text-[#222222] border-slate-200 hover:border-emerald-500/50"
@@ -92,9 +92,9 @@ export const TimeSimulatorPill: React.FC = () => {
       >
         <Clock className={`w-3.5 h-3.5 shrink-0 ${simulated ? "text-amber-600" : "text-emerald-600"}`} />
         <span className="hidden sm:inline">{formatWibClock(nowDate, true)}</span>
-        <span className="sm:hidden">{formatWibHHMM(nowDate)} WIB</span>
+        <span className="sm:hidden">{formatWibHHMM(nowDate)}</span>
         {simulated && (
-          <span className="px-1.5 py-0.5 rounded-md bg-amber-200/80 text-amber-900 text-[9px] font-extrabold uppercase tracking-wider">
+          <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-md bg-amber-200/80 text-amber-900 text-[9px] font-extrabold uppercase tracking-wider">
             Simulasi
           </span>
         )}

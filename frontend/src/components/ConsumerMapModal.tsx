@@ -370,27 +370,31 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
     >
       <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col h-[85vh] sm:h-[82vh]">
         {/* Header */}
-        <div className="bg-white border-b border-slate-200 px-5 py-3.5 flex items-center justify-between gap-2 shrink-0">
+        <div className="bg-white border-b border-slate-200 px-3.5 sm:px-5 py-3 sm:py-3.5 flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-lg bg-[#F0F5FA] flex items-center justify-center shrink-0">
               <MapPin className="w-4 h-4 text-emerald-600" />
             </div>
             <div className="min-w-0">
-              <h2 className="font-bold text-sm text-[#181C2E] truncate">Peta Gerai Makanan Surplus</h2>
+              <h2 className="font-bold text-sm text-[#181C2E] truncate">
+                <span className="sm:hidden">Peta Gerai</span>
+                <span className="hidden sm:inline">Peta Gerai Makanan Surplus</span>
+              </h2>
               <p className="text-xs text-[#646982] truncate">
-                {storeMap.size} gerai terpin di peta · OpenStreetMap Explorer
+                {storeMap.size} gerai terpin<span className="hidden sm:inline"> di peta · OpenStreetMap Explorer</span>
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {storeMap.size > 0 && (
               <button
                 type="button"
                 onClick={fitAllPinnedStores}
-                className="px-3 py-1.5 rounded-xl bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#F0F5FA] hover:bg-slate-200/70 text-[#181C2E] text-xs font-bold flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap"
               >
                 <Maximize2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Lihat Semua ({storeMap.size})</span>
+                <span className="sm:hidden">Semua ({storeMap.size})</span>
+                <span className="hidden sm:inline">Lihat Semua ({storeMap.size})</span>
               </button>
             )}
             <button
@@ -561,14 +565,14 @@ export const ConsumerMapModal: React.FC<ConsumerMapModalProps> = React.memo(({
             )}
           </div>
         ) : (
-          <div className="px-5 py-3 bg-white border-t border-slate-200 flex items-center justify-between text-xs text-[#646982] shrink-0">
+          <div className="px-4 sm:px-5 py-3 bg-white border-t border-slate-200 flex items-center justify-between gap-2 text-xs text-[#646982] shrink-0">
             <span>
               Terdapat <strong className="text-[#181C2E]">{listings.length} hidangan aktif</strong> di sekitar Anda.
             </span>
             <button
               type="button"
               onClick={onClose}
-              className="font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
+              className="font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
             >
               <span>Lihat Daftar Feed</span>
               <ArrowRight className="w-3.5 h-3.5" />
