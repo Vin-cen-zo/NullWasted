@@ -480,7 +480,7 @@ export const MerchantInputScreen: React.FC<MerchantInputScreenProps> = ({
                             }`}
                           >
                             <ShieldCheck className={`w-2.5 h-2.5 ${isHighRisk ? "text-amber-600" : "text-emerald-600"}`} />
-                            <span>{item.bpom_max_hours}j</span>
+                            <span>BPOM {item.bpom_max_hours}j</span>
                           </span>
                         </div>
                       </div>
