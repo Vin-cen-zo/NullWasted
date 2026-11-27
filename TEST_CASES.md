@@ -30,7 +30,7 @@ npm run dev
 ### 1.3 Service Endpoints
 | Service | Endpoint | Description |
 | :--- | :--- | :--- |
-| **Frontend Web App** | `http://localhost:5173` | Progressive Web Application interface |
+| **Frontend Web App (Local / Live)** | `http://localhost:5173` / `https://nullwasted.digilabui.cloud` | Progressive Web Application interface |
 | **API Documentation** | `http://localhost:8000/docs` | OpenAPI 3.0 / Swagger schema |
 | **Health Check** | `http://localhost:8000/health` | Fast in-memory process status |
 
@@ -50,7 +50,7 @@ The local SQLite instance (`backend/nullwasted_local.db`) contains the following
 
 | Suite | Category | Functional Scope | Case Count |
 | :--- | :--- | :--- | :---: |
-| **Suite 1** | Automated Suite | Full pytest suite (`50` unit & edge-case tests), Vite/TS build, & `/health` | 3 |
+| **Suite 1** | Automated Suite & CI | Full pytest suite (`79/79` tests across 9 modules), Vite/TS build, GitHub Actions CI, & `/health` | 3 |
 | **Suite 2** | Authentication | Merchant onboarding, session caching, and consumer Email + Password verification | 4 |
 | **Suite 3** | Merchant Operations | Speech recognition, AI entity extraction, and catalog batching | 6 |
 | **Suite 4** | Safety Guardrail | PerBPOM No. 16/2019 semantic RAG, poison filtering, and time decay | 9 |

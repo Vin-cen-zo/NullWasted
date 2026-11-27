@@ -49,9 +49,6 @@ pnpm-debug.log*
 # Database & Persistent Container Volumes
 *.db
 *.sqlite3
-pgdata/
-redisdata/
-9router-data/
 
 # OS Specific
 .DS_Store
