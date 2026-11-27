@@ -987,7 +987,12 @@ def test_sprint3_non_food_poison_and_battery_rejection(client: TestClient):
     assert "bahaya" in res_pub.json()["detail"].lower() or "ditolak" in res_pub.json()["detail"].lower() or "racun" in res_pub.json()["detail"].lower()
 
     # 4. Legitimate dishes with substring 'oli' are NOT rejected by oil/oli keyword
-    eval_olio = evaluate_food_safety("Spaghetti Aglio Olio", hours_since_cooked=1.5)
+    eval_olio = evaluate_food_safety(
+        "Spaghetti Aglio Olio",
+        hours_since_cooked=1.5,
+        ai_is_edible=True,
+        ai_inferred_risk="MEDIUM_PERISHABILITY",
+    )
     assert eval_olio["safety_status"] == "SAFE"
     assert eval_olio["can_publish"] is True
 
@@ -1266,12 +1271,13 @@ def test_image_url_lifecycle_inheritance_and_adhoc_none(client: TestClient):
     draft_data = draft_res.json()
     assert draft_data["image_url"] == "/assets/foods/ayam_bakar.jpg"
 
-    # 3. Publish listing passing the inherited image_url
+    # 3. Publish listing passing the inherited image_url (pinned WIB time before 20:30 closing)
     pub_res = client.post(
         "/api/v1/listings/publish",
+        headers={"X-Simulated-Time": "19:00"},
         json={
             "store_id": "FTUI-001",
-            "food_name": draft_data["food_name"],
+            "food_name": cat_item["food_name"],
             "matched_canonical_dish": draft_data["matched_canonical_dish"],
             "category": draft_data["category"],
             "quantity": draft_data["quantity"],
@@ -1293,7 +1299,7 @@ def test_image_url_lifecycle_inheritance_and_adhoc_none(client: TestClient):
     # 4. Reserve order -> OrderTicket snapshots listing image_url
     res_order = client.post(
         "/api/v1/orders/reserve",
-        headers=_consumer_headers("Tester Image Snapshot", "0812-0007-0007"),
+        headers={**_consumer_headers("Tester Image Snapshot", "0812-0007-0007"), "X-Simulated-Time": "19:00"},
         json={
             "listing_id": pub_item["id"],
             "quantity": 1,
